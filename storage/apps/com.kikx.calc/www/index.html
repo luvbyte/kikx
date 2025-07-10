@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modern Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gradient-to-br from-red-500/60 to-purple-600/80 min-h-screen flex flex-col items-center justify-center p-4"
+  >
+    <!-- Calculator Container -->
+    <div
+      class="w-full max-w-xs bg-white bg-opacity-20 backdrop-blur-md rounded-3xl shadow-2xl p-6 text-white"
+    >
+      <!-- Display -->
+      <div class="text-right text-4xl font-light mb-4 h-16" id="display">0</div>
+
+      <!-- Buttons -->
+      <div class="grid grid-cols-4 gap-4">
+        <button
+          class="btn bg-red-400/80 hover:bg-red-500"
+          onclick="clearDisplay()"
+        >
+          C
+        </button>
+        <button
+          class="btn bg-red-400/80 hover:bg-red-500"
+          onclick="deleteLast()"
+        >
+          ⌫
+        </button>
+        <button
+          class="btn bg-red-400/80 hover:bg-red-500"
+          onclick="toggleSign()"
+        >
+          ±
+        </button>
+        <button
+          class="btn bg-purple-500/80 hover:bg-purple-600"
+          onclick="appendOperator('/')"
+        >
+          ÷
+        </button>
+
+        <button class="btn" onclick="appendNumber('7')">7</button>
+        <button class="btn" onclick="appendNumber('8')">8</button>
+        <button class="btn" onclick="appendNumber('9')">9</button>
+        <button
+          class="btn bg-purple-500/80 hover:bg-purple-600"
+          onclick="appendOperator('*')"
+        >
+          ×
+        </button>
+
+        <button class="btn" onclick="appendNumber('4')">4</button>
+        <button class="btn" onclick="appendNumber('5')">5</button>
+        <button class="btn" onclick="appendNumber('6')">6</button>
+        <button
+          class="btn bg-purple-500/80 hover:bg-purple-600"
+          onclick="appendOperator('-')"
+        >
+          −
+        </button>
+
+        <button class="btn" onclick="appendNumber('1')">1</button>
+        <button class="btn" onclick="appendNumber('2')">2</button>
+        <button class="btn" onclick="appendNumber('3')">3</button>
+        <button
+          class="btn bg-purple-500/80 hover:bg-purple-600"
+          onclick="appendOperator('+')"
+        >
+          +
+        </button>
+
+        <button class="btn col-span-2" onclick="appendNumber('0')">0</button>
+        <button class="btn" onclick="appendNumber('.')">.</button>
+        <button
+          class="btn bg-green-500/80 hover:bg-green-600"
+          onclick="calculate()"
+        >
+          =
+        </button>
+      </div>
+    </div>
+
+    <!-- Button Styles -->
+    <style>
+      .btn {
+        @apply bg-white bg-opacity-20 hover:bg-opacity-30 active:bg-opacity-40
+               text-white rounded-full text-xl font-medium py-3 px-0 transition duration-200;
+      }
+    </style>
+
+    <!-- JavaScript Logic -->
+    <script>
+      const display = document.getElementById("display");
+
+      function clearDisplay() {
+        display.textContent = "0";
+      }
+
+      function deleteLast() {
+        let text = display.textContent;
+        display.textContent = text.length > 1 ? text.slice(0, -1) : "0";
+      }
+
+      function appendNumber(num) {
+        if (display.textContent === "0" && num !== ".") {
+          display.textContent = num;
+        } else {
+          display.textContent += num;
+        }
+      }
+
+      function appendOperator(op) {
+        const lastChar = display.textContent.slice(-1);
+        if ("+-*/".includes(lastChar)) {
+          display.textContent = display.textContent.slice(0, -1) + op;
+        } else {
+          display.textContent += op;
+        }
+      }
+
+      function toggleSign() {
+        try {
+          let value = eval(display.textContent);
+          display.textContent = String(value * -1);
+        } catch {
+          display.textContent = "Error";
+        }
+      }
+
+      function calculate() {
+        try {
+          let result = eval(display.textContent);
+          display.textContent = result;
+        } catch {
+          display.textContent = "Error";
+        }
+      }
+    </script>
+  </body>
+</html>

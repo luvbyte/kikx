@@ -1,0 +1,10 @@
+{
+  "title": "KTerm",
+
+  "iframe": {
+    "allowfullscreen": true,
+    "allow": "screen-wake-lock",
+    "sandbox": "allow-scripts allow-modals allow-forms allow-orientation-lock allow-pointer-lock allow-presentation allow-downloads allow-storage-access-by-user-activation"
+  },
+  "modules": ["tasks"]
+}

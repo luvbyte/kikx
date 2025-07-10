@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Glassy Tailwind Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gradient-to-br from-red-500/60 to-purple-700/80 flex items-center justify-center min-h-screen p-4"
+  >
+    <div
+      class="bg-white/10 backdrop-blur-xl border border-white/30 shadow-lg rounded-xl w-full max-w-md p-6 text-white"
+    >
+      <!-- Navigation Controls -->
+      <div class="flex justify-between items-center mb-4">
+        <button id="prevMonth" class="text-white/80 hover:text-white text-xl">
+          &lt;
+        </button>
+
+        <div class="flex space-x-2">
+          <select
+            id="monthSelect"
+            class="bg-white/10 backdrop-blur text-white border border-white/30 rounded px-2 py-1"
+          ></select>
+          <select
+            id="yearSelect"
+            class="bg-white/10 backdrop-blur text-white border border-white/30 rounded px-2 py-1"
+          ></select>
+        </div>
+
+        <button id="nextMonth" class="text-white/80 hover:text-white text-xl">
+          &gt;
+        </button>
+      </div>
+
+      <!-- Day Headers -->
+      <div class="grid grid-cols-7 text-xs text-center text-white/80 mb-2">
+        <div>Sun</div>
+        <div>Mon</div>
+        <div>Tue</div>
+        <div>Wed</div>
+        <div>Thu</div>
+        <div>Fri</div>
+        <div>Sat</div>
+      </div>
+
+      <!-- Days Grid -->
+      <div
+        id="calendarDays"
+        class="grid grid-cols-7 gap-1 text-center text-sm"
+      ></div>
+    </div>
+
+    <script>
+      const calendarDays = document.getElementById("calendarDays");
+      const monthSelect = document.getElementById("monthSelect");
+      const yearSelect = document.getElementById("yearSelect");
+      const prevMonth = document.getElementById("prevMonth");
+      const nextMonth = document.getElementById("nextMonth");
+
+      const monthNames = [...Array(12)].map((_, i) =>
+        new Date(0, i).toLocaleString("default", { month: "long" })
+      );
+
+      let currentDate = new Date();
+
+      // Populate month dropdown
+      monthNames.forEach((month, i) => {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.text = month;
+        monthSelect.appendChild(opt);
+      });
+
+      // Populate year dropdown
+      const currentYear = new Date().getFullYear();
+      for (let y = currentYear - 100; y <= currentYear + 50; y++) {
+        const opt = document.createElement("option");
+        opt.value = y;
+        opt.text = y;
+        yearSelect.appendChild(opt);
+      }
+
+      function renderCalendar(date) {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const today = new Date();
+
+        monthSelect.value = month;
+        yearSelect.value = year;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        calendarDays.innerHTML = "";
+
+        for (let i = 0; i < firstDay; i++) {
+          calendarDays.innerHTML += `<div></div>`;
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const isToday =
+            day === today.getDate() &&
+            month === today.getMonth() &&
+            year === today.getFullYear();
+
+          calendarDays.innerHTML += `
+            <div class="p-2 rounded-full cursor-pointer transition duration-200 ease-in-out ${
+              isToday
+                ? "bg-purple-500 text-white font-bold"
+                : "text-white hover:bg-white/20"
+            }">
+              ${day}
+            </div>`;
+        }
+      }
+
+      prevMonth.addEventListener("click", () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar(currentDate);
+      });
+
+      nextMonth.addEventListener("click", () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar(currentDate);
+      });
+
+      monthSelect.addEventListener("change", () => {
+        currentDate.setMonth(parseInt(monthSelect.value));
+        renderCalendar(currentDate);
+      });
+
+      yearSelect.addEventListener("change", () => {
+        currentDate.setFullYear(parseInt(yearSelect.value));
+        renderCalendar(currentDate);
+      });
+
+      renderCalendar(currentDate);
+    </script>
+  </body>
+</html>

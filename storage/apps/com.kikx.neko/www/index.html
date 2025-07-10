@@ -1,0 +1,227 @@
+<!doctype html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    />
+
+    <!-- production
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/share/static/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.4/dist/purify.min.js"></script>
+    -->
+    <!-- dev -->
+    <script src="/share/cdn/tailwind-3.js"></script>
+    <script src="/share/static/jquery.min.js"></script>
+
+    <script src="/share/static/app.js"></script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class"
+      };
+    </script>
+  </head>
+  <body class="bg-black/60">
+    <div id="app" class="h-screen p-2 flex flex-col gap-2">
+      <!-- top bar -->
+      <div class="flex gap-2 items-center animate__animated">
+        <div class="text-white">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+          >
+            <g
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              color="currentColor"
+            >
+              <path
+                d="M20 12.5V7.818c0-1.693 0-2.54-.268-3.216c-.43-1.087-1.342-1.944-2.497-2.35C16.517 2 15.617 2 13.818 2c-3.148 0-4.722 0-5.98.441c-2.02.71-3.615 2.21-4.37 4.113C3 7.737 3 9.219 3 12.182v2.545c0 3.07 0 4.604.848 5.67q.366.461.855.805C5.81 21.982 7.39 22 10.5 22"
+              />
+              <path
+                d="M3 12a3.333 3.333 0 0 1 3.333-3.333c.666 0 1.451.116 2.098-.057A1.67 1.67 0 0 0 9.61 7.43c.173-.647.057-1.432.057-2.098A3.333 3.333 0 0 1 13 2m1.813 20c-.57-.59-2.813-2.16-2.813-3s2.244-2.41 2.813-3m3.374 6c.57-.59 2.813-2.16 2.813-3s-2.244-2.41-2.812-3"
+              />
+            </g>
+          </svg>
+        </div>
+
+        <h1 id="script-name" class="w-full truncate"></h1>
+        <!-- 
+         <button
+          id="task-input-toggle-btn"
+          onclick="toggleInputPanel()"
+          class="text-white border border-white/60 px-2 rounded active:bg-white/40"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            fill="currentColor"
+            class="bi bi-terminal-fill"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1m-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5z"
+            />
+          </svg>
+        </button>
+         -->
+         
+         <button
+          id="panel-clear-btn"
+          onclick="clearPanel()"
+          class="text-amber-500 border border-white/60 px-2 rounded active:bg-white/40"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+          >
+            <path
+              fill="currentColor"
+              d="M9 1h6v8.5h6V23H3V9.5h6zm2 2v8.5H5V14h14v-2.5h-6V3zm8 13H5v5h9v-3h2v3h3z"
+            />
+          </svg>
+        </button>
+
+        <button
+          id="task-stop-btn"
+          style="display: none"
+          onclick="killTask()"
+          class="text-red-500 border border-white/60 px-2 rounded active:bg-white/40"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            fill="currentColor"
+            class="bi bi-stop-fill"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5"
+            />
+          </svg>
+        </button>
+
+        
+        <button
+          id="task-home-btn"
+          onclick="runStartScript()"
+          class="text-blue-500 border border-white/60 px-2 rounded active:bg-white/40"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+          >
+            <path
+              fill="currentColor"
+              d="M6 19h3v-5q0-.425.288-.712T10 13h4q.425 0 .713.288T15 14v5h3v-9l-6-4.5L6 10zm-2 0v-9q0-.475.213-.9t.587-.7l6-4.5q.525-.4 1.2-.4t1.2.4l6 4.5q.375.275.588.7T20 10v9q0 .825-.588 1.413T18 21h-4q-.425 0-.712-.288T13 20v-5h-2v5q0 .425-.288.713T10 21H6q-.825 0-1.412-.587T4 19m8-6.75"
+            />
+          </svg>
+        </button>
+        <button
+          id="task-reload-btn"
+          style="display: none"
+          class="text-green-500 border border-white/60 px-2 rounded active:bg-white/40"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            fill="currentColor"
+            class="bi bi-arrow-clockwise"
+            viewBox="0 0 16 16"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
+            />
+            <path
+              d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"
+            />
+          </svg>
+        </button>
+
+        <button
+          id="task-run-btn"
+          style="display: none"
+          class="text-purple-500 border border-white/60 px-2 rounded active:bg-white/40"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            fill="currentColor"
+            class="bi bi-play"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M10.804 8 5 4.633v6.734zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696z"
+            />
+          </svg>
+        </button>
+      </div>
+      <!-- top input -->
+      <input
+        id="script-name-input"
+        style="display: none"
+        placeholder="Enter script name to run"
+        class="p-1 bg-transparent border border-white/60 rounded text-white focus:outline-none"
+      />
+
+      <!-- main panel -->
+      <div
+        id="panel"
+        class="flex-1 bg-black/40 w-full border border-white text-white text-xs overflow-auto rounded-lg rounded-tl-none rounded-br-none"
+      ></div>
+
+      <div
+        style="display: none"
+        class="relative flex py-1 gap-1 items-center bg-gray-500/40 border rounded text-white p-1"
+        id="task-input-panel"
+      >
+        <input
+          id="task-input-box"
+          class="w-full bg-transparent focus:outline-none"
+        />
+        <button onclick="_sendUserInput()">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+          >
+            <g fill="none">
+              <path
+                fill="currentColor"
+                d="m7.24 4.535l11.944 5.658c1.525.722 1.525 2.892 0 3.614L7.24 19.466c-1.415.67-3.017-.472-2.844-2.028l.58-5.216a2 2 0 0 0 0-.442l-.58-5.216c-.173-1.557 1.429-2.7 2.844-2.029"
+                opacity="0.16"
+              />
+              <path
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="m5 12l-.604-5.437C4.223 5.007 5.825 3.864 7.24 4.535l11.944 5.658c1.525.722 1.525 2.892 0 3.614L7.24 19.466c-1.415.67-3.017-.472-2.844-2.028zm0 0h7"
+              />
+            </g>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <script src="wake-lock.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

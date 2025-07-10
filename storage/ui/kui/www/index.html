@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KIKX</title>
+
+    <!-- External Scripts
+
+    <script src="/share/static/tailwind"></script>
+    <script src="/share/static/jquery.min.js"></script>
+    <script src="/share/static/jquery-ui.min.js"></script>
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script
+      src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"
+      integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI="
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- jQuery UI Touch Punch for touch support 
+    <link rel="stylesheet" href="/share/static/jquery-ui.css" />
+    -->
+    <link
+      rel="stylesheet"
+      href="https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css"
+    />
+    <script src="/share/static/jquery.ui.touch-punch.min.js"></script>
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
+    <script src="/share/static/client.js"></script>
+    <script src="/share/static/kikx-utils.js"></script>
+
+    <style>
+      .draggable {
+        cursor: grab;
+        position: absolute;
+        touch-action: none; /* Helps with touch interactions */
+      }
+      #apps {
+        background-size: cover;
+        background-position: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Fullscreen Loading Screen -->
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-slate-800 flex justify-center items-center z-[169]"
+    >
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-purple-500"
+      ></div>
+    </div>
+
+    <!-- Fullscreen Container -->
+    <div
+      id="main"
+      class="relative h-screen w-full flex flex-col overflow-hidden"
+    >
+      <!-- Control Center use display: none instead hidden -->
+      <div
+        id="control-center"
+        style="display: none"
+        class="absolute w-full h-full flex flex-col gap-1 top-10 z-40 bg-gradient-to-b from-pink-400 via-purple-400/80 to-blue-400/80 p-2 overflow-hidden"
+      >
+        <div
+          class="h-1/4 flex border border-black/60 rounded-lg rounded-tl-none rounded-br-none"
+        >
+          <!-- fullscreen button -->
+          <div
+            id="cc-browser-fullscreen-btn"
+            class="flex justify-center items-center w-10 h-10 active:bg-blue-400/80"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="25"
+              height="25"
+              fill="currentColor"
+              class="bi bi-window-fullscreen"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M3 3.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m1.5 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m1 .5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"
+              />
+              <path
+                d="M.5 1a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5zM1 5V2h14v3zm0 1h14v8H1z"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 text-black">
+          <div class="font-bold">notifications</div>
+
+          <div class="py-[0.5px] bg-black/60 flex-1"></div>
+
+          <div onclick="clearNotificationsPanel()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="currentColor"
+              class="bi bi-stars"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"
+              />
+            </svg>
+          </div>
+        </div>
+        <div
+          id="cc-notifications-panel"
+          class="cc-panel flex-1 h-full max-h-[85%] rounded-sm flex flex-col gap-1 overflow-y-auto"
+        ></div>
+        <div class="h-9"></div>
+      </div>
+
+      <div id="top-panel">
+        <!-- Header -->
+        <div
+          id="header"
+          class="relative min-h-10 px-4 bg-gradient-to-b to-pink-500/80 from-white *:text-black text-lg flex justify-between items-center"
+        >
+          <div id="kikx-title">
+            K<span class="text-blue-400">I</span>K<span class="text-purple-400"
+              >X</span
+            >
+            <!-- 
+          <pre id="emoji" class="inline">(•᎑•)</pre>
+      -->
+            <pre id="emoji" class="inline">💕</pre>
+          </div>
+          <div class="flex items-center gap-1 justify-center">
+            <div
+              id="header-app-icon"
+              class="w-6 h-6 flex items-center justify-center rounded-md overflow-hidden"
+            ></div>
+            <div id="header-app-name"></div>
+            <div onclick="toggleNotificationsPanel()">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="currentColor"
+                class="bi bi-app-indicator"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  d="M5.5 2A3.5 3.5 0 0 0 2 5.5v5A3.5 3.5 0 0 0 5.5 14h5a3.5 3.5 0 0 0 3.5-3.5V8a.5.5 0 0 1 1 0v2.5a4.5 4.5 0 0 1-4.5 4.5h-5A4.5 4.5 0 0 1 1 10.5v-5A4.5 4.5 0 0 1 5.5 1H8a.5.5 0 0 1 0 1z"
+                />
+                <path d="M16 3a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+              </svg>
+            </div>
+          </div>
+          <!-- Notifications -->
+        </div>
+        <!-- Status Bar -->
+        <div
+          id="status-bar"
+          class="p-1 px-2 bg-gradient-to-r from-purple-600/70 to-red-600/70 text-white text-xs flex justify-between items-center gap-1 shadow-lg backdrop-blur-sm border border-black"
+        >
+          <!-- left -->
+          <div class="flex-1 flex gap-1 items-center">
+            <!-- time -->
+            <h1 id="clock-text"></h1>
+            <pre id="notify-animation"></pre>
+            <!-- notification icons -->
+          </div>
+          <!-- 
+          <pre id="notify-animation-face">(๑'ᴗ')ゞ</pre>
+        <div>■□■□■□■□■</div>
+          -->
+          <div class="flex items-center justify-between gap-0.5">
+            <div id="user_name" class="hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Apps Container -->
+      <div id="apps" class="relative flex-1 overflow-hidden">
+        <div
+          id="apps-menu"
+          class="hidden absolute top-0 h-full w-full bg-black/50 overflow-y-auto"
+        >
+          <!-- Launcher Grid (Fixed Alignment) -->
+          <div
+            id="launcherGrid"
+            class="p-3 w-full grid grid-cols-4 h-auto gap-y-1"
+          ></div>
+          <!-- Launcher Grid (Fixed Alignment) -->
+        </div>
+      </div>
+      <!-- swipe panel -->
+      <div
+        id="swipe-bubble"
+        class="absolute z-[90] transform -translate-y-1/2 top-1/2 -right-4 w-8 h-16 rounded-lg border bg-purple-400/60 opacity-80 transition-all ease-in-out duration-300"
+      ></div>
+      <div
+        id="swb-ghost-btn"
+        style="display: none"
+        class="absolute z-[90] transform -translate-y-1/2 top-1/2 right-0 w-8 h-16 bg-green-300"
+      ></div>
+
+      <div
+        id="center-control-panel"
+        style="display: none"
+        class="absolute top-0 left-0 w-full h-full z-[91] flex justify-center items-center"
+      >
+        <div
+          id="center-child-panel"
+          class="w-1/2 h-1/4 p-1 flex flex-wrap landscape:h-1/2 landscape:w-1/4 bg-blue-400/80 rounded shadow-2xl shadow-blue-400"
+        >
+          <!-- fullscreen button -->
+          <div
+            id="center-fsToggleButton"
+            class="flex justify-center items-center w-9 h-9 p-1 active:bg-blue-400/80"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="100%"
+              width="100%"
+              fill="currentColor"
+              class="bi bi-fullscreen"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5M.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5m15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5"
+              />
+            </svg>
+          </div>
+          <!-- rotate button -->
+          <div
+            id="center-rotateToggleButton"
+            class="flex justify-center items-center w-9 h-9 p-1 active:bg-blue-400/80"
+          >
+            <svg
+              height="100%"
+              width="100%"
+              version="1.1"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+              xmlns:sketch="http://www.bohemiancoding.com/sketch/ns"
+              xmlns:xlink="http://www.w3.org/1999/xlink"
+            >
+              <path
+                d="M16.5,2.5 C19.8,4 22.1,7.2 22.5,11 L24,11 C23.4,4.8 18.3,0 12,0 L11.3,0 L15.1,3.8 L16.5,2.5 L16.5,2.5 Z M10.2,1.7 C9.6,1.1 8.7,1.1 8.1,1.7 L1.7,8.1 C1.1,8.7 1.1,9.6 1.7,10.2 L13.7,22.2 C14.3,22.8 15.2,22.8 15.8,22.2 L22.2,15.8 C22.8,15.2 22.8,14.3 22.2,13.7 L10.2,1.7 L10.2,1.7 Z M14.8,21.2 L2.8,9.2 L9.2,2.8 L21.2,14.8 L14.8,21.2 L14.8,21.2 Z M7.5,21.5 C4.2,20 1.9,16.8 1.5,13 L0.1,13 C0.6,19.2 5.7,24 12,24 L12.7,24 L8.9,20.2 L7.5,21.5 L7.5,21.5 Z"
+                id="Shape"
+              />
+            </svg>
+          </div>
+          <!-- apps -->
+        </div>
+      </div>
+
+      <!-- Running Apps List Panel -->
+      <div
+        id="apps-panel"
+        class="hidden bg-black/80 absolute w-full h-full flex justify-center items-center"
+      >
+        <div
+          id="app-panel-child"
+          class="w-[80%] h-[60%] bg-gradient-to-br from-blue-400/60 to-purple-400/60 shadow-blue-400 border-2 border-black rounded-xl rounded-tl-none rounded-br-none overflow-x-hidden shadow-2xl"
+        >
+          <h1
+            class="text-center p-3 border-b-2 border-black bg-gradient-to-b from pink-500/80 to-blue-400/80"
+          >
+            Running Apps
+          </h1>
+          <div id="app-tabs" class="flex-1 flex flex-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Splash Screen -->
+    <div
+      id="splash"
+      class="fixed w-full h-full z-60 inset-0 flex items-center justify-center bg-black"
+    >
+      <video
+        id="splashVideo"
+        poster="splash-cover.jpg"
+        class="w-full h-full object-cover"
+        autoplay
+        muted
+      >
+        <source src="bg/about_blank.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <script>
+      // Redirect to main page after 3 seconds
+      $(document).ready(function () {
+        //$("#kikx-title").draggable();
+        $(".draggable-widget").draggable({
+          // cancel: "button" // Prevent dragging when clicking on buttons
+        });
+        // splash video
+        $("#splashVideo").on("ended", function () {
+          $("#splash").fadeOut(800, function () {
+            // Fade out in 0.8s
+            $(this).remove(); // Remove element after fade out
+          });
+        });
+        //splashVideo
+      });
+
+      // time in status bar
+      function startAccurateClock(callback) {
+        function updateClock() {
+          const now = new Date();
+          callback(now);
+
+          // Calculate the next update time precisely
+          const delay = 1000 - (now.getTime() % 1000);
+          setTimeout(updateClock, delay);
+        }
+
+        updateClock(); // Start immediately
+      }
+
+      // starting time
+      startAccurateClock(time => {
+        let hours = time.getHours();
+        let minutes = time.getMinutes();
+        let ampm = hours >= 12 ? "PM" : "AM";
+
+        hours = hours % 12 || 12; // Convert 24-hour format to 12-hour format
+        minutes = minutes.toString().padStart(2, "0"); // Ensure two digits
+
+        $("#clock-text").text(`${hours}:${minutes} ${ampm}`);
+      });
+
+      // blinking emojis
+      setInterval(() => {
+        $("#emoji").text("💞");
+        setTimeout(() => {
+          $("#emoji").text("💕");
+        }, 500);
+      }, 2000);
+    </script>
+
+    <!-- App Scripts -->
+    <script src="ui.js"></script>
+    <script defer src="script.js"></script>
+  </body>
+</html>

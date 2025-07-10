@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login</title>
+
+    <!-- External Scripts -->
+    <script src="/share/static/tailwind"></script>
+    <script src="/share/static/jquery.min.js"></script>
+  </head>
+
+  <body class="bg-gray-100">
+    <div
+      id="root"
+      class="relative flex items-center justify-center min-h-screen"
+    >
+      <div class="w-full max-w-md rounded-lg p-6 bg-white shadow">
+        <h2 class="text-2xl font-semibold text-center text-gray-700">
+          KIKX LOGIN
+        </h2>
+
+        <form id="user-form" method="POST" class="mt-4">
+          <div>
+            <label class="block text-gray-600">Username</label>
+            <input
+              name="username"
+              type="text"
+              placeholder="Enter your username"
+              class="w-full px-4 py-2 mt-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div class="mt-4">
+            <label class="block text-gray-600">Password</label>
+            <input
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              class="w-full px-4 py-2 mt-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <h1 id="error" class="text-red-400 mt-2"></h1>
+
+          <button
+            id="submit-btn"
+            type="submit"
+            class="w-full mt-4 px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition duration-300 flex items-center justify-center"
+          >
+            <span id="btn-text">Login</span>
+            <svg
+              id="loading-spinner"
+              class="w-5 h-5 ml-2 hidden animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="white"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="white"
+                d="M4 12a8 8 0 0116 0"
+              ></path>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      $(document).ready(function () {
+        const $form = $("#user-form");
+        const $submitBtn = $("#submit-btn");
+        const $btnText = $("#btn-text");
+        const $spinner = $("#loading-spinner");
+        const $errorMsg = $("#error");
+        
+        function setLoadingState(isLoading) {
+          $submitBtn.prop("disabled", isLoading);
+          $btnText.text(isLoading ? "Logging in..." : "Login");
+          $spinner.toggleClass("hidden", !isLoading);
+          }
+
+        $form.submit(function (e) {
+          e.preventDefault();
+          setLoadingState(true);
+          $errorMsg.text(""); // Clear previous errors
+
+          $.ajax({
+            url: "/login",
+            type: "POST",
+            data: new FormData(this),
+            processData: false,
+            contentType: false,
+            success: () => (location.href = "/"),
+            error: (xhr, code, text) => $errorMsg.text(text || "Login failed"),
+            complete: () => setLoadingState(false)
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <script src="/share/static/app.js"></script>
+  </head>
+  <body class="bg-gray-900 text-white p-4 flex flex-col justify-center gap-2">
+    <textarea
+      id="terminal"
+      readonly
+      class="w-full bg-transparent text-xs h-[200px] border border-amber-400 focus:outline-none p-1"
+    ></textarea>
+    <input
+      id="cmd-input"
+      type="text"
+      placeholder="Type command"
+      class="w-full bg-transparent p-2 focus:outline-blue-400 outline outline-purple-400"
+    />
+    <button class="p-2 border" onclick="runCommand()">Run</button>
+    <button class="p-2 border" onclick="clearConsole()">Clear</button>
+    <h2 class="text-center mt-8 text-lg">Notify</h2>
+    <button
+      onclick="notify('info')"
+      class="p-1 rounded bg-green-300 text-black"
+    >
+      Info
+    </button>
+    <button onclick="notify('error')" class="p-1 rounded bg-red-300 text-black">
+      Error
+    </button>
+    <button
+      onclick="notify('info', 2)"
+      class="p-1 rounded bg-yellow-300 text-black"
+    >
+      Notify after 2 seconds
+    </button>
+    <div class="h-0.5 bg-white/60 my-2"></div>
+    <!-- fs -->
+
+    <!-- script -->
+    <script defer src="script.js"></script>
+  </body>
+</html>

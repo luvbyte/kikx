@@ -1,0 +1,8 @@
+
+when upload file
+
+grab filename, X-File-Path
+create file_id 
+add file details in meta
+upload file in device id
+

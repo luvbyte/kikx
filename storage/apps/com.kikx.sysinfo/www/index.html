@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SysInfo</title>
+    <script src="/share/static/jquery.min.js"></script>
+    <script src="/share/cdn/tailwind-3.js"></script>
+
+    <script src="/share/static/app.js"></script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class"
+      };
+    </script>
+
+    <style>
+      .active {
+        border-bottom-color: #3b82f6; /* Tailwind blue-500 */
+        color: #3b82f6;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Fullscreen Loading Screen -->
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-slate-800 flex justify-center items-center z-[169]"
+    >
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-purple-500"
+      ></div>
+    </div>
+
+    <div
+      onclick="refresh()"
+      class="absolute border right-4 bottom-8 bg-purple-400/60 p-2 rounded"
+    >
+      Refresh
+    </div>
+
+    <div class="h-screen w-full max-w-md mx-auto bg-white">
+      <!-- Tab Buttons -->
+      <div id="tabs-bar" class="flex border-b">
+        <button
+          class="tab-button py-2 px-4 text-gray-600 border-b-2 border-transparent"
+        >
+          KIKX
+        </button>
+        <button
+          class="tab-button py-2 px-4 text-gray-600 border-b-2 border-transparent"
+        >
+          DISPLAY
+        </button>
+        <button
+          class="tab-button py-2 px-4 text-gray-600 border-b-2 border-transparent"
+        >
+          Tab 3
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div id="tabs-panel" class="mt-4">
+        <div class="tab-content">This is content for Tab 1.</div>
+        <div class="tab-content hidden">This is content for Tab 2.</div>
+        <div class="tab-content hidden">This is content for Tab 3.</div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+print_line("Taking screenshot", lambda: device.save_screen_shot(STORAGE / "screenshot.png"))
+
+

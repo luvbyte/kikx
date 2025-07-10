@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Settings</title>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"
+    />
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="/share/static/app.js"></script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class"
+      };
+    </script>
+  </head>
+  <body>
+        <!-- Fullscreen Loading Screen -->
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-slate-800 flex justify-center items-center z-[169]"
+    >
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-purple-500"
+      ></div>
+    </div>
+
+    
+    <div
+      class="h-screen flex flex-col p-4 bg-white text-black dark:bg-slate-800 dark:text-white"
+    >
+      <div id="ui-container" class="flex-1 overflow-y-auto space-y-2"></div>
+
+      <div class="flex justify-end">
+        <button
+          id="save-btn"
+          class="border p-1 px-4 rounded active:bg-blue-400"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

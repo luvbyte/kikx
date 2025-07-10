@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anime Image Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="bg-gradient-to-br from-red-500/60 to-purple-600/80 min-h-screen flex flex-col items-center justify-center text-white"
+  >
+    <div class="container max-w-6xl mx-auto px-4 py-10 text-center">
+      <!-- Title -->
+      <h1 class="text-4xl font-bold mb-6 drop-shadow-lg">
+        Anime Image Gallery
+      </h1>
+
+      <!-- Fetch Button -->
+      <button
+        id="fetchBtn"
+        class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 active:bg-opacity-40 backdrop-blur-md rounded-full text-lg font-semibold transition duration-200"
+      >
+        Get New Images
+      </button>
+
+      <!-- Gallery -->
+      <div
+        id="gallery"
+        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-10"
+      ></div>
+    </div>
+
+    <script>
+      async function fetchImages() {
+        const gallery = document.getElementById("gallery");
+        gallery.innerHTML = ""; // Clear previous images
+
+        for (let i = 0; i < 8; i++) {
+          // Fetch 8 images
+          let response = await fetch("https://api.waifu.pics/sfw/waifu");
+          let data = await response.json();
+
+          let imgContainer = document.createElement("div");
+          imgContainer.className =
+            "relative p-3 bg-white bg-opacity-20 backdrop-blur-md rounded-2xl overflow-hidden shadow-xl transition hover:scale-105 duration-200";
+
+          let img = document.createElement("img");
+          img.src = data.url;
+          img.className =
+            "w-full h-auto rounded-xl object-contain border border-white/10";
+
+          // Download button
+          let downloadBtn = document.createElement("button");
+          downloadBtn.className =
+            "absolute bottom-3 right-3 bg-gray-900/80 text-white px-4 py-1 rounded-full hover:bg-gray-700/90 transition";
+          downloadBtn.innerHTML = "⬇";
+          downloadBtn.onclick = () => downloadImage(data.url);
+
+          imgContainer.appendChild(img);
+          imgContainer.appendChild(downloadBtn);
+          gallery.appendChild(imgContainer);
+        }
+      }
+
+      function downloadImage(url) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "anime-image.jpg";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
+      // Auto-run setup
+      window.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("fetchBtn")
+          .addEventListener("click", fetchImages);
+        fetchImages(); // Load images on page load
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+bcrypt==4.0.1
+pyjwt
+python-jose
+passlib==1.7.4
+python-multipart
+pytest
+httpx
+bleach
