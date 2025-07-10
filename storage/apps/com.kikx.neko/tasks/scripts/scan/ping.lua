@@ -1,1 +1,1 @@
-console.print("hello")
+console.print("<p>hello</p>")

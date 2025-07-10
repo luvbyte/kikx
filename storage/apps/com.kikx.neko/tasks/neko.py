@@ -6,6 +6,7 @@ from time import sleep
 from pathlib import Path
 from random import choice
 from importlib import import_module
+from subprocess import PIPE
 
 from nekolib import js, panel
 from nekolib.process import sh
@@ -49,7 +50,8 @@ def scripts_list(path):
 
 # Returns file icon svg 
 def get_file_icon(script):
-  default_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M14 11a3 3 0 0 1-3-3V4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-8zm-2-3a2 2 0 0 0 2 2h3.59L12 4.41zM7 3h5l7 7v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3"/></svg>'
+  # default_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M14 11a3 3 0 0 1-3-3V4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-8zm-2-3a2 2 0 0 0 2 2h3.59L12 4.41zM7 3h5l7 7v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3"/></svg>'
+  default_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="m13.85 4.44l-3.279-3.301l-.351-.14H2.5l-.5.5v13l.5.5h11l.5-.5V4.8zM13 14H3V2h7l3 3zm-7.063-1.714h.792v.672H4.293v-.672h.798V9.888l-.819.178v-.687l1.665-.336zm3.617-3.278q-.706 0-1.079.526q-.37.524-.371 1.525q0 1.931 1.375 1.932q.684 0 1.05-.522q.368-.521.368-1.498q0-1.964-1.343-1.964zm-.048 3.333q-.54 0-.54-1.303q0-1.383.551-1.383q.515 0 .516 1.343q0 1.342-.526 1.343zm.431-5.055h.792v.672H8.293v-.672h.798V4.888l-.819.178v-.688l1.665-.336zM5.554 4.009q-.707 0-1.08.526q-.37.524-.37 1.525q0 1.93 1.375 1.931q.684 0 1.05-.521q.368-.52.368-1.499q0-1.962-1.343-1.962m-.049 3.333q-.54 0-.54-1.303q0-1.383.551-1.383q.516 0 .516 1.343t-.527 1.343"/></svg>'
   icons = {
     "": default_icon,
     ".py": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="#0288d1" d="M9.86 2A2.86 2.86 0 0 0 7 4.86v1.68h4.29c.39 0 .71.57.71.96H4.86A2.86 2.86 0 0 0 2 10.36v3.781a2.86 2.86 0 0 0 2.86 2.86h1.18v-2.68a2.85 2.85 0 0 1 2.85-2.86h5.25c1.58 0 2.86-1.271 2.86-2.851V4.86A2.86 2.86 0 0 0 14.14 2zm-.72 1.61c.4 0 .72.12.72.71s-.32.891-.72.891c-.39 0-.71-.3-.71-.89s.32-.711.71-.711"/><path fill="#fdd835" d="M17.959 7v2.68a2.85 2.85 0 0 1-2.85 2.859H9.86A2.85 2.85 0 0 0 7 15.389v3.75a2.86 2.86 0 0 0 2.86 2.86h4.28A2.86 2.86 0 0 0 17 19.14v-1.68h-4.291c-.39 0-.709-.57-.709-.96h7.14A2.86 2.86 0 0 0 22 13.64V9.86A2.86 2.86 0 0 0 19.14 7zM8.32 11.513l-.004.004l.038-.004zm6.54 7.276c.39 0 .71.3.71.89a.71.71 0 0 1-.71.71c-.4 0-.72-.12-.72-.71s.32-.89.72-.89"/></svg>',
@@ -121,16 +123,31 @@ def home_screen():
   #if script_path.exists() and script_path.suffix == ".py":
     #run_script(script_path.name)
 
+# TODO: add support for absolute files
 def run_script(path, *args):
   panel.clear(True)
   
   path = Path(path)
-  if path.suffix == ".py":
+
+  # support for binary file
+  if path.suffix == "":
+    # both print and event {} works
+    js.run_code("setRawOutput()")
+    
+    binary_path = (BASE_DIR / path).as_posix()
+
+    sh(f"chmod +x {binary_path}").pipe()
+    process = sh(binary_path).pipe(stderr=PIPE)
+    if process.returncode != 0:
+      raise Exception(f"Error: {process.error()}")
+  # python file
+  elif path.suffix == ".py":
     module = import_module("scripts." + path.with_suffix("").as_posix().replace("/", "."))
   
     func = getattr(module, "start", None)
     if callable(func):
       func(*args)
+  # lua file
   elif path.suffix == ".lua":
     from lupa import LuaRuntime
   
@@ -140,7 +157,7 @@ def run_script(path, *args):
     with open(BASE_DIR / path, "r") as file:
       runtime.execute(file.read())
   else:
-    raise Exception(f"Cant run {path.suffix} file")
+    raise Exception(f"Cant run '{path.suffix}' file")
 
 def main():
   js.run_code("blockUserClear()")
