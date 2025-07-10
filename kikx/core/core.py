@@ -342,11 +342,11 @@ async def app_web(app_id: str, path: str, starting: bool = False):
 
   response = FileResponse(file)
   # in dev
-  response.headers.update({
-    "Cache-Control": "no-cache, no-store, must-revalidate",
-    "Pragma": "no-cache",
-    "Expires": "0"
-  })
+  #response.headers.update({
+  #  "Cache-Control": "no-cache, no-store, must-revalidate",
+  #  "Pragma": "no-cache",
+  #  "Expires": "0"
+  #})
   return response
 
 # 
@@ -358,11 +358,11 @@ async def app_public(name: str, path: str):
     return JSONResponse(status_code=404, content={"detail": "File not found"})
 
   response = FileResponse(file)
-  response.headers.update({
-    "Cache-Control": "no-cache, no-store, must-revalidate",
-    "Pragma": "no-cache",
-    "Expires": "0"
-  })
+  #response.headers.update({
+  #  "Cache-Control": "no-cache, no-store, must-revalidate",
+  #  "Pragma": "no-cache",
+  #  "Expires": "0"
+  #})
   return response
 
 # can use different launchers on different platform

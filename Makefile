@@ -15,7 +15,7 @@ install:
 
 # Run the Python script
 run:
-	cd kikx && ../venv/bin/uvicorn main:app --host 0.0.0.0 --port 8055
+	cd kikx && ../venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 
 serve:
 	cd kikx && ../venv/bin/uvicorn main:app --reload
