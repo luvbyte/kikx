@@ -121,6 +121,8 @@ class Tasks:
       "KIKX_STORAGE_PATH": app.user.storage_path.as_posix(),
       "KIKX_APP_PATH": app.get_app_path().as_posix(),
       "KIKX_APP_DATA_PATH": app.get_app_data_path().as_posix(),
+      
+      "PY_PATH": (app.user.home_path.parent.parent / "venv/bin/python3").as_posix(),
   
       "KIKX_HOME_PATH": app.get_home_path().as_posix()
     })
