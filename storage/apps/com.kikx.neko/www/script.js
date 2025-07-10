@@ -106,20 +106,22 @@ function exec(outputText) {
 
   try {
     const data = JSON.parse(outputText);
-    if (!data || data.payload == null) return;
+    // if (!data || data.payload === null) return;
+    const event = data.event;
+    const payload = data.payload;
 
-    switch (data.event) {
+    switch (event) {
       case "code":
-        eval(data.payload);
+        eval(payload);
         break;
       case "html":
-        $(data.payload.element).html(data.payload.content);
+        $(payload.element).html(payload.content);
         break;
       case "text":
-        $(data.payload.element).text(data.payload.content);
+        $(payload.element).text(payload.content);
         break;
       case "append":
-        $(data.payload.element).append(data.payload.content);
+        $(payload.element).append(payload.content);
         break;
       case "clear":
         clearPanel();

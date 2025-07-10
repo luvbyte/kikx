@@ -1,1 +1,1 @@
-{"kikx": [{"id": "dark_mode", "label": "Dark Mode", "type": "checkbox", "value": true}, {"id": "silent", "label": "Silent", "type": "checkbox", "value": false}]}
+{"kikx": [{"id": "dark_mode", "label": "Dark Mode", "type": "checkbox", "value": true}, {"id": "silent", "label": "Silent", "type": "checkbox", "value": true}]}
