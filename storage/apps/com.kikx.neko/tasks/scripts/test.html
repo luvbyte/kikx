@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+    <script src="/share/static/jquery.min.js"></script>
+    <script src="/share/cdn/tailwind-3.js"></script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class"
+      };
+    </script>
+  </head>
+  <body class="dark">
+    <!-- Fullscreen Loading Screen -->
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-slate-800 flex justify-center items-center z-[169]"
+    >
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-purple-500"
+      ></div>
+    </div>
+
+    <div
+      class="h-screen flex flex-col bg-white text-black dark:bg-slate-800 dark:text-white"
+    >
+      <!-- Start here -->
+      Hello world
+    </div>
+
+    <script>
+      $(() => {
+        $("#loading-screen").remove();
+      });
+    </script>
+  </body>
+</html>
