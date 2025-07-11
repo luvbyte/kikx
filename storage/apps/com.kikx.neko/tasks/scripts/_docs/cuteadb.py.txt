@@ -1,1 +1,12 @@
-This is cuteadb docs
+
+<div class="w-full h-full flex items-center justify-center relative">
+<pre class="absolute left-0 bottom-0">
+|
+|  /)/)
+| *¯ ³¯) CuteADB
+| ⊂ノ 
+</pre>
+
+A script to hack android devices with ADB
+
+</div>

@@ -13,6 +13,8 @@ let runningScript = "";
 
 const NekoConfig = {
   rawOutput: false,
+  rawOutputHTML: false,
+
   blockUserKillTask: false,
   blockUserInput: false,
   blockUserClear: false
@@ -38,10 +40,16 @@ const blockUserKillTask = (block = true) => {
   NekoConfig.blockUserKillTask = block;
 };
 
+const setRawOutputHTML = (block = true) => {
+  NekoConfig.rawOutputHTML = block;
+};
+
 const setNekoDefaultConfig = () => {
+  setRawOutput(false);
+  setRawOutputHTML(false);
+
   blockUserInput(false);
   blockUserClear(false);
-  setRawOutput(false);
   blockUserKillTask(false);
 };
 
@@ -128,13 +136,21 @@ function exec(outputText) {
         break;
       default:
         if (NekoConfig.rawOutput) {
-          $panel.append($("<div>").text(outputText));
+          if (NekoConfig.rawOutputHTML) {
+            $panel.append(outputText);
+          } else {
+            $panel.append($("<div>").text(outputText));
+          }
         }
     }
-  } catch (err) {
-    if (NekoConfig.rawOutput) {
-      $panel.append($("<div>").text(outputText));
-    }
+  } catch (err) {if (NekoConfig.rawOutput) {
+          if (NekoConfig.rawOutputHTML) {
+            $panel.append(outputText);
+          } else {
+            $panel.append($("<div>").text(outputText));
+          }
+        }
+    
   }
 
   scrollToBottom();
