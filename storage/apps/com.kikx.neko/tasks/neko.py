@@ -74,17 +74,16 @@ def list_scripts(scripts_panel: Element, path: Path, directory: str=".") -> None
       <div onclick='sendInput("{script}")' class="flex-1 flex gap-1 p-2">
         {get_file_icon(script)}{script.name}
       </div>
-      <div style="{'display: none' if script.is_dir() else ''}" onclick='sendInput("__info__ {script}")' class="p-4 w-12"></div>
+      <div style="{'display: none' if script.is_dir() or script.suffix == ".txt" else ''}" onclick='sendInput("__help__ {script}")' class="p-4 w-12"></div>
     </div>
   """ for script in scripts_list(path, SCRIPT_ICONS.keys())])
   scripts_list_div.cls.add_class("flex-1 overflow-y-auto scroll-smooth")
   
   scripts_panel.append(Animate(scripts_list_div))
 
-def random_banner(element: Element) -> None:
-  banner = choice([i for i in BANNERS if i != CURRENT_BANNER])
+def random_banner(element: Element, banner=None) -> None:
   global CURRENT_BANNER
-  CURRENT_BANNER = banner
+  CURRENT_BANNER = banner if banner else choice([i for i in BANNERS if i != CURRENT_BANNER])
 
   banner_text = Pre(Animate(Text(CURRENT_BANNER)))
   banner_text.cls.add_class("w-full h-full flex items-end justify-center")
@@ -92,25 +91,20 @@ def random_banner(element: Element) -> None:
 
 def home_screen() -> None:
   panel.clear(True)
-  
-  box = Div()
-  box.cls.add_class("w-full h-full flex flex-col")
 
-  banner_text = Pre(Animate(Text(CURRENT_BANNER)))
-  banner_text.cls.add_class("w-full h-full flex items-end justify-center")
-  
-  banner = Div(banner_text)
-  banner.cls.add_class("bg-purple-400/40 h-[200px] overflow-auto")
-  banner.set_property("onclick", "sendInput('__banner__')")
-
-  box.append(banner)
+  top_box = Div()
+  top_box.cls.add_class("bg-purple-400/40 h-[200px] overflow-auto")
+  top_box.set_property("onclick", "sendInput('__banner__')")
 
   scripts_panel = Div()
   scripts_panel.cls.add_class("flex-1 flex flex-col overflow-hidden")
-  box.append(scripts_panel)
+  
+  box = Div(top_box, scripts_panel)
+  box.cls.add_class("w-full h-full flex flex-col")
 
+  random_banner(top_box, CURRENT_BANNER)
   list_scripts(scripts_panel, BASE_DIR)
- 
+
   panel.append(box)
 
   while True:
@@ -118,16 +112,21 @@ def home_screen() -> None:
     
     # special commands
     if text_input == "__banner__":
-      random_banner(banner)
+      random_banner(top_box)
       continue
-    elif text_input.startswith("__info__"):
-      doc_path = (BASE_DIR / "_docs" / f"{Path(text_input.split()[-1]).relative_to(BASE_DIR)}.txt")
-      if doc_path.exists() and not doc_path.is_dir():
-        with open(doc_path, "r") as file:
+    elif text_input.startswith("__help__"):
+      help_path = (BASE_DIR / "_help" / f"{Path(text_input.split()[-1]).relative_to(BASE_DIR)}.txt")
+      if help_path.exists() and not help_path.is_dir():
+        with open(help_path, "r") as file:
           banner_text = Div(file.read())
           banner_text.cls.add_class("w-full h-full")
           
-          banner.replace(Animate(banner_text))
+          top_box.replace(Animate(banner_text))
+      else:
+          banner_text = Div(f"""No help found for '{help_path.with_suffix("").name}'""")
+          banner_text.cls.add_class("w-full h-full text-md flex items-center justify-center")
+        
+          top_box.replace(Animate(banner_text))
       continue
 
     # ---- 
@@ -139,14 +138,20 @@ def home_screen() -> None:
     if script_path.is_dir():
       list_scripts(scripts_panel, script_path, str(rel_path))
     elif script_path.exists():
-      js.run_code(f"runningScript = 'neko {script_path}' ;setScriptName('{script_path.name}')")
-      return run_script(script_path)
+      text = run_script(script_path)
+      if text is None:
+        break
+      top_box.replace(Animate(Text(text)))
 
 # can support absolute files
-def run_script(path: Union[str, Path], *args) -> None:
-  panel.clear(True)
-
+def run_script(path: Union[str, Path], *args) -> Union[None, str]:
   path = Path(path)
+  if path.suffix == ".txt":
+    with open(path) as file:
+      return file.read()
+  
+  panel.clear(True)
+  js.run_code(f"runningScript = 'neko {path}' ;setScriptName('{path.name}')")
 
   # both print and event {} works
   js.run_code("setRawOutput()")
@@ -183,10 +188,6 @@ def run_script(path: Union[str, Path], *args) -> None:
 
     with open(path, "r") as file:
       runtime.execute(file.read())
-  # text will append to panel
-  elif path.suffix == ".txt":
-    with open(path, "r") as file:
-      panel.text(file.read())
   # js will run in app
   elif path.suffix == ".js":
     with open(path, "r") as file:
