@@ -85,3 +85,4 @@ docs/_build/
 # Scripts output
 output/
 backup
+storage/home/*

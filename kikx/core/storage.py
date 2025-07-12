@@ -2,18 +2,22 @@ from pathlib import Path
 from os import mkdir
 import shlex
 
+from lib.utils import ensure_dir
+
+
 class Storage:
   def __init__(self, storage_path):
-    self.storage_path: Path = Path(storage_path).resolve()
-    
-    # create directory if not exists
-    if not self.storage_path.exists():
-      raise Exception("Storage path not found") 
+    self.storage_path: Path = ensure_dir(Path(storage_path).resolve())
 
     # if path is not directory
     if not self.storage_path.is_dir():
-      raise Exception("Storage path must be directory") 
-  
+      raise Exception("Storage path must be directory")
+    
+    # works for now
+    precreate = ["home", "apps", "share", "data", "data/app", "data/data", "bin", "root"]
+    for name in precreate:
+      ensure_dir(self.storage_path / name)
+
   @property
   def path(self):
     return self._storage_path
