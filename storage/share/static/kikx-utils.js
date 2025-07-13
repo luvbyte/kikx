@@ -28,6 +28,7 @@ async function lockOrientation(orient) {
   await document.documentElement.requestFullscreen();
   screen.orientation.lock(orient); // or "portrait"
 }
+
 // toggle full scree on browser
 function toggleBrowserFullScreen() {
   const doc = window.document;
@@ -54,6 +55,113 @@ function toggleBrowserFullScreen() {
   } else {
     cancelFullScreen.call(doc);
   }
+}
+
+function enableSwipeToDismiss($element, direction = "up", options = {}) {
+  const threshold = options.threshold || 50;
+  const maxTranslate = options.maxTranslate || 150;
+  const fade = options.fade !== false;
+  const transitionDuration = options.duration || 300;
+  const remove = options.remove !== false;
+  const onDismiss = options.onDismiss || null;
+
+  let startX = 0, startY = 0;
+  let isDragging = false;
+
+  $element.css("touch-action", "none"); // Prevent scrolling issues
+
+  $element.on("touchstart", function (e) {
+    const touch = e.originalEvent.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    isDragging = true;
+  });
+
+  $element.on("touchmove", function (e) {
+    if (!isDragging) return;
+
+    const touch = e.originalEvent.touches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+
+    let translate = 0;
+    let axis = "";
+    let sign = 1;
+
+    if (direction === "up" && deltaY < 0) {
+      translate = Math.min(-deltaY, maxTranslate);
+      axis = "Y";
+      sign = -1;
+    } else if (direction === "down" && deltaY > 0) {
+      translate = Math.min(deltaY, maxTranslate);
+      axis = "Y";
+    } else if (direction === "left" && deltaX < 0) {
+      translate = Math.min(-deltaX, maxTranslate);
+      axis = "X";
+      sign = -1;
+    } else if (direction === "right" && deltaX > 0) {
+      translate = Math.min(deltaX, maxTranslate);
+      axis = "X";
+    } else {
+      return; // Ignore other directions
+    }
+
+    const opacity = fade ? Math.max(1 - translate / maxTranslate, 0.2) : 1;
+    $element.css({
+      transform: `translate${axis}(${sign * translate}px)`,
+      opacity: opacity,
+      transition: "none"
+    });
+  });
+
+  $element.on("touchend", function (e) {
+    isDragging = false;
+
+    const touch = e.originalEvent.changedTouches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+
+    let valid = false;
+    let finalTransform = "";
+
+    if (direction === "up" && -deltaY > threshold) {
+      valid = true;
+      finalTransform = `translateY(-200px)`;
+    } else if (direction === "down" && deltaY > threshold) {
+      valid = true;
+      finalTransform = `translateY(200px)`;
+    } else if (direction === "left" && -deltaX > threshold) {
+      valid = true;
+      finalTransform = `translateX(-200px)`;
+    } else if (direction === "right" && deltaX > threshold) {
+      valid = true;
+      finalTransform = `translateX(200px)`;
+    }
+
+    if (valid) {
+      $element.css({
+        transform: finalTransform,
+        opacity: 0,
+        transition: `transform ${transitionDuration}ms ease-out, opacity ${transitionDuration}ms ease-out`
+      });
+
+      if (remove) {
+        setTimeout(() => {
+          $element.remove();
+          if (typeof onDismiss === "function") onDismiss();
+        }, transitionDuration);
+      } else {
+        if (typeof onDismiss === "function") onDismiss();
+      }
+    } else {
+      // Reset position
+      $element.css({
+        transform: `translate(0, 0)`,
+        opacity: 1,
+        transition: "transform 0.2s ease-out, opacity 0.2s ease-out"
+      });
+    }
+  });
 }
 
 function initTouchGestures(selector, callbacks, options = {}) {
@@ -216,209 +324,6 @@ function initTouchGestures(selector, callbacks, options = {}) {
       fromTopEdge: startY <= edgeThreshold,
       fromBottomEdge: window.innerHeight - startY <= edgeThreshold,
       isTwoFinger: false
-    };
-
-    if (absDeltaY > absDeltaX) {
-      if (deltaY < -threshold && callbacks.swipeUp) {
-        callbacks.swipeUp(edgeInfo);
-      } else if (deltaY > threshold && callbacks.swipeDown) {
-        callbacks.swipeDown(edgeInfo);
-      }
-    } else {
-      if (deltaX < -threshold && callbacks.swipeLeft) {
-        callbacks.swipeLeft(edgeInfo);
-      } else if (deltaX > threshold && callbacks.swipeRight) {
-        callbacks.swipeRight(edgeInfo);
-      }
-    }
-  });
-}
-
-function createTouchSwiper__(selector, callbacks, options = {}) {
-  const {
-    threshold = 10,
-    edgeThreshold = 30,
-    tapMaxDelay = 300,
-    longPressDelay = 500
-  } = options;
-
-  let startX,
-    startY,
-    isTwoFinger = false,
-    lastTapTime = 0,
-    longPressTimeout = null,
-    longPressTriggered = false;
-
-  $(selector).on("touchstart", function (e) {
-    isTwoFinger = e.touches.length === 2;
-    longPressTriggered = false;
-
-    if (isTwoFinger) {
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
-      startX = (touch1.clientX + touch2.clientX) / 2;
-      startY = (touch1.clientY + touch2.clientY) / 2;
-    } else if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
-
-      // Start long press timer
-      if (typeof callbacks.longPress === "function") {
-        longPressTimeout = setTimeout(() => {
-          longPressTriggered = true;
-          callbacks.longPress(e);
-        }, longPressDelay);
-      }
-
-      // Check for double tap
-      const currentTime = new Date().getTime();
-      if (currentTime - lastTapTime < tapMaxDelay) {
-        if (typeof callbacks.doubleTap === "function") {
-          callbacks.doubleTap(e);
-        }
-        lastTapTime = 0;
-      } else {
-        lastTapTime = currentTime;
-      }
-    }
-
-    if (typeof callbacks.touch === "function") {
-      callbacks.touch(e);
-    }
-  });
-
-  $(selector).on("touchend", function (e) {
-    if (longPressTimeout) {
-      clearTimeout(longPressTimeout);
-      longPressTimeout = null;
-    }
-
-    // Prevent swipe if long press was triggered
-    if (longPressTriggered) {
-      return;
-    }
-
-    if (isTwoFinger && e.touches.length > 0) return;
-
-    const touch = e.changedTouches[0];
-    const endX = touch.clientX;
-    const endY = touch.clientY;
-
-    const deltaX = endX - startX;
-    const deltaY = endY - startY;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
-
-    const isFromLeftEdge = startX <= edgeThreshold;
-    const isFromRightEdge = window.innerWidth - startX <= edgeThreshold;
-    const isFromTopEdge = startY <= edgeThreshold;
-    const isFromBottomEdge = window.innerHeight - startY <= edgeThreshold;
-
-    const edgeInfo = {
-      fromLeftEdge: isFromLeftEdge,
-      fromRightEdge: isFromRightEdge,
-      fromTopEdge: isFromTopEdge,
-      fromBottomEdge: isFromBottomEdge,
-      isTwoFinger
-    };
-
-    if (absDeltaY > absDeltaX) {
-      if (deltaY < -threshold && callbacks.swipeUp) {
-        callbacks.swipeUp(edgeInfo);
-      } else if (deltaY > threshold && callbacks.swipeDown) {
-        callbacks.swipeDown(edgeInfo);
-      }
-    } else {
-      if (deltaX < -threshold && callbacks.swipeLeft) {
-        callbacks.swipeLeft(edgeInfo);
-      } else if (deltaX > threshold && callbacks.swipeRight) {
-        callbacks.swipeRight(edgeInfo);
-      }
-    }
-  });
-}
-
-function createTouchSwiper_(selector, callbacks, options = {}) {
-  const {
-    threshold = 10,
-    edgeThreshold = 30,
-    tapMaxDelay = 300,
-    longPressDelay = 500
-  } = options;
-
-  let startX,
-    startY,
-    isTwoFinger = false,
-    lastTapTime = 0,
-    longPressTimeout = null;
-
-  $(selector).on("touchstart", function (e) {
-    isTwoFinger = e.touches.length === 2;
-
-    if (isTwoFinger) {
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
-      startX = (touch1.clientX + touch2.clientX) / 2;
-      startY = (touch1.clientY + touch2.clientY) / 2;
-    } else if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
-
-      // Start long press timer
-      if (typeof callbacks.longPress === "function") {
-        longPressTimeout = setTimeout(() => {
-          callbacks.longPress(e);
-          longPressTimeout = null;
-        }, longPressDelay);
-      }
-
-      // Check for double tap
-      const currentTime = new Date().getTime();
-      if (currentTime - lastTapTime < tapMaxDelay) {
-        if (typeof callbacks.doubleTap === "function") {
-          callbacks.doubleTap(e);
-        }
-        lastTapTime = 0;
-      } else {
-        lastTapTime = currentTime;
-      }
-    }
-
-    if (typeof callbacks.touch === "function") {
-      callbacks.touch(e);
-    }
-  });
-
-  $(selector).on("touchend", function (e) {
-    if (longPressTimeout) {
-      clearTimeout(longPressTimeout);
-      longPressTimeout = null;
-    }
-
-    if (isTwoFinger && e.touches.length > 0) return;
-
-    const touch = e.changedTouches[0];
-    const endX = touch.clientX;
-    const endY = touch.clientY;
-
-    const deltaX = endX - startX;
-    const deltaY = endY - startY;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
-
-    const isFromLeftEdge = startX <= edgeThreshold;
-    const isFromRightEdge = window.innerWidth - startX <= edgeThreshold;
-    const isFromTopEdge = startY <= edgeThreshold;
-    const isFromBottomEdge = window.innerHeight - startY <= edgeThreshold;
-
-    const edgeInfo = {
-      fromLeftEdge: isFromLeftEdge,
-      fromRightEdge: isFromRightEdge,
-      fromTopEdge: isFromTopEdge,
-      fromBottomEdge: isFromBottomEdge,
-      isTwoFinger
     };
 
     if (absDeltaY > absDeltaX) {

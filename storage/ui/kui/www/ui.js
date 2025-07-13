@@ -1,10 +1,18 @@
 const escapeHTML = str => $("<div>").text(str).html(); // Escape potentially malicious input
+const isVisible = element => {
+  return $(element).is(":visible");
+};
 
 // Get references to key DOM elements
 const $appsContainer = $("#apps");
 const $tabsContainer = $("#app-tabs");
 const $appsMenu = $("#apps-menu");
 const $appsPanel = $("#apps-panel");
+
+// notifications tabs cc
+const $controlCenter = $("#control-center");
+// center purple box
+const $centerControlPanel = $("#center-control-panel");
 
 let currentApp = null; // Track the currently active app
 let openApps = []; // List of opened apps
@@ -27,7 +35,7 @@ const notyf = new Notyf({
   ]
 });
 
-const closeAppsPanel = () => $appsPanel.addClass("hidden");
+const closeAppsPanel = () => $appsPanel.fadeOut(300);
 
 // Open an app in an iframe and create a tab
 async function openApp(name, icon, title) {
@@ -75,17 +83,35 @@ async function openApp(name, icon, title) {
     openApps.push(name);
 
     // Create app tab
+
     const $tab = $(`
-      <div id="tab-${escapeHTML(
-        name
-      )}" class="app-tab border-b-2 border-black flex items-center px-3 py-2 cursor-pointer truncate w-full justify-between">
-        <div class="flex gap-1 items-center">
-          <img class="w-8 h-8 rounded-sm shadow-lg" src="${escapeHTML(icon)}" />
-          <span class="truncate px-2">${escapeHTML(title)}</span>
-        </div>
-        <span class="close-btn ml-2 text-red-500 font-bold cursor-pointer">❌</span>
+      <div id="tab-${escapeHTML(name)}" 
+          class="app-tab snap-start min-w-[100px] min-h-[120px] relative bg-purple-400/40 border rounded-lg shadow-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition duration-200 ease-in-out">
+    
+        <!-- App Icon -->
+        <img class="w-12 h-12 rounded-md mb-3" 
+             src="${escapeHTML(icon)}" 
+             alt="${escapeHTML(title)} icon" />
+    
+        <!-- App Title -->
+        <span class="text-sm font-semibold text-center truncate w-full text-white">
+          ${escapeHTML(title)}
+        </span>
+    
+        <!-- Close Button -->
+          <div class="close-btn absolute top-0.5 right-0.5 text-white font-bold rounded cursor-pointer w-6 h-6">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.25"/><path stroke="currentColor" stroke-linecap="round" stroke-width="1.2" d="m9 9l6 6m0-6l-6 6"/></g></svg>
+          </div>
       </div>
     `);
+
+    // ---- swipe up to close
+    enableSwipeToDismiss($tab, "up", {
+      threshold: 50,
+      fade: true,
+      duration: 300,
+      onDismiss: () => closeApp(name)
+    });
 
     // Tab click switches app
     $tab.on("click", () => switchApp(name));
@@ -104,6 +130,7 @@ async function openApp(name, icon, title) {
     console.error(`Failed to open app ${name}:`, error);
   }
 }
+
 async function closeApp(name) {
   if (!appFrames[name]) return;
 
@@ -132,9 +159,13 @@ async function closeApp(name) {
     // Update open apps list
     openApps = openApps.filter(app => app !== name);
 
-    // Only switch if the closed app was the current one
+    // If its active app then show home
     if (currentApp === name) {
-      switchApp(openApps.length ? openApps[openApps.length - 1] : null);
+      switchApp(null);
+    }
+
+    if (openApps.length === 0) {
+      closeAppsPanel();
     }
   } catch (error) {
     console.error(`Failed to close app ${name}:`, error);
@@ -143,25 +174,16 @@ async function closeApp(name) {
 // Switch to a specific app
 function switchApp(name) {
   $("#apps-menu").slideUp(300, function () {
-    $(this).addClass("hidden");
-
     $(".app-frame").addClass("hidden"); // Hide all iframes
     $(".app-tab").removeClass("bg-purple-300/80"); // Remove active tab styling
-
-    //if (name === "default") {
-    //$appsMenu.removeClass("hidden"); // Show default app
-    //} else {
-    $appsMenu.addClass("hidden");
 
     if (appFrames[name]) $(appFrames[name].iframe).removeClass("hidden");
 
     // Select tab safely (Escape special characters)
     const $tab = $(`[id="tab-${name}"]`);
     if ($tab.length) {
-      //$tab.addClass("bg-purple-300"); // Highlight active tab
       $tab.addClass("bg-purple-300/80"); // Highlight active tab
     }
-    //}
 
     currentApp = name;
 
@@ -180,10 +202,6 @@ function switchApp(name) {
       $("#header-app-name").empty();
     }
   });
-
-  if (!currentApp) {
-    closeAppsPanel();
-  }
 }
 
 // Render app launcher grid
@@ -204,27 +222,9 @@ function renderLauncherGrid(appList) {
   });
 }
 
-const toggleAppsMenu = () => {
-  const $menu = $("#apps-menu");
-  if ($menu.hasClass("hidden")) {
-    $menu.removeClass("hidden").hide().slideDown();
-  } else {
-    $menu.slideUp(() => $menu.addClass("hidden"));
-  }
-};
-
 // Navigation button event listeners
 const toggleRecentApps = () => {
-  const panel = $("#apps-panel");
-
-  if (panel.hasClass("hidden")) {
-    panel.removeClass("hidden").hide().fadeIn(400);
-  } else {
-    panel.fadeOut(400, function () {
-      panel.addClass("hidden");
-    });
-  }
-  //$("#apps-panel").toggleClass("hidden");
+  $appsPanel.fadeToggle(300);
 };
 const closeCurrentApp = () => {
   closeApp(currentApp);
@@ -234,7 +234,10 @@ const showHome = () => {
 };
 
 $("#nav-panel-close").on("click", () => closeAppsPanel());
-$appsPanel.on("click", () => closeAppsPanel());
+
+$appsPanel.on("click", function (event) {
+  closeAppsPanel();
+});
 
 // loading and rendering apps
 const loadApps = async payload => {
@@ -254,7 +257,7 @@ const loadApps = async payload => {
 };
 
 const toggleNotificationsPanel = () => {
-  $("#control-center").slideToggle(300);
+  $("#control-center").fadeToggle();
 };
 
 const clearNotificationsPanel = () => {
@@ -262,35 +265,6 @@ const clearNotificationsPanel = () => {
     $(this).empty(); // clear after fadeOut completes
   });
 };
-
-//$(document).ready(function () {
-// Toggle Control Center with smooth slide animation
-//$("#cc-toggle-btn").on("click", function () {
-//});
-
-// clearing notifcations
-//$("#clear-notifications-btn").on("click", function () {});
-
-// Function to switch panels with proper animations
-//function switchPanel(showPanel, hidePanel, activeBtn, inactiveBtn) {
-//  $(hidePanel)
-//    .stop(true, true)
-//    .fadeOut(200, function () {
-//      $(showPanel).stop(true, true).fadeIn(200);
-//    });
-
-//  $(activeBtn).addClass("bg-blue-500/60");
-//  $(inactiveBtn).removeClass("bg-blue-500/60");
-//}
-
-// Attach event listeners dynamically
-//$("[data-panel-btn]").on("click", function () {
-//  let targetPanel = $(this).data("target");
-//  let otherButtons = $("[data-panel-btn]").not(this);
-
-//  switchPanel($(targetPanel), otherPanels, $(this), otherButtons);
-//});
-//});
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -345,15 +319,19 @@ const animateNotify = async payload => {
 };
 
 function createNotifyDiv(payload) {
-  // Tailwind border color by type
+  // Tailwind color by type
   let color = "bg-white";
   if (payload.type === "error") color = "bg-red-200 text-black";
   else if (payload.type === "success") color = "bg-green-200 text-white";
   else if (payload.type === "warning") color = "bg-yellow-200 text-white";
 
-  // Create main container
+  // Create the notification div
   const notifyDiv = $("<div>", {
-    class: `${color} rounded-sm px-3 py-2 text-sm w-full max-w-sm cursor-pointer`,
+    class: `${color} rounded-sm px-3 py-2 text-sm w-full max-w-sm cursor-pointer transition-all duration-300`,
+    css: {
+      position: "relative",
+      touchAction: "none" // Helps prevent scrolling conflict
+    },
     click: function () {
       if (openApps.includes(payload.name)) {
         switchApp(payload.name);
@@ -363,21 +341,20 @@ function createNotifyDiv(payload) {
     }
   });
 
-  // Title (bold and tight spacing)
+  // Title and message
   const titleEl = $("<div>", {
     class: "font-semibold mb-0.5 text-xs",
     text: payload.title
   });
-
-  // Message
   const messageEl = $("<div>", {
     text: payload.msg
   });
-
-  // Append to div
   notifyDiv.append(titleEl, messageEl);
 
-  // Append to your container
+  // kikx-utils.js swipe to close
+  enableSwipeToDismiss(notifyDiv, "right");
+
+  // Append to container
   $("#notification-container").append(notifyDiv);
 
   return notifyDiv;
@@ -407,11 +384,12 @@ const addNotify = (payload, toast) => {
 
 // this will update user data
 const updateUserData = userData => {
-  $("#user_name")
-    .text("Hello, " + userData.name)
-    .slideDown(300);
+  setTimeout(() => {
+    $("#user-name-text")
+      .text("Hello, " + userData.name)
+      .slideDown(300);
+  }, 600);
 };
 const updateControlPanel = userSettings => {
-  // console.log(userSettings);
   // console.log(userSettings);
 };

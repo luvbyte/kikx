@@ -1,0 +1,5 @@
+.round-style {
+  border-radius: 0.5rem;               /* This is `rounded-lg` */
+  border-top-left-radius: 0rem;        /* This is `rounded-tl-none` */
+  border-bottom-right-radius: 0rem;    /* This is `rounded-br-none` */
+}

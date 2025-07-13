@@ -1,6 +1,5 @@
 let config = null;
 
-
 function renderUI(config) {
   const $container = $("#ui-container").empty();
 
@@ -19,7 +18,9 @@ function renderUI(config) {
         break;
 
       case "select":
-        $input = $(`<select id="${element.id}" class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-white"></select>`);
+        $input = $(
+          `<select id="${element.id}" class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-white"></select>`
+        );
         element.options.forEach(opt => {
           const $opt = $(`<option value="${opt}">${opt}</option>`);
           if (opt === element.value) $opt.prop("selected", true);
@@ -37,7 +38,9 @@ function renderUI(config) {
           const inputId = `${element.id}_${opt}`;
           const $radio = $(`
             <div class="flex items-center gap-2">
-              <input type="radio" id="${inputId}" name="${element.id}" value="${opt}" class="form-radio text-blue-600"
+              <input type="radio" id="${inputId}" name="${
+                element.id
+              }" value="${opt}" class="form-radio text-blue-600"
                 ${opt === element.value ? "checked" : ""}>
               <label for="${inputId}" class="text-gray-700 dark:text-gray-200">${opt}</label>
             </div>
@@ -53,8 +56,14 @@ function renderUI(config) {
       case "checkbox":
         $input = $(`
           <div class="flex items-center gap-2">
-            <input type="checkbox" id="${element.id}" class="form-checkbox text-blue-600" ${element.value ? "checked" : ""}>
-            <label for="${element.id}" class="text-gray-700 dark:text-gray-200">${element.label}</label>
+            <input type="checkbox" id="${
+              element.id
+            }" class="form-checkbox text-blue-600" ${
+              element.value ? "checked" : ""
+            }>
+            <label for="${
+              element.id
+            }" class="text-gray-700 dark:text-gray-200">${element.label}</label>
           </div>
         `);
 
@@ -88,7 +97,6 @@ function renderUI(config) {
 
   updateOutput();
 }
-
 
 function updateConfigValue(id, newValue) {
   config.kikx = config.kikx.map(el =>
@@ -144,6 +152,5 @@ $(async () => {
 kikxApp.on("signal", signalData => {
   if (signalData.signal === "update_user_settings") {
     $("html").toggleClass("dark", signalData.data.dark_mode);
-
   }
-  });
+});
