@@ -106,11 +106,56 @@ async function openApp(name, icon, title) {
     `);
 
     // ---- swipe up to close
-    enableSwipeToDismiss($tab, "up", {
-      threshold: 50,
-      fade: true,
-      duration: 300,
-      onDismiss: () => closeApp(name)
+    let startY = 0;
+    let isDragging = false;
+
+    $tab.on("touchstart mousedown", e => {
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      startY = clientY;
+      isDragging = true;
+      $tab.css({ transition: "none" }); // Disable transition during drag
+    });
+
+    $(document).on("touchmove mousemove", e => {
+      if (!isDragging) return;
+
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - startY;
+
+      if (deltaY < 0) {
+        $tab.css({
+          transform: `translateY(${deltaY}px)`,
+          opacity: 1 + deltaY / 150 // gradually fade as you swipe up
+        });
+      }
+    });
+
+    $(document).on("touchend mouseup", e => {
+      if (!isDragging) return;
+      isDragging = false;
+
+      const clientY = e.changedTouches
+        ? e.changedTouches[0].clientY
+        : e.clientY;
+      const deltaY = clientY - startY;
+
+      if (deltaY < -100) {
+        // Swipe up threshold met: close with fade effect
+        $tab.css({
+          transition: "transform 0.3s ease, opacity 0.3s ease",
+          transform: "translateY(-100%)",
+          opacity: 0
+        });
+
+        setTimeout(() => closeApp(name), 300); // Wait for animation
+      } else {
+        // Revert to original position
+        $tab.css({
+          transition: "transform 0.3s ease, opacity 0.3s ease",
+          transform: "translateY(0)",
+          opacity: 1
+        });
+      }
     });
 
     // Tab click switches app
@@ -325,13 +370,9 @@ function createNotifyDiv(payload) {
   else if (payload.type === "success") color = "bg-green-200 text-white";
   else if (payload.type === "warning") color = "bg-yellow-200 text-white";
 
-  // Create the notification div
   const notifyDiv = $("<div>", {
     class: `${color} rounded-sm px-3 py-2 text-sm w-full max-w-sm cursor-pointer transition-all duration-300`,
-    css: {
-      position: "relative",
-      touchAction: "none" // Helps prevent scrolling conflict
-    },
+
     click: function () {
       if (openApps.includes(payload.name)) {
         switchApp(payload.name);
@@ -351,11 +392,52 @@ function createNotifyDiv(payload) {
   });
   notifyDiv.append(titleEl, messageEl);
 
-  // kikx-utils.js swipe to close
-  enableSwipeToDismiss(notifyDiv, "right");
+  let startX = 0;
+  let isSwiping = false;
 
-  // Append to container
-  $("#notification-container").append(notifyDiv);
+  notifyDiv.on("touchstart", function (e) {
+    startX = e.originalEvent.touches[0].clientX;
+    isSwiping = true;
+  });
+
+  notifyDiv.on("touchmove", function (e) {
+    if (!isSwiping) return;
+
+    const currentX = e.originalEvent.touches[0].clientX;
+    const diffX = currentX - startX;
+
+    if (diffX > 0) {
+      // Max distance after which it becomes fully transparent
+      const maxSwipe = 150;
+      const limitedDiff = Math.min(diffX, maxSwipe);
+      const opacity = 1 - limitedDiff / maxSwipe;
+
+      $(this).css({
+        transform: `translateX(${limitedDiff}px)`,
+        opacity: opacity
+      });
+    }
+  });
+
+  notifyDiv.on("touchend", function (e) {
+    const endX = e.originalEvent.changedTouches[0].clientX;
+    const diffX = endX - startX;
+
+    if (diffX > 100) {
+      // Dismiss with fade and slide
+      $(this).animate({ opacity: 0, marginLeft: "200px" }, 200, function () {
+        $(this).remove();
+      });
+    } else {
+      // Snap back if not swiped enough
+      $(this).css({
+        transform: "translateX(0)",
+        opacity: 1
+      });
+    }
+
+    isSwiping = false;
+  });
 
   return notifyDiv;
 }
