@@ -54,7 +54,6 @@ $(function () {
 
   initTouchGestures("#apps", {
     swipeUp: () => $("#apps-menu").slideDown()
-  
   });
 
   $appsMenu.on("click", function () {
@@ -120,9 +119,6 @@ const createSwipeBubble = selector => {
   };
 
   const expand = () => {
-    $controlCenter.fadeOut();
-    $appsPanel.fadeOut();
-
     clearTimeout(shrinkTimer);
     $bubble.removeClass(inactiveClasses).addClass(activeClasses);
     isActive = true;

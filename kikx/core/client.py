@@ -88,7 +88,7 @@ class User:
   def __init__(self, user_config, user_data_path, home_path, storage_path):
     self.config = user_config
     self.username = user_config.username
-    
+
     # user all paths
     self.data_path: Path = user_data_path # data://users# app data folder
     self.home_path = home_path  # home://{user_id}/ # home folder or sdcard folder
