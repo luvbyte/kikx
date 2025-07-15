@@ -86,7 +86,7 @@ async function openApp(name, icon, title) {
 
     const $tab = $(`
       <div id="tab-${escapeHTML(name)}" 
-          class="app-tab snap-start min-w-[100px] min-h-[120px] relative bg-purple-400/40 border rounded-lg shadow-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition duration-200 ease-in-out">
+          class="app-tab snap-start min-w-[100px] min-h-[120px] relative bg-purple-400/40 border round-style shadow-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition duration-200 ease-in-out">
     
         <!-- App Icon -->
         <img class="w-12 h-12 rounded-md mb-3" 
@@ -98,10 +98,11 @@ async function openApp(name, icon, title) {
           ${escapeHTML(title)}
         </span>
     
-        <!-- Close Button -->
+        <!-- Close Button 
           <div class="close-btn absolute top-0.5 right-0.5 text-white font-bold rounded cursor-pointer w-6 h-6">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.25"/><path stroke="currentColor" stroke-linecap="round" stroke-width="1.2" d="m9 9l6 6m0-6l-6 6"/></g></svg>
           </div>
+        -->
       </div>
     `);
 
@@ -220,14 +221,14 @@ async function closeApp(name) {
 function switchApp(name) {
   $("#apps-menu").slideUp(300, function () {
     $(".app-frame").addClass("hidden"); // Hide all iframes
-    $(".app-tab").removeClass("bg-purple-300/80"); // Remove active tab styling
+    $(".app-tab").removeClass("bg-red-300/80"); // Remove active tab styling
 
     if (appFrames[name]) $(appFrames[name].iframe).removeClass("hidden");
 
     // Select tab safely (Escape special characters)
     const $tab = $(`[id="tab-${name}"]`);
     if ($tab.length) {
-      $tab.addClass("bg-purple-300/80"); // Highlight active tab
+      $tab.addClass("bg-red-300/80"); // Highlight active tab
     }
 
     currentApp = name;
@@ -281,8 +282,21 @@ const showHome = () => {
 $("#nav-panel-close").on("click", () => closeAppsPanel());
 
 $appsPanel.on("click", function (event) {
+  if (event.target === $("#swipe-touch-cancel").get(0)) {
+    return;
+  }
   closeAppsPanel();
 });
+
+const toggleNotificationsPanel = () => {
+  $("#control-center").fadeToggle();
+};
+
+const clearNotificationsPanel = () => {
+  $("#cc-notifications-panel").fadeOut(300, function () {
+    $(this).empty(); // clear after fadeOut completes
+  });
+};
 
 // loading and rendering apps
 const loadApps = async payload => {
@@ -299,16 +313,6 @@ const loadApps = async payload => {
   } catch (error) {
     console.error("Failed to fetch app list:", error);
   }
-};
-
-const toggleNotificationsPanel = () => {
-  $("#control-center").fadeToggle();
-};
-
-const clearNotificationsPanel = () => {
-  $("#cc-notifications-panel").fadeOut(300, function () {
-    $(this).empty(); // clear after fadeOut completes
-  });
 };
 
 function sleep(ms) {

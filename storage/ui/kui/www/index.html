@@ -196,7 +196,7 @@
       <div
         id="swb-ghost-btn"
         style="display: none"
-        class="absolute z-[90] transform -translate-y-1/2 top-1/2 right-0 w-8 h-16 bg-green-300"
+        class="absolute z-[90] transform -translate-y-1/2 top-1/2 right-0 w-8 h-16"
       ></div>
 
       <div
@@ -248,7 +248,7 @@
       <div
         id="apps-panel"
         style="display: none"
-        class="bg-black/80 absolute w-full h-full flex flex-col items-center justify-between overflow-auto"
+        class="bg-black/80 absolute w-full h-full flex flex-col items-center justify-between overflow-auto z-[190]"
       >
         <div class="landscape:hidden h-[30%] w-full"></div>
         <div
@@ -257,6 +257,12 @@
         >
           <!-- tabs -->
         </div>
+
+        <div
+          id="swipe-touch-cancel"
+          class="absolute w-6 h-[45%] top-0 right-0"
+        ></div>
+
         <div class="landscape:hidden h-[40%] w-full"></div>
       </div>
     </div>

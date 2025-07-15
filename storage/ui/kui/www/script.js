@@ -143,7 +143,10 @@ const createSwipeBubble = selector => {
     }
   });
 
-  window.addEventListener("blur", () => isActive && shrink());
+  window.addEventListener(
+    "blur",
+    () => isActive && shrink() 
+  );
 
   initTouchGestures(selector, {
     swipeDown: () => {
