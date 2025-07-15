@@ -75,7 +75,7 @@ async function openApp(name, icon, title) {
 
     // Append iframe to container
     $appsContainer.append($iframe);
-    appFrames[name] = {
+     appFrames[name] = {
       iframe: $iframe[0],
       title,
       icon
@@ -217,35 +217,33 @@ async function closeApp(name) {
 }
 // Switch to a specific app
 function switchApp(name) {
-  $("#apps-menu").fadeOut(300, function () {
-    $(".app-frame").addClass("hidden"); // Hide all iframes
-    $(".app-tab").removeClass("bg-red-300/80"); // Remove active tab styling
+  $(".app-frame").addClass("hidden"); // Hide all iframes
+  $(".app-tab").removeClass("bg-red-300/80"); // Remove active tab styling
 
-    if (appFrames[name]) $(appFrames[name].iframe).removeClass("hidden");
+  if (appFrames[name]) $(appFrames[name].iframe).removeClass("hidden");
 
-    // Select tab safely (Escape special characters)
-    const $tab = $(`[id="tab-${name}"]`);
-    if ($tab.length) {
-      $tab.addClass("bg-red-300/80"); // Highlight active tab
-    }
+  // Select tab safely (Escape special characters)
+  const $tab = $(`[id="tab-${name}"]`);
+  if ($tab.length) {
+    $tab.addClass("bg-red-300/80"); // Highlight active tab
+  }
 
-    currentApp = name;
+  currentApp = name;
 
-    // setting icon in heade
-    if (currentApp) {
-      let appFrame = appFrames[name];
+  // setting icon in heade
+  if (currentApp) {
+    let appFrame = appFrames[name];
 
-      $("#header-app-name").text(appFrame.title);
-      let iconDiv = $("<img>", {
-        src: appFrame.icon,
-        class: "w-full h-full"
-      });
-      $("#header-app-icon").html(iconDiv);
-    } else {
-      $("#header-app-icon").empty();
-      $("#header-app-name").empty();
-    }
-  });
+    $("#header-app-name").text(appFrame.title);
+    let iconDiv = $("<img>", {
+      src: appFrame.icon,
+      class: "w-full h-full"
+    });
+    $("#header-app-icon").html(iconDiv);
+  } else {
+    $("#header-app-icon").empty();
+    $("#header-app-name").empty();
+  }
 }
 
 // Render app launcher grid

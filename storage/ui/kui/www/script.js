@@ -30,9 +30,7 @@ const handleOrientation = orientation => {
 };
 
 const updateKuiConfig = async () => {
-  const res = await client.fs.readFile(
-    "home://.config/kui/config.json"
-  );
+  const res = await client.fs.readFile("home://.config/kui/config.json");
   if (res.data)
     Object.assign(kuiConfig, JSON.parse(await blobToText(res.data)));
   $("#apps").css("background-image", `url("${kuiConfig.bg}")`);
@@ -53,11 +51,11 @@ $(function () {
   });
 
   initTouchGestures("#apps", {
-    swipeUp: () => $("#apps-menu").slideDown()
+    swipeUp: () => $("#apps-menu").fadeIn()
   });
 
   $appsMenu.on("click", function () {
-    $(this).slideUp();
+    $(this).fadeOut(250);
   });
 
   createSwipeBubble("#swipe-bubble");
