@@ -1,6 +1,6 @@
 const kuiSettingsApp = {
-  settings: {},
-
+  settings: JSON.parse(JSON.stringify(kuiConfig)),
+  selectedImage: null,
   basePath: "/share/images/bg/",
   imageExtensions: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"],
 
@@ -13,6 +13,7 @@ const kuiSettingsApp = {
       )
       .on("click", function () {
         kuiSettingsApp.settings.bg = src;
+        kuiSettingsApp.selectedImage = src; // Save currently selected image
         $("#apps").css("background-image", `url("${src}")`);
         $("#image-list img").removeClass("border-blue-500");
         $(this).addClass("border-blue-500");
@@ -39,6 +40,97 @@ const kuiSettingsApp = {
       });
   },
 
+  async deleteImage(path) {
+    return await client.fs.deleteFile(path);
+  },
+  handleDeleteSelectedImage: async function () {
+    const selected = kuiSettingsApp.selectedImage;
+
+    if (!selected) {
+      $("#bg-upload-error").text("No image selected.");
+      return;
+    }
+
+    const fileName = selected.replace(kuiSettingsApp.basePath, "");
+    const fullPath = `share://images/bg/${fileName}`;
+
+    try {
+      const res = await kuiSettingsApp.deleteImage(fullPath);
+
+      if (res.error) {
+        $("#bg-upload-error").text("Delete failed. " + (res.message || ""));
+        return;
+      }
+
+      // Remove image from list and reset state
+      $(`#image-list img[src="${selected}"]`).remove();
+
+      if (kuiConfig.bg === kuiSettingsApp.selectedImage) {
+        // if deleted selected image
+        kuiSettingsApp.selectedImage = null;
+        kuiSettingsApp.settings.bg = "bg.png";
+        $("#apps").css("background-image", `url("bg.png")`);
+      } else {
+        // if non selected image
+        kuiSettingsApp.selectedImage = null;
+        kuiSettingsApp.settings.bg = kuiConfig.bg;
+
+        setValidBackground(kuiConfig.bg);
+        //$("#apps").css("background-image", `url("${}")`);
+        //$("#apps").css("background-image", kuiConfig.bg);
+      }
+
+      //kuiSettingsApp.selectedImage = null;
+      //kuiSettingsApp.settings.bg = "";
+      //$("#apps").css("background-image", "none");
+    } catch (err) {
+      $("#bg-upload-error").text("Unexpected error while deleting.");
+      console.error(err);
+    }
+  },
+  // uploads image to share://image/bg/random-id
+  handleImageUpload: async function (event) {
+    const file = event.target.files[0];
+    const $error = $("#bg-upload-error");
+    $error.text("");
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      $error.text("Only image files are allowed.");
+      return;
+    }
+
+    // Generate random ID and extension
+    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    const randomId = Math.random().toString(36).substring(2, 10); // e.g. "a9gkz1qw"
+    const newFileName = `${randomId}${ext}`;
+    const fullVirtualPath = `share://images/bg/${newFileName}`;
+
+    // Rename the file
+    const renamedFile = new File([file], fullVirtualPath, { type: file.type });
+
+    try {
+      // Upload with custom virtual path
+      const res = await client.fs.uploadFile(renamedFile);
+
+      if (res.error) {
+        $error.text("Upload failed. " + (res.message || ""));
+        return;
+      }
+
+      // Show preview using the new path
+      const imageUrl = kuiSettingsApp.basePath + newFileName;
+      const $imageList = $("#image-list");
+      const $img = kuiSettingsApp.createImageElement(imageUrl);
+      $imageList.prepend($img);
+      $img.click();
+    } catch (err) {
+      $error.text("Unexpected error during upload.");
+      console.error(err);
+    }
+  },
+
   // Add custom background from URL
   setBackgroundCustomUrl() {
     const imageUrl = $("#bg-url").val().trim();
@@ -60,6 +152,7 @@ const kuiSettingsApp = {
 
     testImage.src = imageUrl;
   },
+
   // Open settings UI
   async openSettings() {
     $controlCenter.hide();
@@ -76,7 +169,7 @@ const kuiSettingsApp = {
             <div>Wallpaper</div>
           </div>
           
-        <div class="absolute bottom-6 right-6 flex gap-2 items-center px-2">
+        <div class="absolute bottom-6 right-4 flex gap-2 items-center px-2">
           <div class="border bg-red-400/60 p-1 w-20 flex justify-center round-style" onclick="kuiSettingsApp.kuiSettingsUpdate(false)">CANCEL</div>
           <div class="border bg-green-400/60 p-1 w-20 flex justify-center round-style" onclick="kuiSettingsApp.kuiSettingsUpdate(true)">SAVE</div>
         </div>
@@ -98,6 +191,33 @@ const kuiSettingsApp = {
               <!-- Images injected here -->
             </div>
           </div>
+
+          <!-- Upload & Delete buttons -->
+          <div class="flex gap-2 mt-2">
+            <label for="bg-upload" class="flex-1 border bg-purple-500/60 px-4 py-1 round-style flex justify-center cursor-pointer">
+              UPLOAD
+            </label>
+          
+            <div
+              id="bg-delete"
+              class="flex-1 border bg-red-500/60 px-4 py-1 round-style flex justify-center cursor-pointer"
+              onclick="kuiSettingsApp.handleDeleteSelectedImage()"
+            >
+              DELETE
+            </div>
+          </div>
+          
+          <input
+            id="bg-upload"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            onchange="kuiSettingsApp.handleImageUpload(event)"
+          />
+          
+          <!-- Error message -->
+          <div id="bg-upload-error" class="text-red-400 text-sm mt-1"></div>
+
         </div>
       </div>
     `);
@@ -106,9 +226,9 @@ const kuiSettingsApp = {
   },
 
   getSettings() {
-    if (Object.keys(kuiSettingsApp.settings).length === 0) {
-      return null;
-    }
+    //if (Object.keys(kuiSettingsApp.settings).length === 0) {
+    //return null;
+    //}
     return JSON.stringify(kuiSettingsApp.settings);
   },
 
@@ -117,13 +237,13 @@ const kuiSettingsApp = {
     $("#kui-settings").remove();
     const updatedSettings = kuiSettingsApp.getSettings();
 
-    if (updatedSettings) {
-      await client.fs.createDirectory("home://.config/kui");
-      await client.fs.writeFile(
-        "home://.config/kui/config.json",
-        updatedSettings
-      );
-    }
+    //if (updatedSettings) {
+    await client.fs.createDirectory("home://.config/kui");
+    await client.fs.writeFile(
+      "home://.config/kui/config.json",
+      updatedSettings
+    );
+    // }
   },
 
   // Cancel without saving

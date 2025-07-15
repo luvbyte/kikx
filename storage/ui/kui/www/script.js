@@ -29,6 +29,14 @@ const handleOrientation = orientation => {
   );
 };
 
+// set valid background-image
+function setValidBackground(url, fallback = "bg.png") {
+  const img = new Image();
+  img.onload = () => $("#apps").css("background-image", `url("${url}")`);
+  img.onerror = () => $("#apps").css("background-image", `url("${fallback}")`);
+  img.src = url;
+}
+
 const updateKuiConfig = async (fth = true) => {
   if (fth) {
     const res = await client.fs.readFile("home://.config/kui/config.json");
@@ -40,8 +48,9 @@ const updateKuiConfig = async (fth = true) => {
         // TODO: show error as alert notfy
       }
   }
-  // updates settings based kuiConfig
-  $("#apps").css("background-image", `url("${kuiConfig.bg}")`);
+  // setting default bg if not found
+  setValidBackground(kuiConfig.bg);
+  //$("#apps").css("background-image", `url("${kuiConfig.bg}")`);
 };
 
 $(function () {
