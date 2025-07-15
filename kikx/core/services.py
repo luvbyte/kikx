@@ -9,7 +9,6 @@ class Service:
     self.name = name
     self.path = service_path
     self._main = main # entry object
-    # self.module = dynamic_import("service_" + name, service_path / "main.py")
     self.module = import_relative_module(f"{self.path}.{name}.main", "service_" + name)
     
     self.init(core)
@@ -65,13 +64,13 @@ class Services:
           service.router, 
           prefix=f"/service/{name}",
           tags=["Service " + name.capitalize()],
-          dependencies=[Depends(core.on_service_request)]
+          # dependencies=[Depends(core.on_service_request)]
         )
       elif service_config.type == "k2":
         service = K2Service(name, core.config.resolve_path("services"), service_config.main, core)
 
       self.active_services[name] = service
-      print(f"[+] Service( {service_config.type} ) : {name}")
+      print(f"[+] Service( {service_config.type} ) : {name} <==> {service_config.title}")
 
   # emiting close event
   def on_close(self):

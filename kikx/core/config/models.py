@@ -5,12 +5,10 @@ from typing import Dict, List, Literal, Optional
 # Configuration Models
 # -------------------------------------
 class ServerModel(BaseModel):
-  #app: str = Field("app:app", description="ASGI application to run")
   host: str = Field("127.0.0.1", description="Host to bind the server")
-  port: int = Field(8000, ge=1, le=65535, description="Port to bind the server")
+  port: int = Field(8000, ge=1000, le=65535, description="Port to bind the server")
   #reload: bool = Field(True, description="Enable automatic reloading")
-  workers: int = Field(1, ge=1, description="Number of worker processes")
-  log_level: Literal["critical", "error", "warning", "info", "debug", "trace", "notset"] = Field("notset", description="Logging level")
+  log_level: Literal["critical", "error", "warning", "info", "debug"] = Field("critical", description="Logging level")
 
 # --------------------------- Users models
 class AppMountPaths(BaseModel):

@@ -2,8 +2,8 @@
 
 **Kikx** is a lightweight, web-based virtual operating system framework built using modern web technologies for the frontend and Python as the backend. It provides a simulated OS-like interface where Python scripts can be executed directly through the browser. Think of it as a customizable digital workspace or sandbox for running Python logic with a desktop-style UI.
 
-![Kikx Screenshot 1](docs/screenshots/screen1.jpg)
-![Kikx Screenshot 2](docs/screenshots/screen2.jpg)
+![Kikx Screenshot 1](docs/screenshots/screen3.jpg)
+![Kikx Screenshot 2](docs/screenshots/screen4.jpg)
 
 ---
 

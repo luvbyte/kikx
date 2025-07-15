@@ -1,5 +1,4 @@
-import os
+from pathlib import Path
 
 def get_root_path():
-  return os.path.dirname(os.path.abspath(__file__))
-
+  return Path(__file__).resolve().parent

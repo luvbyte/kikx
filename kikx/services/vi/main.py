@@ -14,6 +14,7 @@ from lib.service import create_service
 
 srv = create_service(__file__)
 
+
 class Config(BaseModel):
   storage: str = Field(..., description="Storage path")
   
@@ -48,7 +49,7 @@ vi = VI(srv.path / "config.json")
 
 @srv.on("load")
 def on_load():
-  vi.init(srv.kikx_core)
+  vi.init(srv.get_core())
 
 # files upload
 @srv.router.post("/upload")

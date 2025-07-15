@@ -3,7 +3,6 @@ from core.errors import raise_error
 import functools
 import asyncio
 from uuid import uuid4
-# from core.models import FuncXModel
 
 from pydantic import BaseModel, Field
 

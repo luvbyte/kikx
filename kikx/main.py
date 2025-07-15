@@ -7,12 +7,11 @@ if __name__ == "__main__":
   config = uvicorn.Config(
     app, host=server_config.host,
     port=server_config.port,
-    workers=server_config.workers,
+    workers=1,
     log_level=server_config.log_level
   )
-  server = uvicorn.Server(config)
   try:
-    server.run()
+    uvicorn.Server(config).run()
   except KeyboardInterrupt:
-    print("Bye")
+    pass
 

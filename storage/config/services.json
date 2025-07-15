@@ -9,12 +9,9 @@
     "proxy": {
       "title": "Proxy"
     },
-    "neuron": {
-      "title": "Neuron"
-    },
     "vi": {
       "title": "Vi"
     }
   },
-  "enabled": ["system", "fs", "proxy"]
+  "enabled": ["system", "fs", "proxy", "vi"]
 }

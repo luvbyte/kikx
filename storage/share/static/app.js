@@ -100,6 +100,9 @@ class Service {
     Object.assign(headers, {
       "kikx-app-id": appID
     });
+
+    console.log(endpoint, method, headers, body);
+
     return await fetch(`${this.baseURL}/${endpoint}`, {
       method,
       headers,

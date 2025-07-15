@@ -44,7 +44,8 @@ from core.shortlink import ShortLink
 # from lib.utils import is_websocket_connected
 from core.config.models import UserModel, AppModel, UserDataModel
 
-from core.client import Client, User
+from core.client import Client
+from core.user import User
 
 import subprocess
 #from core.global_config import global_config
@@ -64,7 +65,7 @@ logger = logging.getLogger(__name__)
 # client 
 class Core:
   def __init__(self):
-    print("\nC---------------ore init\n")
+    print("\n<===[ CORE INIT ]===>\n")
     
     self.config = Config("../storage")
     # run boot file
@@ -72,9 +73,6 @@ class Core:
     if boot_file.exists() and not boot_file.is_dir():
       subprocess.Popen(f"chmod +x {boot_file} && {boot_file}", shell=True, stdout=sys.stdout, stdin=sys.stdin, stderr=sys.stderr).wait()
 
-    # setting global immutable config object
-    #global_config.data["core_config"] = self.config
-    # global_config.data["resolve_path"] = self.config.resolve_path
     self.plugins = PluginsManager(self.config.kikx.plugins)
     self.services = Services(self.config.resolve_path("storage://config/services.json"))
     self.auth = Auth(self.config.resolve_path("storage://config/auth.json"))
@@ -89,11 +87,9 @@ class Core:
 
     self.clients: Dict[str, Client] = {}
     # app index
-    # implemet in future
     # app_id: ( client, app ) <-> for faster lookups
     # now app_id: client_id
     self.app_index = {}
-    print(self)
   
   def get_client(self, client_id):
     return self.clients.get(client_id)
@@ -109,14 +105,6 @@ class Core:
 
     app = client.running_apps.get(app_id)  # O(1) lookup for app
     return (client, app) if app else (None, None)  # Return (client, app) or (None, None)
-  # every service request
-  # validate based on service rules
-  def on_service_request(self, request: Request = None, websocket: WebSocket = None):
-    #if request is None:
-      #websocket.state.core = self
-    #else:
-      #request.state.core = self
-    pass
 
   # --------------------------- Apps
   def open_app(self, client_id: str, name):
@@ -178,11 +166,11 @@ core = Core()
 # lifespan 
 async def lifespan(self):
   await core.on_start()
-  print("Application startup")  # Initialization logic
+  print("<=== [ KIKX STARED ] ===>")  # Initialization logic
   yield
   await core.on_close()
-  print("Application closed")  # Initialization logic
-  # await .on__close()  # Call close when FastAPI shuts down
+  print("<=== [ KIKX CLOSED ] ===>")  # Initialization logic
+
 
 # router fastapi server
 app = FastAPI(lifespan = lifespan)
@@ -220,7 +208,6 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-# share mount make it /s in future
 app.mount("/share", StaticFiles(directory=core.config.share_path), name="share")
 
 # ----------------api routes

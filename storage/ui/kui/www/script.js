@@ -1,5 +1,5 @@
 const client = new Client();
-let kuiConfig = { bg: "bg.jpg" };
+let kuiConfig = { bg: "bg.png" };
 let screenOrientation = "portrait";
 let isBrowserFullScreen = false;
 let isFullScreen = false;
@@ -31,7 +31,7 @@ const handleOrientation = orientation => {
 
 const updateKuiConfig = async () => {
   const res = await client.fs.readFile(
-    "storage://root/.config/kui/config.json"
+    "home://.config/kui/config.json"
   );
   if (res.data)
     Object.assign(kuiConfig, JSON.parse(await blobToText(res.data)));
@@ -143,10 +143,7 @@ const createSwipeBubble = selector => {
     }
   });
 
-  window.addEventListener(
-    "blur",
-    () => isActive && shrink() 
-  );
+  window.addEventListener("blur", () => isActive && shrink());
 
   initTouchGestures(selector, {
     swipeDown: () => {

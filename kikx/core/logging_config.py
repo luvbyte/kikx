@@ -1,5 +1,5 @@
-import logging
 import os
+import logging
 from logging.handlers import RotatingFileHandler
 
 # Create logs directory if it doesn't exist

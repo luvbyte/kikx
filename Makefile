@@ -15,13 +15,13 @@ install:
 
 # Run the Python script
 run:
-	cd kikx && ../venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+	cd kikx && ../venv/bin/python3 main.py
 
 serve:
 	cd kikx && ../venv/bin/uvicorn main:app --reload
 
 test:
-	cd kikx && ../venv/bin/python3 test.py
+	cd kikx && ../venv/bin/pytest
 
 # Clean up the virtual environment and cache
 clean:
