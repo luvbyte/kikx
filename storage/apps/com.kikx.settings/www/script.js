@@ -138,6 +138,7 @@ $(async () => {
   }
 
   config = res.data;
+
   renderUI(config);
 
   kikxApp.run(() => {

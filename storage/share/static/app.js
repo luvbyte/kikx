@@ -101,7 +101,7 @@ class Service {
       "kikx-app-id": appID
     });
 
-    console.log(endpoint, method, headers, body);
+    //console.log(endpoint, method, headers, body);
 
     return await fetch(`${this.baseURL}/${endpoint}`, {
       method,

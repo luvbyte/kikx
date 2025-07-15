@@ -29,10 +29,18 @@ const handleOrientation = orientation => {
   );
 };
 
-const updateKuiConfig = async () => {
-  const res = await client.fs.readFile("home://.config/kui/config.json");
-  if (res.data)
-    Object.assign(kuiConfig, JSON.parse(await blobToText(res.data)));
+const updateKuiConfig = async (fth = true) => {
+  if (fth) {
+    const res = await client.fs.readFile("home://.config/kui/config.json");
+
+    if (res.data)
+      try {
+        Object.assign(kuiConfig, JSON.parse(await blobToText(res.data)));
+      } catch (_) {
+        // TODO: show error as alert notfy
+      }
+  }
+  // updates settings based kuiConfig
   $("#apps").css("background-image", `url("${kuiConfig.bg}")`);
 };
 
@@ -177,3 +185,5 @@ const createSwipeBubble = selector => {
     }
   });
 };
+
+requestWakeLock();

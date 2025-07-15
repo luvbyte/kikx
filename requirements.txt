@@ -9,4 +9,3 @@ pytest
 httpx
 bleach
 lupa
-colorama

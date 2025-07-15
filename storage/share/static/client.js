@@ -1,3 +1,16 @@
+function generateUUID() {
+  if (crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r =
+      (crypto.getRandomValues(new Uint8Array(1))[0] & 15) >>
+      (c === "x" ? 0 : 4);
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 const getCookie = name =>
   document.cookie
     .split("; ")

@@ -75,7 +75,7 @@ async function openApp(name, icon, title) {
 
     // Append iframe to container
     $appsContainer.append($iframe);
-     appFrames[name] = {
+    appFrames[name] = {
       iframe: $iframe[0],
       title,
       icon
@@ -372,6 +372,9 @@ function createNotifyDiv(payload) {
 
   const notifyDiv = $("<div>", {
     class: `${color} rounded-sm px-3 py-2 text-sm w-full max-w-sm cursor-pointer transition-all duration-300`,
+    css: {
+      willChange: "transform, opacity"
+    },
 
     click: function () {
       if (openApps.includes(payload.name)) {
@@ -408,7 +411,7 @@ function createNotifyDiv(payload) {
 
     if (diffX > 0) {
       // Max distance after which it becomes fully transparent
-      const maxSwipe = 150;
+      const maxSwipe = 100;
       const limitedDiff = Math.min(diffX, maxSwipe);
       const opacity = 1 - limitedDiff / maxSwipe;
 
@@ -424,13 +427,20 @@ function createNotifyDiv(payload) {
     const diffX = endX - startX;
 
     if (diffX > 100) {
-      // Dismiss with fade and slide
-      $(this).animate({ opacity: 0, marginLeft: "200px" }, 200, function () {
-        $(this).remove();
-      });
-    } else {
-      // Snap back if not swiped enough
+      // Fast, smooth fade out and slide using transform
       $(this).css({
+        transition: "transform 0.2s ease-out, opacity 0.2s ease-out",
+        transform: "translateX(400px)",
+        opacity: 0
+      });
+
+      setTimeout(() => {
+        $(this).remove();
+      }, 200);
+    } else {
+      // Snap back
+      $(this).css({
+        transition: "transform 0.2s ease-out, opacity 0.2s ease-out",
         transform: "translateX(0)",
         opacity: 1
       });
