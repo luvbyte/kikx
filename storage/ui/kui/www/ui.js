@@ -107,6 +107,7 @@ async function openApp(name, icon, title) {
     `);
 
     // ---- swipe up to close
+    // ---- swipe up to close (event listeners on $tab only)
     let startY = 0;
     let isDragging = false;
 
@@ -117,21 +118,20 @@ async function openApp(name, icon, title) {
       $tab.css({ transition: "none" }); // Disable transition during drag
     });
 
-    $(document).on("touchmove mousemove", e => {
+    $tab.on("touchmove mousemove", e => {
       if (!isDragging) return;
-
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       const deltaY = clientY - startY;
 
       if (deltaY < 0) {
         $tab.css({
           transform: `translateY(${deltaY}px)`,
-          opacity: 1 + deltaY / 150 // gradually fade as you swipe up
+          opacity: 1 + deltaY / 150
         });
       }
     });
 
-    $(document).on("touchend mouseup", e => {
+    $tab.on("touchend mouseup", e => {
       if (!isDragging) return;
       isDragging = false;
 
@@ -141,16 +141,14 @@ async function openApp(name, icon, title) {
       const deltaY = clientY - startY;
 
       if (deltaY < -100) {
-        // Swipe up threshold met: close with fade effect
         $tab.css({
           transition: "transform 0.3s ease, opacity 0.3s ease",
           transform: "translateY(-100%)",
           opacity: 0
         });
 
-        setTimeout(() => closeApp(name), 300); // Wait for animation
+        setTimeout(() => closeApp(name), 300);
       } else {
-        // Revert to original position
         $tab.css({
           transition: "transform 0.3s ease, opacity 0.3s ease",
           transform: "translateY(0)",
@@ -219,7 +217,7 @@ async function closeApp(name) {
 }
 // Switch to a specific app
 function switchApp(name) {
-  $("#apps-menu").slideUp(300, function () {
+  $("#apps-menu").fadeOut(300, function () {
     $(".app-frame").addClass("hidden"); // Hide all iframes
     $(".app-tab").removeClass("bg-red-300/80"); // Remove active tab styling
 

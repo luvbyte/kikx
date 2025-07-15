@@ -205,36 +205,6 @@ class SystemService extends Service {
     this.request("app/func", "POST", { name, config });
 }
 
-class NeuronService extends Service {
-  constructor(access = null) {
-    super("neuron");
-    this.access = access;
-    this.eventCallbacks = {};
-  }
-
-  on(event, callback) {
-    (this.eventCallbacks[event] ||= []).push(callback);
-  }
-
-  async run(callback) {
-    if (!this.access) {
-      const { data, error } = await this.request("uuid");
-      if (error) throw new Error("Can't establish connection");
-      this.access = data;
-    }
-
-    const ws = new WebSocket(
-      `ws://localhost:8000/service/neuron/node/${this.access}?role=parent&payload=${appID}`
-    );
-    ws.onmessage = e =>
-      JSON.parse(e.data)?.event &&
-      this.eventCallbacks[e.data.event]?.forEach(f => f(e.data.payload));
-
-    this.ws = ws;
-    return this.access;
-  }
-}
-
 class ProxyService extends Service {
   constructor() {
     super("proxy");
@@ -255,6 +225,7 @@ class KikxApp {
     this.id = appID;
     this.system = new SystemService();
     this.fs = new FileSystemService();
+    this.proxy = new ProxyService();
 
     this.ws = null;
     this.eventCallbacks = {};

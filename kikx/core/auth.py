@@ -23,7 +23,7 @@ def hash_strings(*strings):
   base.update("".join(strings).encode('utf-8'))
   return base.hexdigest()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "mysecretkey")
+SECRET_KEY = os.getenv("SECRET_KEY", uuid4().hex)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Password hashing

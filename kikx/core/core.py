@@ -268,7 +268,8 @@ def login_page():
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
   user = core.auth.authenticate_user(form_data.username, form_data.password)
   if user is None:
-    return JSONResponse(status_code=401, content={"detail": "Invalid credentials"})
+    raise HTTPException(status_code=401, detail={"detail": "Invalid credentials"})
+    #return JSONResponse(status_code=401, content={"detail": "Invalid credentials"})
 
   token = core.auth.create_access_token(data={"sub": user})
   response = JSONResponse(content={"message": "Login successful"})
@@ -288,20 +289,19 @@ def logout():
 async def close_app(app_model: CloseAppModel):
   client, app = core.get_client_app_by_id(app_model.app_id)
   if client is None or app is None:
-    return JSONResponse(status_code=401, content={"detail": "Invalid Client and App ID"})
-
-  if app.client_id == app_model.client_id:
+    raise HTTPException(status_code=401, detail="Unauthorized")
+  try:
     await core.close_app(client, app)
     return { "res": "ok" }
-
-  return JSONResponse(status_code=401, content={"detail": "Invalid Client and App ID"})
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Cant close app - {e}")
 
 @app.post("/open-app")
 def open_app(app_model: OpenAppModel):
   try:
     app = core.open_app(app_model.client_id, app_model.name)
   except Exception as e:
-    return JSONResponse(status_code=401, content={ "detail": "Unable to open App", "reason": str(e) })
+    raise HTTPException(status_code=401, detail=str(e))
 
   return {
     "id": app.id,
@@ -313,11 +313,9 @@ def open_app(app_model: OpenAppModel):
 @app.get("/app/{app_id}/{path:path}")
 async def app_web(app_id: str, path: str, starting: bool = False):
   client, app = core.get_client_app_by_id(app_id)
-
   if client is None or app is None:
-    return JSONResponse(status_code=401, content={"detail": "Can't find app in running list"})
-  # app = next((app for app_id, app in core.apps.running_apps.items() if app.public_id == public_id), None)
-  
+    raise HTTPException(status_code=401, detail="App not found")
+
   # !test
   if path.startswith("_app/"):  # can access app root folder files
     file = app.app_path / path.replace("_app/", "")
@@ -325,7 +323,7 @@ async def app_web(app_id: str, path: str, starting: bool = False):
     file = app.app_path / "www" / path
   
   if not file.exists():
-    return JSONResponse(status_code=404, content={"detail": "File not found"})
+    raise HTTPException(status_code=404, detail="File not found")
 
   response = FileResponse(file)
   # in dev
@@ -336,13 +334,12 @@ async def app_web(app_id: str, path: str, starting: bool = False):
   #})
   return response
 
-# 
 @app.get("/public/app/{name}/{path:path}")
 async def app_public(name: str, path: str):
   file = core.config.apps_path / name / "public" / path
 
   if not file.exists():
-    return JSONResponse(status_code=404, content={"detail": "File not found"})
+    raise HTTPException(status_code=404, detail="File not found")
 
   response = FileResponse(file)
   #response.headers.update({
@@ -360,8 +357,8 @@ def home_page(request: Request, ui_name: str, path: str):
   
   ui_config = core.config.kikx.ui.get(ui_name)
   if ui_config is None:
-    return JSONResponse(status_code=404, content={"detail": "Ui not configured"})
-  
+    raise HTTPException(status_code=404, detail="UI config not found")
+
   # setting None to generate in cookie
   token = core.auth.check_token(token)
 
@@ -371,19 +368,16 @@ def home_page(request: Request, ui_name: str, path: str):
   # check if user has that ui enabled
   user_config = core.auth.user_config
   if ui_name not in user_config.ui:
-    return JSONResponse(status_code=404, content={"detail": "Ui not found"})
+    raise HTTPException(status_code=404, detail="UI not found")
 
   if len(path.strip()) == 0:
     path = "index.html"
 
   file_path = core.config.resolve_path(ui_config.path) / "www" / path
 
-  if file_path.is_dir():
-    return JSONResponse(status_code=404, content={"detail": "Can't load directory"})
+  if not file_path.exists() or file_path.is_dir():
+    raise HTTPException(status_code=404, detail="File not found")
 
-  if not file_path.exists():
-    return JSONResponse(status_code=404, content={"detail": "File not found"})
-  
   response = FileResponse(file_path)
   
   if token is None:

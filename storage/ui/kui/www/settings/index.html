@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KUI Settings</title>
+
+    <script src="/share/cdn/tailwind-3.js"></script>
+    <script src="/share/cdn/jquery.min.js"></script>
+
+    <script src="/share/static/client.js"></script>
+  </head>
+
+  <body>
+    <!-- Loading Screen -->
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-slate-900/70 backdrop-blur-md flex flex-col justify-center items-center z-[169] transition-opacity duration-300 ease-in-out"
+    >
+      <!-- Smooth Circular Spinner -->
+      <div class="relative flex justify-center items-center mb-6">
+        <div
+          class="h-8 w-8 border-4 border-t-purple-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"
+        ></div>
+      </div>
+
+      <!-- Loading Text -->
+      <p
+        class="text-purple-300 text-lg font-semibold tracking-wide animate-pulse"
+      >
+        LOADING
+      </p>
+    </div>
+
+    <script defer src="script.js"></script>
+  </body>
+</html>
