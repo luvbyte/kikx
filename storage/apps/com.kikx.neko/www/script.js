@@ -54,8 +54,8 @@ const setNekoDefaultConfig = () => {
 };
 
 // ========== UI HELPERS ==========
-
-function scrollToBottom(selector = null) {
+// remove after test
+function scrollToBottom_old(selector = null) {
   const el = selector ? $(selector) : $panel;
   const scrollTop = el.scrollTop();
   const scrollHeight = el.prop("scrollHeight");
@@ -67,6 +67,22 @@ function scrollToBottom(selector = null) {
   if (distanceFromBottom < threshold) {
     el.scrollTop(scrollHeight);
   }
+}
+
+function scrollToBottom(selector = null) {
+  const $el = selector ? $(selector) : $panel;
+
+  const scrollHeight = $el.prop("scrollHeight");
+  const scrollTop = $el.scrollTop();
+  const clientHeight = $el.innerHeight();
+
+  if (scrollHeight - (scrollTop + clientHeight) < 100) {
+    $el.scrollTop(scrollHeight);
+  }
+}
+
+function scrollToTop(selector) {
+  $(selector).scrollTop(0);
 }
 
 function clearPanel(force = false) {
@@ -110,7 +126,7 @@ const setScriptName = name => {
 // ========== TASK OUTPUT HANDLER ==========
 
 function exec(outputText) {
-  console.log(outputText);
+  // console.log(outputText);
 
   try {
     const data = JSON.parse(outputText);
@@ -143,14 +159,14 @@ function exec(outputText) {
           }
         }
     }
-  } catch (err) {if (NekoConfig.rawOutput) {
-          if (NekoConfig.rawOutputHTML) {
-            $panel.append(outputText);
-          } else {
-            $panel.append($("<div>").text(outputText));
-          }
-        }
-    
+  } catch (err) {
+    if (NekoConfig.rawOutput) {
+      if (NekoConfig.rawOutputHTML) {
+        $panel.append(outputText);
+      } else {
+        $panel.append($("<div>").text(outputText));
+      }
+    }
   }
 
   scrollToBottom();

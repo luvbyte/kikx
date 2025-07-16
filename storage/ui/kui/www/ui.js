@@ -218,14 +218,14 @@ async function closeApp(name) {
 // Switch to a specific app
 function switchApp(name) {
   $(".app-frame").addClass("hidden"); // Hide all iframes
-  $(".app-tab").removeClass("bg-red-300/80"); // Remove active tab styling
+  $(".app-tab").removeClass("!bg-pink-400/90"); // Remove active tab styling
 
   if (appFrames[name]) $(appFrames[name].iframe).removeClass("hidden");
 
   // Select tab safely (Escape special characters)
   const $tab = $(`[id="tab-${name}"]`);
   if ($tab.length) {
-    $tab.addClass("bg-red-300/80"); // Highlight active tab
+    $tab.addClass("!bg-pink-400/90"); // Highlight active tab
   }
 
   currentApp = name;

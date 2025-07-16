@@ -25,11 +25,9 @@ def ensure_dir(path):
 BASE_DIR = Path(__file__).resolve().parent # cuteadb
 STORAGE = ensure_dir(Path(environ.get("KIKX_HOME_PATH", None)) / "Documents/cuteadb")
 
-SCRIPTS_PATH = BASE_DIR / "scripts"
-
-scripts_meta = json.loads(load_file(SCRIPTS_PATH / "meta.json"))
 
 console = Console()
+
 
 
 def print_devices(active_devices):
@@ -85,7 +83,7 @@ def print_line(line, func=None, title="👉", success="😍", error="🥲"):
 
   console.scroll_to_bottom()
 
-def run_script(device, script_name):
+def run_script(device, scripts_path, script_name):
   console.clear()
   console.append(f"""
     <div class='p-2 bg-blue-500/60 flex items-center justify-between'>
@@ -94,48 +92,33 @@ def run_script(device, script_name):
     </div>
   """)
   # content
-  with open(BASE_DIR / "scripts" / script_name) as file:
+  with open(scripts_path / script_name) as file:
     exec(file.read(), {
       "device": device,
       "console": console,
       "STORAGE": STORAGE,
       "print_line": print_line
     })
-    
-def start_shell(device):
-  console.clear()
 
-  while True:
-    command = console.input("Type shell command", False)
-    if command == "exit":
-      break
-    elif command == "clear":
-      console.clear()
-    else:
-      console.append(Text(device.shell(command)))
-
-def get_script_name(name):
+def get_script_name(scripts_meta, name):
   name = name.replace(".cdb", "")
   return safe_code(scripts_meta.get(name, name))
 
-def main(command):
+def main(scripts_path):
+  scripts_path = Path(scripts_path)
+  scripts_meta = json.loads(load_file(scripts_path / "meta.json"))
+
   device = get_device()
-  
-  if command == "shell":
-    return start_shell(device)
 
   console.clear()
   console.pre(Animate(Padding(Text(device)), "flipInX"), justify="center", text_align="center")
   
   console.append("<div class='p-1 bg-red-500/60 text-center'>SELECT ATTACK</div>")
 
-  div = Div(*[f"""<div class='p-2 border-b text-center' onclick='sendInput("{script}")'>{get_script_name(script)}</div>""" for script in os.listdir(BASE_DIR / "scripts") if script.endswith(".cdb")])
+  div = Div(*[f"""<div class='p-2 border-b text-center' onclick='sendInput("{script}")'>{get_script_name(scripts_meta, script)}</div>""" for script in os.listdir(scripts_path) if script.endswith(".cdb")])
   div.cls.add_class("w-full bg-slate-800/60")
 
   console.append(Animate(div))
 
-  run_script(device, input())
-
-def start(command=None):
-  main(command)
+  run_script(device, scripts_path, input())
 

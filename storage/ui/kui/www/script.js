@@ -115,14 +115,13 @@ const createSwipeBubble = selector => {
   let shrinkTimer = null;
   let isActive = false;
 
-  const inactiveClasses = "w-8 h-20 -right-4 border";
+  const inactiveClasses = "border w-8 h-20 -right-4";
   const activeClasses = "w-36 h-36 right-0 landscape:w-1/4 landscape:h-1/2";
   const bubbleHoldColor = "bg-red-400/60";
 
   const shrink = () => {
     $bubble
       .removeClass(bubbleHoldColor)
-      .addClass("bg-blue-400/80")
       .removeClass(activeClasses)
       .addClass(inactiveClasses);
     isActive = false;
@@ -145,7 +144,7 @@ const createSwipeBubble = selector => {
     shrink();
   };
 
-  $ghostButton.on("dblclick", () => {
+  $ghostButton.on("click", () => {
     $bubble.show();
     $ghostButton.hide();
   });

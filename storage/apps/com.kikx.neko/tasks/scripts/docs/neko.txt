@@ -1,0 +1,75 @@
+
+<div class="max-w-3xl mx-auto p-2">
+  
+  <div class="mb-8">
+    <div id="neko-tool" class="font-bold text-white">Neko - Script Execution Interface</div>
+  </div>
+
+  <div class="mb-6">
+    <div>
+      <div class="mb-2 font-semibold text-red-400">What is Neko?</div>
+      <div>
+        Neko is a lightweight, interactive tool designed to run various types of scripts such as <code class="bg-green-300/60 px-1 rounded">.py</code> (Python), <code class="bg-blue-300/60 px-1 rounded">.lua</code> (Lua), and binary <code class="bg-red-300/60 px-1 rounded">bin</code> executables. It captures and displays the output directly within the Neko UI, offering a seamless scripting experience for both app-integrated and local files.
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-6">
+    <div>
+      <div class="mb-2 font-semibold text-red-400">Key Features:</div>
+      <div class="space-y-2">
+        <div>• Run <code>.py</code> <code>.lua</code>, and <code>.bin</code> files with live output.</div>
+        <div>• Browse and execute scripts from both app bundles and local file system - app/neko/scripts.</div>
+        <div>• Filter and display only supported script types.</div>
+        <div>• Integrated top bar controls for managing script execution.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-6">
+    <div>
+      <div class="mb-2 font-semibold text-white">How to Use Neko:</div>
+      <div class="space-y-3">
+        <div>
+          1. On launching <span class="font-bold text-green-400">Neko</span>, the interface displays available <span class="italic">App Scripts</span> by default.
+        </div>
+        <div>
+          2. Use the <span class="font-semibold text-yellow-400">switch icon</span> at the top to toggle between <code>App Scripts</code> and <code>Local Scripts</code>.
+        </div>
+        <div>
+          3. The script selector will only show supported formats:
+          <span class="bg-green-300/60 px-1 rounded">.py</span>,
+          <span class="bg-blue-300/60 px-1 rounded">.lua</span>,
+          <span class="bg-red-300/60 px-1 rounded">.bin</span>.
+        </div>
+        <div>
+          4. Select a script to view its name in the top bar. Then use the available controls to interact with it.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-6">
+  
+      <div class="mb-2 font-semibold text-white *:my-1">Top Bar Controls:</div>
+    
+        <div><span class="text-blue-400">🏠 Home Button:</span> – Resets and loads the default/start script.</div>
+        <div><span class="text-green-400">🔄 Reload Button:</span> Reloads the current script.</div>
+        <div><span class="text-purple-400">▶️ Run Button:</span> Executes script by name.</div>
+        <div><span class="text-red-400">⏹ Stop Button:</span> Stops the currently running script or task.</div>
+        <div><span class="text-amber-400">🧹 Clear Button:</span> Clears the output panel.</div>
+    
+        <div><span class="text-yellow-300">🔄 Switch Button:</span> Toggle between App and Local script sources.</div>
+        <div><span class="text-white">📄 Script Name:</span> Displays currently running script or task.</div>
+      
+  
+  </div>
+
+  <div class="mt-10 text-yellow-400 font-semibold">
+    <div>⚠️ Warning: Be cautious when running local scripts.</div>
+    <div class="text-white">
+      Always make sure the script is from a trusted source. Malicious code can damage your system or compromise your privacy. Run local files only if you understand what the script does.
+    </div>
+  </div>
+
+</div>

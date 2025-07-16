@@ -23,13 +23,17 @@ class JS:
   # jquery functions
   def jfunc(self, code):
     if not self.is_injected:
-      raise Exception("Element not injected")
+      return
+      #raise Exception("Element not injected")
 
     code = code() if callable(code) else code
-    js.run_code(f"$(#{self.id}).{code}")
+    js.run_code(f"$('#{self.id}').{code}")
   
   def scroll_to_bottom(self):
     js.run_code(f"scrollToBottom('#{self.id}')")
+  
+  def scroll_to_top(self):
+    js.run_code(f"scrollToTop('#{self.id}')")
 
 # dep
 class Style:
@@ -126,6 +130,12 @@ class Element:
   @property
   def selector(self):
     return f"#{self.id}"
+  
+  def scroll_to_top(self):
+    self._js.scroll_to_top()
+
+  def scroll_to_bottom(self):
+    self._js.scroll_to_bottom()
 
   def set_property(self, key, value):
     self.properties[key] = value
@@ -133,6 +143,8 @@ class Element:
   def inner_text(self, text):
     self.children = [text]
     js.text(self.selector, text)
+    
+    return text
 
   def replace(self, element):
     self.children = [element]
@@ -142,9 +154,8 @@ class Element:
   
   def append(self, element):
     self.children.append(element)
-    
     js.append(self.selector, self._parse_element(element, self._js.is_injected))
-    # self._js.func(lambda: f"innerHTML += `{self._parse_element(element, self._js.is_injected)}`")
+    
     return element
 
   def empty(self):
