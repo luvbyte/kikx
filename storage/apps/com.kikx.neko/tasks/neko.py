@@ -3,7 +3,7 @@ import sys
 import json
 
 from sys import argv
-from time import sleep
+#from time import sleep
 from pathlib import Path
 from random import choice
 from importlib import import_module
@@ -19,9 +19,14 @@ from banners import BANNERS
 
 from typing import List, Union
 
+NEKO_PATH = Path(__file__).resolve().parent
 # scripts directory
-BASE_DIR = Path(__file__).resolve().parent / "scripts"
-#BASE_DIR = Path(os.environ.get("KIKX_HOME_PATH"))
+SCRIPT_DIRS = [
+  ("Scripts", NEKO_PATH / "scripts"),
+  ("Local", Path(os.environ.get("KIKX_HOME_PATH")) / "app/neko/scripts")
+]
+
+BASE_DIR_NAME, BASE_DIR = SCRIPT_DIRS[0]
 
 # only scripts with this extension will be in list
 SCRIPT_ICONS = {
@@ -34,8 +39,25 @@ SCRIPT_ICONS = {
 
 CURRENT_BANNER = BANNERS[0]
 
+def set_next_scripts_path():
+  global BASE_DIR
+  global BASE_DIR_NAME
+
+  try:
+    current_index = next(
+      i for i, (_, path) in enumerate(SCRIPT_DIRS) if path == BASE_DIR
+    )
+    next_index = (current_index + 1) % len(SCRIPT_DIRS)
+    BASE_DIR_NAME, BASE_DIR = SCRIPT_DIRS[next_index]
+  except StopIteration:
+    # BASE_DIR not found in SCRIPT_DIRS
+    BASE_DIR_NAME, BASE_DIR = SCRIPT_DIRS[0]
+
 def scripts_list(path: Union[str, Path], suffixes: List[str]) -> List[Path]:
   path = Path(path)
+  if not path.exists() or not path.is_dir():
+    return []
+
   return sorted([
     item for item in path.iterdir()
     if (
@@ -60,8 +82,13 @@ def list_scripts(scripts_panel: Element, path: Path, directory: str=".") -> None
   """
 
   scripts_panel.replace(f"""
-    <div class='h-9 p-2 py-3 bg-white text-black flex justify-between items-center'>
-      <div>Scripts</div>
+    <div class='h-9 p-1 py-3 bg-white text-black flex justify-between items-center'>
+      <div class="flex items-center gap-1" onclick="sendInput('__next__')">
+        <div class="w-4 h-4">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14.293 2.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L16.586 8H5a1 1 0 0 1 0-2h11.586l-2.293-2.293a1 1 0 0 1 0-1.414m-4.586 10a1 1 0 0 1 0 1.414L7.414 16H19a1 1 0 1 1 0 2H7.414l2.293 2.293a1 1 0 0 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0"/></svg>
+        </div>
+        <div class="font-bold text-md">{BASE_DIR_NAME}</div>
+      </div>
       <div class="flex items-center gap-1">
         <div>{directory}</div>
         {"" if directory == "." else back_icon}
@@ -114,6 +141,10 @@ def home_screen() -> None:
     if text_input == "__banner__":
       random_banner(top_box)
       continue
+    elif text_input == "__next__":
+      set_next_scripts_path()
+      list_scripts(scripts_panel, BASE_DIR)
+      continue
     elif text_input.startswith("__help__"):
       help_path = (BASE_DIR / "_help" / f"{Path(text_input.split()[-1]).relative_to(BASE_DIR)}.txt")
       if help_path.exists() and not help_path.is_dir():
@@ -165,20 +196,28 @@ def run_script(path: Union[str, Path], *args) -> Union[None, str]:
       raise Exception(f"Error: {process.error()}")
   # python file
   elif path.suffix == ".py":
-    # adding nekolib 
-    sys.path.insert(0, "nekolib")
+    # adding nekolib
+    if "nekolib" not in sys.path:
+      sys.path.insert(0, "nekolib")
     # for relative scripts
+    module = None
     try:
       path = path.relative_to(Path(__file__).parent / "scripts")
-      
       module = import_module("scripts." + path.with_suffix("").as_posix().replace("/", "."))
+    # for absolute scripts
+    except Exception:
+      import importlib.util
+
+      spec = importlib.util.spec_from_file_location("script", path)
+      module = importlib.util.module_from_spec(spec)
+      spec.loader.exec_module(module)
+    finally:
       func = getattr(module, "start", None)
       if callable(func):
         func(*args)
-    # for absolute scripts
-    except Exception:
-      with open(path) as file:
-        exec(file.read(), { "args": args })
+      
+      #with open(path) as file:
+        #exec(file.read(), { "args": args })
   # lua file
   elif path.suffix == ".lua":
     from lupa import LuaRuntime
