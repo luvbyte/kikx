@@ -110,7 +110,7 @@ class Tasks:
     app_bin_path = self.app_path / 'bin'
 
     self.task_env.update({
-      "PATH": f'{app_bin_path.as_posix()}:{app.user.get_path_env()}:{self.task_env["PATH"]}'
+      "PATH": f'{app_bin_path.as_posix()}:{app.user.get_path_env()}:{(app.user.home_path.parent.parent / "venv/bin").as_posix()}:{self.task_env["PATH"]}'
     })
   
     #self.default_task_env = {} # isolated from shell commands
@@ -121,9 +121,7 @@ class Tasks:
       "KIKX_STORAGE_PATH": app.user.storage_path.as_posix(),
       "KIKX_APP_PATH": app.get_app_path().as_posix(),
       "KIKX_APP_DATA_PATH": app.get_app_data_path().as_posix(),
-      
-      "PY_PATH": (app.user.home_path.parent.parent / "venv/bin/python3").as_posix(),
-  
+
       "KIKX_HOME_PATH": app.get_home_path().as_posix()
     })
   

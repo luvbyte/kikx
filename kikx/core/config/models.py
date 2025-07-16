@@ -44,7 +44,7 @@ class AppModel(BaseModel):
   # task template
   #task_template: str = Field("venv/bin/python3 -u taskwrap.py", description="Prefix for all tasks")
   #task_template: str = Field('$KIKX_STORAGE_PATH/venv/bin/python3 -u $KIKX_APP_PATH/tasks/{name}.py {args}', description="Prefix for all tasks")
-  task_template: str = Field('$PY_PATH -u $KIKX_APP_PATH/tasks/{name}.py {args}', description="Prefix for all tasks")
+  task_template: str = Field('python3 -u $KIKX_APP_PATH/tasks/{name}.py {args}', description="Prefix for all tasks")
   # implement in all services
   services: list = Field([], description="Services that can be used by app")
 
