@@ -1,6 +1,4 @@
-from nekolib.ui import Element, Template
-from nekolib import styles
-
+from .ui import Element, Template
 
 class Colors:
   # Theme Colors

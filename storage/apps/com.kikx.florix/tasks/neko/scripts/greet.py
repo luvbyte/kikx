@@ -1,4 +1,4 @@
-from nekolib.console import Console
+from neko.lib.console import Console
 
 
 banner = r"""
@@ -12,9 +12,9 @@ banner = r"""
 🟨🟨🟨💗💗🟨🟨🟨 
 """
 
+console = Console()
+
 def start():
-  console = Console()
-  
   #sleep(3)
   name = console.input("Type your name")
 

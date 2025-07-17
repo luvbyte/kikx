@@ -6,69 +6,63 @@ const $taskInputPanel = $("#task-input-panel");
 const $taskInputBox = $("#task-input-box");
 const $scriptName = $("#script-name");
 
+let taskInputOptions = [];
+let rawOutputPanel = $panel;
+
 // ========== GLOBAL STATE ==========
 
 let currentTask = null;
 let runningScript = "";
 
-const NekoConfig = {
-  rawOutput: false,
+const AppConfig = {
+  rawOutput: true,
   rawOutputHTML: false,
 
   blockUserKillTask: false,
-  blockUserInput: false,
-  blockUserClear: false
+  blockUserInput: true,
+  blockUserClear: true
 };
 
 // ========== CONFIG HELPERS ==========
 
 const blockUserInput = (block = true) => {
-  NekoConfig.blockUserInput = block;
+  AppConfig.blockUserInput = block;
   // $("#task-input-toggle-btn").toggle(block);
 };
 
 const blockUserClear = (block = true) => {
-  NekoConfig.blockUserClear = block;
+  AppConfig.blockUserClear = block;
   $("#panel-clear-btn").toggle(!block);
 };
 
 const setRawOutput = (enabled = true) => {
-  NekoConfig.rawOutput = enabled;
+  AppConfig.rawOutput = enabled;
 };
 
 const blockUserKillTask = (block = true) => {
-  NekoConfig.blockUserKillTask = block;
+  AppConfig.blockUserKillTask = block;
 };
 
 const setRawOutputHTML = (block = true) => {
-  NekoConfig.rawOutputHTML = block;
+  AppConfig.rawOutputHTML = block;
 };
 
-const setNekoDefaultConfig = () => {
-  setRawOutput(false);
+const setRawOutputPanel = selector => {
+  rawOutputPanel = $(selector);
+};
+
+const setAppDefaultConfig = () => {
+  setRawOutput(true);
   setRawOutputHTML(false);
 
-  blockUserInput(false);
-  blockUserClear(false);
+  blockUserInput(true);
+  blockUserClear(true);
   blockUserKillTask(false);
+
+  rawOutputPanel = $panel;
 };
 
 // ========== UI HELPERS ==========
-// remove after test
-function scrollToBottom_old(selector = null) {
-  const el = selector ? $(selector) : $panel;
-  const scrollTop = el.scrollTop();
-  const scrollHeight = el.prop("scrollHeight");
-  const clientHeight = el.innerHeight();
-
-  const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-  const threshold = 100;
-
-  if (distanceFromBottom < threshold) {
-    el.scrollTop(scrollHeight);
-  }
-}
-
 function scrollToBottom(selector = null) {
   const $el = selector ? $(selector) : $panel;
 
@@ -85,20 +79,25 @@ function scrollToTop(selector) {
   $(selector).scrollTop(0);
 }
 
+// force clears even clear blocked
 function clearPanel(force = false) {
-  if (!NekoConfig.blockUserClear || force) {
+  if (!AppConfig.blockUserClear || force) {
     $panel.empty();
   }
 }
 
-function toggleInputPanel() {
-  //if (NekoConfig.blockUserInput && $taskInputPanel.is(":hidden")) return;
-  if (NekoConfig.blockUserInput || !currentTask) return;
-  $taskInputPanel.toggle();
+//function toggleInputPanel() {
+//if (AppConfig.blockUserInput && $taskInputPanel.is(":hidden")) return;
+//  if (AppConfig.blockUserInput || !currentTask) return;
+//  $taskInputPanel.toggle();
+//}
+
+function hideInputPanel() {
+  $taskInputPanel.hide();
 }
 
-function askInput(placeholder = "") {
-  if (NekoConfig.blockUserInput) {
+function askInput(placeholder = "", focus = false, effect = null) {
+  if (AppConfig.blockUserInput) {
     return sendError("Input blocked: blockUserInput is true");
   }
 
@@ -107,17 +106,15 @@ function askInput(placeholder = "") {
     type: "info"
   });
 
-  let animation = null;
-  // only animate if visible to avoid ask_input autohide property
-  if ($taskInputPanel.is(":hidden")) {
-    animation = "slideUp";
-  }
+  effect && $taskInputPanel.addClass(`animate__animated animate__${effect}`);
 
-  //$taskInputPanel.show(animation);
-  $taskInputPanel.show(animation);
-
+  $taskInputPanel.show();
   $taskInputBox.attr("placeholder", placeholder);
-  $taskInputPanel.addClass("border-blue-500");
+  //$taskInputPanel.addClass("border-blue-500");
+
+  if (focus) {
+    $taskInputBox.focus();
+  }
 }
 
 const setScriptName = name => {
@@ -151,20 +148,20 @@ function exec(outputText) {
         clearPanel();
         break;
       default:
-        if (NekoConfig.rawOutput) {
-          if (NekoConfig.rawOutputHTML) {
-            $panel.append(outputText);
+        if (AppConfig.rawOutput) {
+          if (AppConfig.rawOutputHTML) {
+            rawOutputPanel.append(outputText);
           } else {
-            $panel.append($("<div>").text(outputText));
+            rawOutputPanel.append($("<div>").text(outputText));
           }
         }
     }
   } catch (err) {
-    if (NekoConfig.rawOutput) {
-      if (NekoConfig.rawOutputHTML) {
-        $panel.append(outputText);
+    if (AppConfig.rawOutput) {
+      if (AppConfig.rawOutputHTML) {
+        rawOutputPanel.append(outputText);
       } else {
-        $panel.append($("<div>").text(outputText));
+        rawOutputPanel.append($("<div>").text(outputText));
       }
     }
   }
@@ -173,7 +170,6 @@ function exec(outputText) {
 }
 
 // ========== TASK CONTROL ==========
-
 function sendInput(cmd) {
   try {
     if (currentTask && cmd.toString().length > 0) {
@@ -239,8 +235,7 @@ function runScript(cmd) {
         break;
 
       case "ended": // on stoped
-        setNekoDefaultConfig();
-
+        setAppDefaultConfig();
         $taskInputPanel.hide();
 
         $("#task-reload-btn").show();
@@ -284,19 +279,25 @@ function runStartScript() {
 function reloadScript() {}
 
 function killTask() {
-  if (currentTask && !NekoConfig.blockUserKillTask) {
+  if (currentTask && !AppConfig.blockUserKillTask) {
     currentTask.kill();
-    setNekoDefaultConfig();
+    //setAppDefaultConfig();
   }
 }
 
 function _sendUserInput() {
   const cmd = $taskInputBox.val();
-  if (!cmd || NekoConfig.blockUserInput) return;
+  if (!cmd || AppConfig.blockUserInput) return;
 
   sendInput(cmd);
   $taskInputBox.val("");
-  $taskInputPanel.removeClass("border-blue-500");
+  // $taskInputPanel.removeClass("border-blue-500");
+  $taskInputPanel.removeClass(function (i, c) {
+    return c
+      .split(" ")
+      .filter(className => className.startsWith("animate__"))
+      .join(" ");
+  });
 
   $taskInputBox.focus();
 }
@@ -318,7 +319,6 @@ $(() => {
 
   $taskInputBox.on("keydown", function (event) {
     if (event.key === "Enter" || event.keyCode === 13) {
-      // event.preventDefault();_sendUserInput
       _sendUserInput();
     }
   });

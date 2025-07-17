@@ -1,19 +1,18 @@
+from time import sleep
+
 from . import panel, js
-from .ui import Div, Text, Animate, Pre, Center
 
 from .utils import get_item
-from time import sleep
+from .ui import Div, Text, Animate, Pre, Center
+
+
 
 class Console:
   def __init__(self):
     self._panel = Div()
     self._panel.cls.add_class("w-full h-full bg-gray-600/40 text-white text-sm overflow-auto relative")
-
-    self.auto_input_hide = True
-    # user cant clear or send input
-    js.run_code("blockUserClear(true); blockUserInput(true)")
     panel.inject(self._panel)
-  
+
   @property
   def panel(self):
     return self._panel
@@ -25,11 +24,6 @@ class Console:
 
   def clear(self):
     self.panel.empty()
-  
-  def set_auto_hide(self, value):
-    if not isinstance(value, bool):
-      raise Exception("Value must be 'bool'")
-    self.auto_input_hide = value
 
   def print(self, text, center=False, effect=None, color="white", bg="transparent", size="[1rem]"):
     el = Text(text, size=size)
@@ -79,13 +73,11 @@ class Console:
       else:
         collector.append(line)
 
-  def input(self, label="", autohide: bool | None = None):
-    autohide = self.auto_input_hide if autohide is None else autohide
-
-    js.run_code("blockUserInput(false)")
-    input_text = js.ask_input(label, autohide=autohide)
-    js.run_code("blockUserInput(true)")
-    
+  def input(self, label="", autohide: bool = True, focus: bool = False, effect="lightSpeedInLeft"):
+    js.set_config("block-user-input", False)
+    input_text = js.ask_input(label, autohide=autohide, focus=focus, effect=effect)
+    js.set_config("block-user-input", True)
+  
     return input_text
 
   def br(self):

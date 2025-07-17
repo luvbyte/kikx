@@ -1,15 +1,15 @@
-from nekolib import js, panel
-from nekolib.process import sh
+from neko.lib import js, panel
+from neko.lib.process import sh
 from subprocess import PIPE
 
-panel.clear(True)
-js.run_code("blockUserClear(false)")
+js.set_config("block-user-clear", False)
+js.set_config("block-user-input", False)
 
 while True:
-  input_text = js.ask_input("Enter command", autohide=False).strip()
+  input_text = js.ask_input("Enter command", autohide=False, effect="fadeIn").strip()
 
   if input_text == "exit":
-    exit()
+    break
   elif input_text == "clear":
     js.run_code("clearPanel()")
   else:

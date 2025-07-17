@@ -1,9 +1,8 @@
-from . import adb
+from modules.adb import adb
 
-from nekolib.console import Console
-from nekolib.ui import Animate, Div, Text, Center, Padding
-
-from nekolib.utils import safe_code
+from neko.lib.console import Console
+from neko.lib.ui import Animate, Div, Text, Center, Padding
+from neko.lib.utils import safe_code
 
 from time import sleep
 from pathlib import Path
@@ -25,10 +24,7 @@ def ensure_dir(path):
 BASE_DIR = Path(__file__).resolve().parent # cuteadb
 STORAGE = ensure_dir(Path(environ.get("KIKX_HOME_PATH", None)) / "Documents/cuteadb")
 
-
 console = Console()
-
-
 
 def print_devices(active_devices):
   console.clear()
@@ -122,3 +118,5 @@ def main(scripts_path):
 
   run_script(device, scripts_path, input())
 
+def start():
+  main(Path(__file__).resolve().parent / "_scripts")

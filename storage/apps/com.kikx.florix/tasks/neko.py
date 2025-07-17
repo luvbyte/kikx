@@ -2,31 +2,32 @@ import os
 import sys
 import json
 
+import importlib.util
+
 from sys import argv
 from time import sleep
 from pathlib import Path
 from random import choice
-from importlib import import_module
+from importlib import import_module, reload
 from subprocess import PIPE
 
-from nekolib import js, panel
-from nekolib.process import sh
-from nekolib.console import Console
-from nekolib.utils import safe_code
-from nekolib.ui import Div, Pre, Center, Style, Animate, Text, Padding, Element
+from neko.lib import js, panel
+from neko.lib.process import sh
+from neko.lib.console import Console
+from neko.lib.utils import safe_code
+from neko.lib.ui import Div, Pre, Center, Style, Animate, Text, Padding, Element
 
-from banners import BANNERS
+from neko.banners import BANNERS
 
 from typing import List, Union
 
 
-NEKO_PATH = Path(__file__).resolve().parent
+NEKO_PATH = Path(__file__).resolve().parent / "neko"
 # scripts directory
 SCRIPT_DIRS = [
   ("App", NEKO_PATH / "scripts"),
-  ("Local", Path(os.environ.get("KIKX_HOME_PATH")) / "app/neko/scripts")
+  ("Local", Path(os.environ.get("KIKX_HOME_PATH")) / "dev/neko_scripts")
 ]
-
 
 SCRIPTS_DIR_NAME, SCRIPTS_DIR = SCRIPT_DIRS[0]
 
@@ -42,8 +43,6 @@ SCRIPT_ICONS = {
 DIR_ICONS = {
   "docs": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="#cad3f5" d="m1.875 8l.686-2.743a1 1 0 0 1 .97-.757h10.938a1 1 0 0 1 .97 1.243l-.315 1.26M6 13.5H2.004A1.5 1.5 0 0 1 .5 12V3.5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1" stroke-width="1"/><path stroke="#8aadf4" d="M8.5 14.5v-5a1 1 0 0 1 1-1h6v6m-6-1h6v2h-6a1 1 0 1 1 0-2" stroke-width="1"/></g></svg>'
 }
-
-# CURRENT_BANNER = BANNERS[0]
 
 class Utils:
   @staticmethod
@@ -68,8 +67,6 @@ def run_script(path: Union[str, Path], *args) -> Union[None, str]:
   panel.clear(True)
   js.run_code(f"runningScript = 'neko {path}' ;setScriptName('NEKO: {path.name}')")
 
-  # both print and event {} works
-  js.run_code("setRawOutput()")
   # support for binary file
   if path.suffix == "":
     binary_path = (path).as_posix()
@@ -80,44 +77,36 @@ def run_script(path: Union[str, Path], *args) -> Union[None, str]:
       raise Exception(f"Error: {process.error()}")
   # python file
   elif path.suffix == ".py":
-    # adding nekolib
-    if "nekolib" not in sys.path:
-      sys.path.insert(0, "nekolib")
-    # for relative scripts
-    module = None
-    try:
-      path = path.relative_to(Path(__file__).parent / "scripts")
-      module = import_module("scripts." + path.with_suffix("").as_posix().replace("/", "."))
-    # for absolute scripts
-    except Exception:
-      import importlib.util
-
-      spec = importlib.util.spec_from_file_location("script", path)
-      module = importlib.util.module_from_spec(spec)
-      spec.loader.exec_module(module)
-    finally:
-      func = getattr(module, "start", None)
-      if callable(func):
-        func(*args)
-      
-      #with open(path) as file:
-        #exec(file.read(), { "args": args })
-  # lua file
+    spec = importlib.util.spec_from_file_location("script", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    func = getattr(module, "start", None)
+    if callable(func):
+      func(*args)
+  # lua file simple 
   elif path.suffix == ".lua":
     from lupa import LuaRuntime
-  
+    from neko import neko_module
+    
+    #module_name = "neko.neko_module"
+    #if "neko.neko_module" in sys.modules:
+      #module = reload(sys.modules[module_name])
+    #else:
+      #module = import_module(module_name)
+
     runtime = LuaRuntime()
-    runtime.globals().console = Console()
+    runtime.globals().neko = neko_module
 
     with open(path, "r") as file:
       runtime.execute(file.read())
-  # js will run in app
-  elif path.suffix == ".js":
-    with open(path, "r") as file:
-      js.run_code(file.read())
   else:
     raise Exception(f"Cant run '{path.suffix}' file")
 
+  # setting default after complete and hiding input
+  js.set_default_config()
+  js.hide_input_panel()
+  
 def set_next_scripts_path():
   global SCRIPTS_DIR
   global SCRIPTS_DIR_NAME
@@ -242,8 +231,6 @@ class Neko:
     list_scripts(self.scripts_panel, current_dir or self.current_dir, rel_path or str(self.current_dir.relative_to(SCRIPTS_DIR)))
 
   def run_command(self, command: str):
-    # js.run_code("setScriptName('NEKO')")
-
     if command == "$banner":
       self.random_banner()
     elif command == "$next":
@@ -301,8 +288,6 @@ class Neko:
       return True
 
   def main(self, script_name=None, *args):
-    js.run_code("blockUserClear()")
-
     if script_name and self.run_script(script_name, *args):
       return 
 

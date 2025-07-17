@@ -3,7 +3,6 @@
   <head>
     <link rel="stylesheet" href="/share/cdn/animate.min.css" />
 
-    <!-- dev -->
     <script src="/share/cdn/tailwind-3.js"></script>
     <script src="/share/cdn/jquery.min.js"></script>
 
@@ -45,30 +44,11 @@
         </div>
 
         <h1 id="script-name" class="w-full truncate text-white"></h1>
-        <!-- 
-         <button
-          id="task-input-toggle-btn"
-          onclick="toggleInputPanel()"
-          class="text-white border border-white/60 px-2 rounded active:bg-white/40"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="22"
-            height="22"
-            fill="currentColor"
-            class="bi bi-terminal-fill"
-            viewBox="0 0 16 16"
-          >
-            <path
-              d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1m-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5z"
-            />
-          </svg>
-        </button>
-         -->
 
         <button
           id="panel-clear-btn"
           onclick="clearPanel()"
+          style="display: none"
           class="text-amber-500 border border-white/60 px-2 rounded active:bg-white/40"
         >
           <svg
@@ -167,7 +147,7 @@
       <input
         id="script-name-input"
         style="display: none"
-        placeholder="Enter script name to run"
+        placeholder="Enter task name to run"
         class="p-1 bg-transparent border border-white/60 rounded text-white focus:outline-none"
       />
 
@@ -212,7 +192,7 @@
       </div>
     </div>
 
-    <script src="wake-lock.js"></script>
+    <script src="/share/static/wake-lock.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

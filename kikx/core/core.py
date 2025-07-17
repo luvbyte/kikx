@@ -209,6 +209,7 @@ app.add_middleware(
 )
 
 app.mount("/share", StaticFiles(directory=core.config.share_path), name="share")
+app.mount("/files", StaticFiles(directory=core.config.files_path), name="files")
 
 # ----------------api routes
 class AppManifestModel(BaseModel):
@@ -396,7 +397,6 @@ def redirect(path: str):  # shortlinks
 def root_page(request: Request):
   # set csrf token here
   return RedirectResponse("/ui/" + core.auth.user_config.default_ui)
-
 
 # --------------- websockets
 @app.websocket("/app/{app_id}")

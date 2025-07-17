@@ -66,6 +66,11 @@ class Config:
   def share_path(self):
     return ensure_dir(self.resolve_path("storage://share"))
   
+  # home/share path
+  @property
+  def files_path(self):
+    return ensure_dir(self.resolve_path("home://share"))
+
   @property
   def apps_path(self):
     return ensure_dir(self.resolve_path("apps://"))

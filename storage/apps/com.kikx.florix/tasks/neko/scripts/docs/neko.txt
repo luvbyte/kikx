@@ -19,7 +19,7 @@
       <div class="mb-2 font-semibold text-red-400">Key Features:</div>
       <div class="space-y-2">
         <div>• Run <code>.py</code> <code>.lua</code>, and <code>.bin</code> files with live output.</div>
-        <div>• Browse and execute scripts from both app bundles and local file system - app/neko/scripts.</div>
+        <div>• Browse and execute scripts from both app bundles and local file system - dev/neko_scripts.</div>
         <div>• Filter and display only supported script types.</div>
         <div>• Integrated top bar controls for managing script execution.</div>
       </div>

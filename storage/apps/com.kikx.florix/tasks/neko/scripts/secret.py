@@ -1,4 +1,4 @@
-from nekolib.console import Console
+from neko.lib.console import Console
 
 
 frames = r"""

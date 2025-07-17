@@ -2,6 +2,22 @@ import json
 from uuid import uuid4
 from . import js
 
+VOID_TAGS = [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "source",
+    "track",
+    "wbr"
+]
+
 
 class JS:
   def __init__(self):
@@ -188,20 +204,11 @@ class Element:
     content = "".join([self._parse_element(child, injecting) for child in self.children if child is not None])
     
     # Self-closing tag
-    if self.tag in ["img", "input"]:
+    if self.tag in VOID_TAGS:
       return f'<{self.tag} id="{self.id}" class="{self.cls.class_text}" style="{self.style.css_text}" {prop_text} />'
   
     # Normal tag
     return f'<{self.tag} id="{self.id}" class="{self.cls.class_text}" style="{self.style.css_text}" {prop_text}>{content}</{self.tag}>'
-
-
-
-    # Return full HTML element string
-    #return (
-      #f'<{self.tag} id="{self.id}" class="{self.cls.class_text}" '
-      #f'style="{self.style.css_text}" {prop_text}>{content}{self.end_tag}'
-    #)
-    #return f'<{self.tag} id="{self.id}" class="{self.cls.class_text}" style="{self.style.css_text}" {prop_text}>{content}{self.end_tag}'
 
 
 class Template:
