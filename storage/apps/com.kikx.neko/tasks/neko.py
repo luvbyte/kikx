@@ -19,6 +19,7 @@ from banners import BANNERS
 
 from typing import List, Union
 
+
 NEKO_PATH = Path(__file__).resolve().parent
 # scripts directory
 SCRIPT_DIRS = [
@@ -42,146 +43,20 @@ DIR_ICONS = {
   "docs": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="#cad3f5" d="m1.875 8l.686-2.743a1 1 0 0 1 .97-.757h10.938a1 1 0 0 1 .97 1.243l-.315 1.26M6 13.5H2.004A1.5 1.5 0 0 1 .5 12V3.5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1" stroke-width="1"/><path stroke="#8aadf4" d="M8.5 14.5v-5a1 1 0 0 1 1-1h6v6m-6-1h6v2h-6a1 1 0 1 1 0-2" stroke-width="1"/></g></svg>'
 }
 
-CURRENT_BANNER = BANNERS[0]
+# CURRENT_BANNER = BANNERS[0]
 
-def set_next_scripts_path():
-  global SCRIPTS_DIR
-  global SCRIPTS_DIR_NAME
+class Utils:
+  @staticmethod
+  def get_path_up_to_suffix(full_path: Path, target_suffix: str) -> Path:
+    full_parts = full_path.parts
+    target_parts = Path(target_suffix).parts
+    target_len = len(target_parts)
 
-  try:
-    current_index = next(
-      i for i, (_, path) in enumerate(SCRIPT_DIRS) if path == SCRIPTS_DIR
-    )
-    next_index = (current_index + 1) % len(SCRIPT_DIRS)
-    SCRIPTS_DIR_NAME, SCRIPTS_DIR = SCRIPT_DIRS[next_index]
-  except StopIteration:
-    # SCRIPTS_DIR not found in SCRIPT_DIRS
-    SCRIPTS_DIR_NAME, SCRIPTS_DIR = SCRIPT_DIRS[0]
-
-def scripts_list(path: Union[str, Path], suffixes: List[str]) -> List[Path]:
-  path = Path(path)
-  if not path.exists() or not path.is_dir():
-    return []
-
-  return sorted([
-    item for item in path.iterdir()
-    if (
-      not item.name.startswith("_") and 
-      (item.is_dir() or (item.is_file() and item.suffix in suffixes))
-    )
-  ])
-
-# Returns file icon svg
-def get_file_icon(script: Path) -> str:
-  if script.is_dir():
-    icon_path = script / "neko-icon.svg"
-    if icon_path.exists():
-      return icon_path.read_text(encoding="utf-8")
-    return DIR_ICONS.get(script.name, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path fill="currentColor" fill-opacity="0" stroke-dasharray="64" stroke-dashoffset="64" d="M12 7h8c0.55 0 1 0.45 1 1v10c0 0.55 -0.45 1 -1 1h-16c-0.55 0 -1 -0.45 -1 -1v-11Z"><animate fill="freeze" attributeName="fill-opacity" begin="0.8s" dur="0.15s" values="0;0.3"/><animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="64;0"/></path><path d="M12 7h-9v0c0 0 0.45 0 1 0h6z" opacity="0"><animate fill="freeze" attributeName="d" begin="0.6s" dur="0.2s" values="M12 7h-9v0c0 0 0.45 0 1 0h6z;M12 7h-9v-1c0 -0.55 0.45 -1 1 -1h6z"/><set fill="freeze" attributeName="opacity" begin="0.6s" to="1"/></path></g></svg>')
-  else:
-    return SCRIPT_ICONS.get(script.suffix, "<div>🤔</div>")
-
-# require full path for recursive
-def list_scripts(scripts_panel: Element, path: Path, directory: str=".") -> None:
-  back_icon = f"""
-    <div onclick="sendInput('{path.parent}')">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="m4 10l-.707.707L2.586 10l.707-.707zm17 8a1 1 0 1 1-2 0zM8.293 15.707l-5-5l1.414-1.414l5 5zm-5-6.414l5-5l1.414 1.414l-5 5zM4 9h10v2H4zm17 7v2h-2v-2zm-7-7a7 7 0 0 1 7 7h-2a5 5 0 0 0-5-5z"/></svg>
-    </div>
-  """
-
-  scripts_panel.replace(f"""
-    <div class='h-9 p-1 py-3 bg-gradient-to-r border-2 border-white/80 from-pink-400/80 to-blue-400/80 text-black flex justify-between items-center'>
-      <div class="flex items-center gap-1" onclick="sendInput('__next__')">
-        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14.293 2.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L16.586 8H5a1 1 0 0 1 0-2h11.586l-2.293-2.293a1 1 0 0 1 0-1.414m-4.586 10a1 1 0 0 1 0 1.414L7.414 16H19a1 1 0 1 1 0 2H7.414l2.293 2.293a1 1 0 0 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0"/></svg>
-        <div class="font-bold text-md">{SCRIPTS_DIR_NAME}</div>
-      </div>
-      <div class="flex items-center gap-1">
-        <div>{directory}</div>
-        {"" if directory == "." else back_icon}
-      </div>
-    </div>
-  """)
-
-  scripts_list_div = Div(*[f"""
-    <div class='border-b border-gray-400 flex justify-between items-center gap-1 {"bg-gray-400/40" if script.is_dir() else ""}'>
-      <div onclick='sendInput("{script}")' class="flex-1 flex items-center gap-1.5 p-2">
-        <div class="w-4 h-4 overflow-hidden">{get_file_icon(script)}</div>
-        <div>{script.with_suffix("").name}</div>
-      </div>
-      <div style="{'display: none' if script.is_dir() or script.suffix == ".txt" else ''}" onclick='sendInput("__help__ {script}")' class="p-4 w-12"></div>
-    </div>
-  """ for script in scripts_list(path, SCRIPT_ICONS.keys())])
-  scripts_list_div.cls.add_class("flex-1 overflow-y-auto scroll-smooth")
-  
-  scripts_panel.append(Animate(scripts_list_div))
-
-def random_banner(element: Element, banner=None) -> None:
-  global CURRENT_BANNER
-  CURRENT_BANNER = banner if banner else choice([i for i in BANNERS if i != CURRENT_BANNER])
-
-  banner_text = Pre(Animate(Text(CURRENT_BANNER)))
-  banner_text.cls.add_class("w-full h-full flex items-end justify-center")
-  
-  element.replace(banner_text)
-
-def home_screen() -> None:
-  panel.clear(True)
-
-  top_box = Div()
-  top_box.cls.add_class("bg-purple-400/40 h-[220px] overflow-y-auto")
-  top_box.set_property("onclick", "sendInput('__banner__')")
-
-  scripts_panel = Div()
-  scripts_panel.cls.add_class("flex-1 flex flex-col overflow-hidden")
-  
-  box = Div(top_box, scripts_panel)
-  box.cls.add_class("w-full h-full flex flex-col")
-
-  random_banner(top_box, CURRENT_BANNER)
-  list_scripts(scripts_panel, SCRIPTS_DIR)
-
-  panel.append(box)
-
-  while True:
-    text_input = input().strip()
+    for i in range(len(full_parts) - target_len + 1):
+        if full_parts[i:i + target_len] == target_parts:
+            return Path(*full_parts[:i + target_len])
     
-    # special commands
-    if text_input == "__banner__":
-      random_banner(top_box)
-      continue
-    elif text_input == "__next__":
-      set_next_scripts_path()
-      list_scripts(scripts_panel, SCRIPTS_DIR)
-      continue
-    elif text_input.startswith("__help__"):
-      help_path = (SCRIPTS_DIR / "_help" / f"{Path(text_input.split()[-1]).relative_to(SCRIPTS_DIR)}.txt")
-      if help_path.exists() and not help_path.is_dir():
-        with open(help_path, "r") as file:
-          banner_text = Div(file.read())
-          banner_text.cls.add_class("w-full h-full")
-          
-          top_box.replace(Animate(banner_text))
-      else:
-          banner_text = Div(f"""No help found for '{help_path.with_suffix("").name}'""")
-          banner_text.cls.add_class("w-full h-full text-md flex items-center justify-center")
-        
-          top_box.replace(Animate(banner_text))
-      continue
-
-    # ---- 
-    # absolute path to script
-    script_path = Path(text_input)
-    # finding relative path based on scripts SCRIPTS_DIR
-    rel_path = script_path.relative_to(SCRIPTS_DIR)
-
-    if script_path.is_dir():
-      list_scripts(scripts_panel, script_path, str(rel_path))
-    elif script_path.exists():
-      text = run_script(script_path)
-      if text is None:
-        break
-      top_box.replace(Animate(Text(text)))
-      top_box.scroll_to_top()
+    raise ValueError(f"Suffix '{target_suffix}' not found in path '{full_path}'")
 
 # can support absolute files
 def run_script(path: Union[str, Path], *args) -> Union[None, str]:
@@ -191,7 +66,7 @@ def run_script(path: Union[str, Path], *args) -> Union[None, str]:
       return file.read()
   
   panel.clear(True)
-  js.run_code(f"runningScript = 'neko {path}' ;setScriptName('{path.name}')")
+  js.run_code(f"runningScript = 'neko {path}' ;setScriptName('NEKO: {path.name}')")
 
   # both print and event {} works
   js.run_code("setRawOutput()")
@@ -243,13 +118,196 @@ def run_script(path: Union[str, Path], *args) -> Union[None, str]:
   else:
     raise Exception(f"Cant run '{path.suffix}' file")
 
-def main() -> None:
-  js.run_code("blockUserClear()")
+def set_next_scripts_path():
+  global SCRIPTS_DIR
+  global SCRIPTS_DIR_NAME
 
-  if len(argv) >= 2:
-    run_script(argv[1], *argv[2:])
+  try:
+    current_index = next(
+      i for i, (_, path) in enumerate(SCRIPT_DIRS) if path == SCRIPTS_DIR
+    )
+    next_index = (current_index + 1) % len(SCRIPT_DIRS)
+    SCRIPTS_DIR_NAME, SCRIPTS_DIR = SCRIPT_DIRS[next_index]
+  except StopIteration:
+    # SCRIPTS_DIR not found in SCRIPT_DIRS
+    SCRIPTS_DIR_NAME, SCRIPTS_DIR = SCRIPT_DIRS[0]
+
+# Returns file icon svg
+def get_file_icon(script: Path) -> str:
+  if script.is_dir():
+    icon_path = script / "neko-icon.svg"
+    if icon_path.exists():
+      return icon_path.read_text(encoding="utf-8")
+    return DIR_ICONS.get(script.name, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path fill="currentColor" fill-opacity="0" stroke-dasharray="64" stroke-dashoffset="64" d="M12 7h8c0.55 0 1 0.45 1 1v10c0 0.55 -0.45 1 -1 1h-16c-0.55 0 -1 -0.45 -1 -1v-11Z"><animate fill="freeze" attributeName="fill-opacity" begin="0.8s" dur="0.15s" values="0;0.3"/><animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="64;0"/></path><path d="M12 7h-9v0c0 0 0.45 0 1 0h6z" opacity="0"><animate fill="freeze" attributeName="d" begin="0.6s" dur="0.2s" values="M12 7h-9v0c0 0 0.45 0 1 0h6z;M12 7h-9v-1c0 -0.55 0.45 -1 1 -1h6z"/><set fill="freeze" attributeName="opacity" begin="0.6s" to="1"/></path></g></svg>')
   else:
-    home_screen()
+    return SCRIPT_ICONS.get(script.suffix, "<div>🤔</div>")
+
+def scripts_list(path: Union[str, Path], suffixes: List[str]) -> List[Path]:
+  path = Path(path)
+  if not path.exists() or not path.is_dir():
+    return []
+
+  return sorted([
+    item for item in path.iterdir()
+    if (
+      not item.name.startswith("_") and 
+      (item.is_dir() or (item.is_file() and item.suffix in suffixes))
+    )
+  ])
+
+def list_scripts(scripts_panel: Element, path: Path, directory: str=".") -> None:
+  def create_dir_name(name):
+    return f"""
+      <div class="border-b" onclick="sendInput('$run {Utils.get_path_up_to_suffix(path, name)}')">{name.replace('/', ' > ')}</div>
+    """
+
+  right_text = "" if directory == "." else " > ".join([create_dir_name(name) for name in directory.split("/")]) + f"""
+    <div onclick="sendInput('$run {path.parent}')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="m4 10l-.707.707L2.586 10l.707-.707zm17 8a1 1 0 1 1-2 0zM8.293 15.707l-5-5l1.414-1.414l5 5zm-5-6.414l5-5l1.414 1.414l-5 5zM4 9h10v2H4zm17 7v2h-2v-2zm-7-7a7 7 0 0 1 7 7h-2a5 5 0 0 0-5-5z"/></svg>
+    </div>
+  """
+
+  scripts_panel.replace(f"""
+    <div class='h-9 p-1 py-3 bg-gradient-to-r border-2 border-white/80 from-pink-400/80 to-blue-400/80 text-black flex justify-between items-center'>
+      <div class="flex items-center gap-1" onclick="sendInput('$next')">
+        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14.293 2.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L16.586 8H5a1 1 0 0 1 0-2h11.586l-2.293-2.293a1 1 0 0 1 0-1.414m-4.586 10a1 1 0 0 1 0 1.414L7.414 16H19a1 1 0 1 1 0 2H7.414l2.293 2.293a1 1 0 0 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0"/></svg>
+        <div class="font-bold text-md">{SCRIPTS_DIR_NAME}</div>
+      </div>
+      <div class="flex items-center gap-1">
+        {right_text}
+      </div>
+    </div>
+  """)
+
+  scripts_list_div = Div(*[f"""
+    <div class='border-b border-gray-400 flex justify-between items-center gap-1 {"bg-gray-400/40" if script.is_dir() else ""}'>
+      <div onclick='sendInput("$run {script}")' class="flex-1 flex items-center gap-1.5 p-2">
+        <div class="w-4 h-4 overflow-hidden">{get_file_icon(script)}</div>
+        <div>{script.with_suffix("").name}</div>
+      </div>
+      <div style="{'display: none' if script.is_dir() or script.suffix == ".txt" else ''}" onclick='sendInput("$help {script}")' class="p-4 w-12"></div>
+    </div>
+  """ for script in scripts_list(path, SCRIPT_ICONS.keys())])
+  scripts_list_div.cls.add_class("flex-1 overflow-y-auto scroll-smooth")
+  
+  scripts_panel.append(Animate(scripts_list_div))
+
+class Neko:
+  def __init__(self) -> None:
+    self.current_banner = BANNERS[0] # default banner
+    self.current_dir = SCRIPTS_DIR # start directory
+    
+    self.last_saves = {} # tracking script switch path
+
+  def set_next_scripts(self) -> None:
+    self.last_saves[SCRIPTS_DIR_NAME] = self.current_dir
+    set_next_scripts_path()
+
+    self.current_dir = self.last_saves.get(SCRIPTS_DIR_NAME, SCRIPTS_DIR)
+
+  def create_home_screen(self) -> None:
+    self.top_box = Div()
+    self.top_box.cls.add_class("bg-purple-400/40 h-[220px] overflow-y-auto")
+    self.top_box.set_property("onclick", "sendInput('$banner')")
+  
+    self.scripts_panel = Div()
+    self.scripts_panel.cls.add_class("flex-1 flex flex-col overflow-hidden")
+  
+    self.box = Div(self.top_box, self.scripts_panel)
+    self.box.cls.add_class("w-full h-full flex flex-col")
+  
+    self.random_banner(self.current_banner)
+
+    panel.clear(True)
+    panel.append(self.box)
+
+  def create_home_button(self) -> None:
+    panel.append("""
+      <div onclick="sendInput('$home')" class="absolute bottom-6 right-4 bg-purple-400/40 p-3 rounded-full">
+        <div class="w-6 h-6">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 15l3-3m0 0l-3-3m3 3H4m0-4.752V7.2c0-1.12 0-1.68.218-2.108c.192-.377.497-.682.874-.874C5.52 4 6.08 4 7.2 4h9.6c1.12 0 1.68 0 2.107.218c.377.192.683.497.875.874c.218.427.218.987.218 2.105v9.607c0 1.118 0 1.677-.218 2.104a2 2 0 0 1-.875.874c-.427.218-.986.218-2.104.218H7.197c-1.118 0-1.678 0-2.105-.218a2 2 0 0 1-.874-.874C4 18.48 4 17.92 4 16.8v-.05"/></svg>
+        </div>
+      <div>
+    """)
+
+  def random_banner(self, banner=None) -> None:
+    self.current_banner = banner if banner else choice([i for i in BANNERS if i != self.current_banner])
+  
+    banner_text = Pre(Animate(Text(self.current_banner)))
+    banner_text.cls.add_class("w-full h-full flex items-end justify-center")
+    
+    self.top_box.replace(banner_text)
+  
+  def display_scripts(self, current_dir=None, rel_path=None) -> None:
+    list_scripts(self.scripts_panel, current_dir or self.current_dir, rel_path or str(self.current_dir.relative_to(SCRIPTS_DIR)))
+
+  def run_command(self, command: str):
+    # js.run_code("setScriptName('NEKO')")
+
+    if command == "$banner":
+      self.random_banner()
+    elif command == "$next":
+      self.set_next_scripts()
+      self.display_scripts()
+    elif command.startswith("$help"):
+      help_path = (SCRIPTS_DIR / "_help" / f"{Path(command.split()[-1]).relative_to(SCRIPTS_DIR)}.txt")
+      
+      if help_path.exists() and not help_path.is_dir():
+        banner_text = Div(help_path.read_text(encoding="utf-8"))
+        banner_text.cls.add_class("w-full h-full")
+          
+        self.top_box.replace(Animate(banner_text))
+      else:
+        banner_text = Div(f"""No help found for '{help_path.with_suffix("").name}'""")
+        banner_text.cls.add_class("w-full h-full text-md flex items-center justify-center")
+        
+        self.top_box.replace(Animate(banner_text))
+    elif command.startswith("$run"):
+      # absolute path to script
+      script_path = Path(command.split()[-1])
+      # finding relative path based on scripts SCRIPTS_DIR
+      rel_path = script_path.relative_to(SCRIPTS_DIR)
+  
+      if script_path.is_dir():
+        self.current_dir = script_path
+        self.display_scripts(script_path, str(rel_path))
+      elif script_path.exists():
+        text = run_script(script_path)
+        if text is None:
+          self.create_home_button()
+        else:
+          self.top_box.replace(Animate(Text(text)))
+          self.top_box.scroll_to_top()
+
+    elif command == "$home":
+      return "display-home"
+
+  def run(self):
+    self.create_home_screen()
+    self.display_scripts(self.current_dir, ".")
+
+    while True:
+      result = self.run_command(input().strip())
+      if result == "display-home":
+        js.run_code("runningScript = 'neko'; setScriptName('NEKO')")
+        
+        self.create_home_screen()
+        self.display_scripts()
+  
+  def run_script(self, script_name, *args):
+    run_script(script_name, *args)
+    self.create_home_button()
+    if input().strip() != "$home":
+      return True
+
+  def main(self, script_name=None, *args):
+    js.run_code("blockUserClear()")
+
+    if script_name and self.run_script(script_name, *args):
+      return 
+
+    self.run()
 
 if __name__ == "__main__":
-  main()
+  Neko().main(*argv[1:])
+

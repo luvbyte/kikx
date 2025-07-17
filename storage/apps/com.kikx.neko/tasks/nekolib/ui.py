@@ -29,6 +29,15 @@ class JS:
     code = code() if callable(code) else code
     js.run_code(f"$('#{self.id}').{code}")
   
+  def hide(self):
+    self.jfunc("hide()")
+
+  def show(self):
+    self.jfunc("show()")
+  
+  def remove(self):
+    self.jfunc("remove()")
+  
   def scroll_to_bottom(self):
     js.run_code(f"scrollToBottom('#{self.id}')")
   

@@ -233,7 +233,7 @@ function runScript(cmd) {
         //$("#task-input-toggle-btn").show();
         $("#script-name-input").hide();
 
-        $scriptName.css("color", "#fffacd");
+        $scriptName.css("color", "#66d9e8");
 
         currentTask = task;
         break;
@@ -256,7 +256,7 @@ function runScript(cmd) {
         //$("#script-name").html(
         // `<div class="text-red-400/80">${domPurify(scriptName)}</div>`
         //);
-        if (!errorFlag) $scriptName.css("color", "#b0ffb0");
+        if (!errorFlag) $scriptName.css("color", "#71dd8a");
 
         currentTask = null;
         scrollToBottom();
@@ -268,7 +268,7 @@ function runScript(cmd) {
 
       case "error":
         errorFlag = true;
-        $scriptName.css("color", "#ffb3b3");
+        $scriptName.css("color", "#f28b82");
         $panel.text(`Error: ${data.output}`);
         break;
     }
