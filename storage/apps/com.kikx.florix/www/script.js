@@ -1,10 +1,12 @@
-let mainScript = "neko";
+let mainTask = "neko";
 // ========== ELEMENTS ==========
 
 const $panel = $("#panel");
+
 const $taskInputPanel = $("#task-input-panel");
 const $taskInputBox = $("#task-input-box");
-const $scriptName = $("#script-name");
+
+const $taskTitle = $("#task-title");
 
 let taskInputOptions = [];
 let rawOutputPanel = $panel;
@@ -86,12 +88,6 @@ function clearPanel(force = false) {
   }
 }
 
-//function toggleInputPanel() {
-//if (AppConfig.blockUserInput && $taskInputPanel.is(":hidden")) return;
-//  if (AppConfig.blockUserInput || !currentTask) return;
-//  $taskInputPanel.toggle();
-//}
-
 function hideInputPanel() {
   $taskInputPanel.hide();
 }
@@ -110,16 +106,33 @@ function askInput(placeholder = "", focus = false, effect = null) {
 
   $taskInputPanel.show();
   $taskInputBox.attr("placeholder", placeholder);
-  //$taskInputPanel.addClass("border-blue-500");
 
   if (focus) {
     $taskInputBox.focus();
   }
 }
 
-const setScriptName = name => {
-  $scriptName.text(name.toUpperCase());
+const setTaskName = () => {
+  $taskTitle.text(runningScript.split(" ")[0].toUpperCase());
 };
+
+const setSubTaskName = (name = null) => {
+  setTaskName();
+
+  if (name) {
+    // Ensure no injection by using jQuery's .text() for plain text and .append() for styling
+    const baseText = $taskTitle.text().split(":")[0]; // Remove any previous suffix
+    $taskTitle.text(baseText); // Reset text content
+
+    // Create a span with white text using Tailwind, safely add name
+    const $styledName = $("<span></span>")
+      .addClass("text-white/60")
+      .text(` ${name.toUpperCase()}`);
+
+    $taskTitle.append($styledName); // Append the styled name safely
+  }
+};
+
 // ========== TASK OUTPUT HANDLER ==========
 
 function exec(outputText) {
@@ -188,17 +201,10 @@ function sendError(error) {
   sendEvent("error", error);
 }
 
-function runScript(cmd) {
+function runFlorixTask(cmd) {
   if (currentTask || !cmd) return;
 
   runningScript = cmd;
-
-  const splitName = cmd.split(" ");
-  let scriptName = splitName[0];
-
-  if (splitName.length > 1) {
-    scriptName = splitName[1];
-  }
   const task = createTask(cmd);
 
   $panel.html(`
@@ -207,9 +213,7 @@ function runScript(cmd) {
     </div>
   `);
 
-  //const $scriptName = $("#script-name");
-
-  setScriptName(scriptName.split("/").at(-1));
+  setTaskName();
 
   let errorFlag = false;
   let successFlag = false;
@@ -219,17 +223,15 @@ function runScript(cmd) {
       case "started": // on running
         successFlag = true;
 
-        // $("#panel-clear-btn").hide();
-
         $("#task-reload-btn").hide();
         $("#task-home-btn").hide();
 
         $("#task-stop-btn").show();
         $("#task-run-btn").hide();
-        //$("#task-input-toggle-btn").show();
-        $("#script-name-input").hide();
 
-        $scriptName.css("color", "#66d9e8");
+        $("#task-name-input").hide();
+
+        $taskTitle.css("color", "#66d9e8");
 
         currentTask = task;
         break;
@@ -243,15 +245,9 @@ function runScript(cmd) {
 
         $("#task-stop-btn").hide();
         $("#task-run-btn").show();
-        // $("#task-input-toggle-btn").hide();
-        //  $("#panel-clear-btn").show();
 
-        $("#script-name-input").show();
-        //$("#script-name").text(`Ended: ${scriptName}`);
-        //$("#script-name").html(
-        // `<div class="text-red-400/80">${domPurify(scriptName)}</div>`
-        //);
-        if (!errorFlag) $scriptName.css("color", "#71dd8a");
+        $("#task-name-input").show();
+        if (!errorFlag) $taskTitle.css("color", "#71dd8a");
 
         currentTask = null;
         scrollToBottom();
@@ -263,7 +259,7 @@ function runScript(cmd) {
 
       case "error":
         errorFlag = true;
-        $scriptName.css("color", "#f28b82");
+        $taskTitle.css("color", "#f28b82");
         $panel.text(`Error: ${data.output}`);
         break;
     }
@@ -272,8 +268,8 @@ function runScript(cmd) {
   task.run();
 }
 
-function runStartScript() {
-  runScript(mainScript);
+function runMainTask() {
+  runFlorixTask(mainTask);
 }
 
 function reloadScript() {}
@@ -304,17 +300,25 @@ function _sendUserInput() {
 
 // ========== UI EVENTS ==========
 
-$(() => {
-  $("#task-run-btn").on("click", () => {
-    const cmd = $("#script-name-input").val().trim();
-    if (!cmd) return;
+const _startFlorixTask = () => {
+  const cmd = $("#task-name-input").val().trim();
+  if (!cmd) return;
 
-    $("#script-name-input").val("");
-    runScript(cmd);
+  $("#task-name-input").val("");
+  runFlorixTask(cmd);
+};
+
+$(() => {
+  $("#task-run-btn").on("click", () => _startFlorixTask());
+
+  $("#task-name-input").on("keydown", function (event) {
+    if (event.key === "Enter" || event.keyCode === 13) {
+      _startFlorixTask();
+    }
   });
 
   $("#task-reload-btn").on("click", () => {
-    runScript(runningScript);
+    runFlorixTask(runningScript);
   });
 
   $taskInputBox.on("keydown", function (event) {
@@ -327,7 +331,7 @@ $(() => {
 // ========== APP INITIALIZATION ==========
 
 kikxApp.run(() => {
-  runScript(mainScript);
+  runFlorixTask(mainTask);
 });
 
 requestWakeLock();

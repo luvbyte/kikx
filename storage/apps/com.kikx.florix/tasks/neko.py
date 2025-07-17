@@ -58,14 +58,9 @@ class Utils:
     raise ValueError(f"Suffix '{target_suffix}' not found in path '{full_path}'")
 
 # can support absolute files
-def run_script(path: Union[str, Path], *args) -> Union[None, str]:
-  path = Path(path)
-  if path.suffix == ".txt":
-    with open(path) as file:
-      return file.read()
-  
+def run_script(path: Path, *args) -> Union[None, str]:
   panel.clear(True)
-  js.run_code(f"runningScript = 'neko {path}' ;setScriptName('NEKO: {path.name}')")
+  js.run_code(f"runningScript = 'neko {path}' ;setSubTaskName('{path.name}')")
 
   # support for binary file
   if path.suffix == "":
@@ -209,6 +204,10 @@ class Neko:
 
     panel.clear(True)
     panel.append(self.box)
+    
+    # resets to neko on home screen
+    js.run_code("runningScript = 'neko'; setSubTaskName()")
+
 
   def create_home_button(self) -> None:
     panel.append("""
@@ -259,12 +258,12 @@ class Neko:
         self.current_dir = script_path
         self.display_scripts(script_path, str(rel_path))
       elif script_path.exists():
-        text = run_script(script_path)
-        if text is None:
-          self.create_home_button()
-        else:
-          self.top_box.replace(Animate(Text(text)))
+        if script_path.suffix == ".txt":
+          self.top_box.replace(Animate(Text(script_path.read_text(encoding="utf-8"))))
           self.top_box.scroll_to_top()
+        else:
+          run_script(script_path)
+          self.create_home_button()
 
     elif command == "$home":
       return "display-home"
@@ -276,13 +275,11 @@ class Neko:
     while True:
       result = self.run_command(input().strip())
       if result == "display-home":
-        js.run_code("runningScript = 'neko'; setScriptName('NEKO')")
-        
         self.create_home_screen()
         self.display_scripts()
   
   def run_script(self, script_name, *args):
-    run_script(script_name, *args)
+    run_script(Path(script_name), *args)
     self.create_home_button()
     if input().strip() != "$home":
       return True
@@ -295,4 +292,3 @@ class Neko:
 
 if __name__ == "__main__":
   Neko().main(*argv[1:])
-

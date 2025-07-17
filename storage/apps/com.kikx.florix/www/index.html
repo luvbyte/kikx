@@ -43,7 +43,7 @@
           </svg>
         </div>
 
-        <h1 id="script-name" class="w-full truncate text-white"></h1>
+        <h1 id="task-title" class="w-full truncate text-white"></h1>
 
         <button
           id="panel-clear-btn"
@@ -86,7 +86,7 @@
 
         <button
           id="task-home-btn"
-          onclick="runStartScript()"
+          onclick="runMainTask()"
           class="text-blue-500 border border-white/60 px-2 rounded active:bg-white/40"
         >
           <svg
@@ -145,9 +145,9 @@
       </div>
       <!-- top input -->
       <input
-        id="script-name-input"
+        id="task-name-input"
         style="display: none"
-        placeholder="Enter task name to run"
+        placeholder="Enter task name to start"
         class="p-1 bg-transparent border border-white/60 rounded text-white focus:outline-none"
       />
 
