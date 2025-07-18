@@ -2,7 +2,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, Request, Response, Depends, Cookie, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.websockets import WebSocketState
+#from starlette.websockets import WebSocketState
 from fastapi.staticfiles import StaticFiles
 
 from fastapi.security import OAuth2PasswordRequestForm
@@ -10,17 +10,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 from core.plugins import PluginsManager
 
 from pydantic import BaseModel
-from subprocess import Popen
-from pathlib import Path
-from uuid import uuid4
+#from subprocess import Popen
+#from pathlib import Path
+#from uuid import uuid4
 
 import logging
-import asyncio
-import signal
-import shlex
-import json
+#import asyncio
+#import signal
+#import shlex
+#import json
 import sys
-import os
+#import os
 
 from typing import Dict, List
 
@@ -29,20 +29,21 @@ from lib.utils import dynamic_import, is_websocket_connected
 from core.config import Config
 
 from core.storage import Storage
-from core.errors import raise_error, Error, ClientError, AppError, TaskError
+from core.errors import raise_error
 
 from core.auth import Auth
 # from core.apps import App
 
 from lib.plugins import KikxPlugin
 
-from core.models import CloseAppModel, OpenAppModel, AppsListModel
+from core.models.app_models import CloseAppModel, OpenAppModel, AppsListModel
 from core.services import Services
 from lib.parser import parse_config
 
 from core.shortlink import ShortLink
 # from lib.utils import is_websocket_connected
-from core.config.models import UserModel, AppModel, UserDataModel
+#from core.config.models import UserModel, UserDataModel
+from core.models.app_models import AppModel
 
 from core.client import Client
 from core.user import User
@@ -154,6 +155,8 @@ class Core:
   async def on_close(self):
     self.plugins.shutdown()
     self.services.on_close()
+    
+    self.user.on_close()
     
     shutdown_file = self.config.resolve_path("storage://etc/shutdown.sh")
     if shutdown_file.exists() and not shutdown_file.is_dir():
@@ -408,10 +411,10 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
   if app is None or client is None:
     await websocket.close(reason="Unauthorized")
     return
-  
+
   # safe functions
   app.connect_websocket(websocket)
-  await app.send_event("connected", { "config": app.config.model_dump(), "settings": client.user.settings.parsed })
+  await app.send_event("connected", { "config": app.config.model_dump(), "settings": client.user.settings() })
   
   logger.info(f"App opened {app} ∆ client : {client}")
   logger.info(f"Active apps {client.running_apps}")
@@ -453,7 +456,7 @@ async def websocket_client_endpoint(websocket: WebSocket, access_token: str = Co
   # changing here
   await client.send_event("connected", {
     "client_id": client.id,
-    "settings": client.user.settings.parsed
+    "settings": client.user.settings()
   })
 
   try:

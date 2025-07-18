@@ -16,7 +16,7 @@ from typing import Dict
 from core.errors import raise_error
 from lib.parser import parse_config
 
-from core.config.models import UserModel
+from core.models.user_models import UserModel
 
 def hash_strings(*strings):
   base = hashlib.md5()

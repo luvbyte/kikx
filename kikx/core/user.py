@@ -1,104 +1,89 @@
-from lib.parser import parse_config
-from datetime import datetime
-import json
-from pathlib import Path
-from core.config.models import UserDataModel
-from core.errors import raise_error, Error, ClientError, AppError, TaskError
 import os
+import logging
+from pathlib import Path
+from datetime import datetime
+from typing import Any
+
+from lib.parser import parse_config
+from core.errors import raise_error
+from core.models.user_models import UserDataModel
+from core.models.setting_models import UserSettingsModel
+
+logger = logging.getLogger(__name__)
+
 
 class UserSettings:
-  def __init__(self, settings_path):
-    self.settings_path = settings_path
-  
-  @property
-  def raw(self):
-    return parse_config(self.settings_path)
-  
-  @property
-  def parsed(self):
-    return { i["id"]: i["value"] for i in self.raw["kikx"] }
-    
-  def _convert_value(self, value, field_type):
-    try:
-      if field_type == "number":
-        return int(value)
-      elif field_type == "date":
-        # Validates format 'YYYY-MM-DD'
-        return datetime.strptime(value, "%Y-%m-%d").date().isoformat()
-      elif field_type == "checkbox":
-        if isinstance(value, bool):
-          return value
-        return str(value).lower() in ["true", "1", "yes", "on"]
-      elif field_type in ["radio", "select"]:
-        return str(value)
-      elif field_type == "email":
-        if "@" in value:
-          return str(value)
-        else:
-          raise ValueError("Invalid email format")
-      elif field_type in ["text", "textarea", "password"]:
-        return str(value)
-      else:
-        return value
-    except Exception as e:
-      raise ValueError(f"Type conversion failed for type '{field_type}' with value '{value}': {e}")
+  """Handles user's editable settings with persistent storage."""
 
-  def update(self, new_values):
-    settings = self.raw["kikx"]
+  def __init__(self, settings_path: Path):
+    self.settings_path: Path = settings_path
+    self._settings: UserSettingsModel = UserSettingsModel.load(self.settings_path)
+    logger.info(f"Loaded user settings from {self.settings_path}")
 
-    id_to_setting = {setting['id']: setting for setting in settings}
-  
-    for key, new_val in new_values.items():
-      if key in id_to_setting:
-        setting = id_to_setting[key]
-        field_type = setting.get("type", "text")
-  
-        try:
-          converted_value = self._convert_value(new_val, field_type)
-  
-          if field_type in ["radio", "select"] and "options" in setting:
-            if converted_value not in setting["options"]:
-              raise ValueError(f"Invalid option '{converted_value}' for field '{key}'")
-  
-          setting["value"] = converted_value
-  
-        except ValueError as err:
-          print(f"Warning: {err}")
-      
-    with open(self.settings_path, "w") as file:
-      json.dump({ "kikx": settings }, file)
+  def save(self) -> None:
+    self._settings.save(self.settings_path)
+    logger.debug(f"User settings saved to {self.settings_path}")
+
+  def update(self, settings: dict[str, Any]) -> None:
+    """Update and save settings. Raises error if validation fails."""
+    self._settings = self._settings.update(settings)
+    logger.info("User settings updated")
+    self.save()
+
+  def __call__(self) -> dict[str, Any]:
+    return self._settings.model_dump()
+
+  def on_close(self) -> None:
+    """Persist any in-memory changes on shutdown."""
+    self.save()
+
 
 class User:
-  def __init__(self, user_config, user_data_path, home_path, storage_path):
+  """Represents a single user's profile and configuration."""
+
+  def __init__(
+    self,
+    user_config: Any,
+    user_data_path: Path,
+    home_path: Path,
+    storage_path: Path
+  ):
     self.config = user_config
-    self.username = user_config.username
+    self.username: str = user_config.username
 
-    # user all paths
-    self.data_path: Path = user_data_path # data://users# app data folder
-    self.home_path = home_path  # home://{user_id}/ # home folder or sdcard folder
-    self.storage_path = storage_path # storage path
-    
-    # has user data
-    self.user_data = parse_config(self.data_path / "config/user_data.json", UserDataModel)
+    self.data_path: Path = user_data_path
+    self.home_path: Path = home_path
+    self.storage_path: Path = storage_path
 
-    # settings
-    self.settings = UserSettings(self.data_path / "config/settings.json")
+    self.user_data: UserDataModel = parse_config(
+      self.data_path / "config/user_data.json", UserDataModel
+    )
+    self.settings: UserSettings = UserSettings(self.data_path / "config/settings.json")
 
-  # returns env pat
-  def get_path_env(self):
+    logger.info(f"User loaded: {self.username}")
+
+  def get_path_env(self) -> str:
+    """Return path to user's binary folder."""
     return (self.storage_path / 'bin').as_posix()
 
-  # returns app_config content
-  def get_app_config_file_path(self, app_id):
+  def get_app_config_file_path(self, app_id: str) -> Path:
+    """Return the config path for a specific app. Raise error if missing."""
     app_config = self.data_path / "app" / f"{app_id}.json"
     if not app_config.exists():
       raise_error("App config not found")
     return app_config
 
-  # list 
   def get_installed_apps(self) -> list[str]:
-    return os.listdir(self.storage_path / 'apps')
-  
-  # update settings
-  def update_setting(self, name, value):
-    pass
+    """List all app folders from user storage."""
+    apps = os.listdir(self.storage_path / 'apps')
+    logger.debug(f"Installed apps: {apps}")
+    return apps
+
+  def update_setting(self, name: str, value: Any) -> None:
+    """Update a single setting (function stub)."""
+    logger.warning(f"update_setting('{name}', ...) not implemented")
+
+  def on_close(self) -> None:
+    """Trigger user-level shutdown handlers (e.g., save settings)."""
+    self.settings.on_close()
+    logger.info(f"User {self.username} session closed")

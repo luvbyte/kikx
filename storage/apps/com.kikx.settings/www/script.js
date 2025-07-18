@@ -1,157 +1,136 @@
-let config = null;
+let userSettings = {};
+$(document).ready(async function () {
+  $("#save-btn").on("click", async function () {
+    // Deep copy and update the object
+    userSettings = getUpdatedSettings(userSettings);
 
-function renderUI(config) {
-  const $container = $("#ui-container").empty();
-
-  config.kikx.forEach(element => {
-    const $wrapper = $('<div class="space-y-1 mb-4"></div>');
-    const $label = $(
-      `<label class="block font-medium text-gray-700 dark:text-gray-200" for="${element.id}">${element.label}</label>`
-    );
-    let $input;
-
-    switch (element.type) {
-      case "textarea":
-        $input = $(
-          `<textarea id="${element.id}" class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-white">${element.value}</textarea>`
-        );
-        break;
-
-      case "select":
-        $input = $(
-          `<select id="${element.id}" class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-white"></select>`
-        );
-        element.options.forEach(opt => {
-          const $opt = $(`<option value="${opt}">${opt}</option>`);
-          if (opt === element.value) $opt.prop("selected", true);
-          $input.append($opt);
-        });
-
-        $input.on("change", function () {
-          updateConfigValue(element.id, $(this).val());
-        });
-        break;
-
-      case "radio":
-        $input = $(`<div class="flex gap-4" id="${element.id}"></div>`);
-        element.options.forEach(opt => {
-          const inputId = `${element.id}_${opt}`;
-          const $radio = $(`
-            <div class="flex items-center gap-2">
-              <input type="radio" id="${inputId}" name="${
-                element.id
-              }" value="${opt}" class="form-radio text-blue-600"
-                ${opt === element.value ? "checked" : ""}>
-              <label for="${inputId}" class="text-gray-700 dark:text-gray-200">${opt}</label>
-            </div>
-          `);
-          $input.append($radio);
-        });
-
-        $input.on("change", "input[type=radio]", function () {
-          updateConfigValue(element.id, $(this).val());
-        });
-        break;
-
-      case "checkbox":
-        $input = $(`
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="${
-              element.id
-            }" class="form-checkbox text-blue-600" ${
-              element.value ? "checked" : ""
-            }>
-            <label for="${
-              element.id
-            }" class="text-gray-700 dark:text-gray-200">${element.label}</label>
-          </div>
-        `);
-
-        $input.find("input[type=checkbox]").on("change", function () {
-          updateConfigValue(element.id, $(this).is(":checked"));
-        });
-        break;
-
-      case "text":
-        $input = $(
-          `<input type="text" id="${element.id}" class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-white" value="${element.value}">`
-        );
-        break;
-
-      default:
-        $input = $(
-          `<input type="${element.type}" id="${element.id}" class="border rounded p-2 w-full bg-white dark:bg-gray-800 dark:text-white" value="${element.value}">`
-        );
-    }
-
-    // Generic input listener for non-checkbox, non-radio, non-select types
-    if (!["radio", "checkbox", "select"].includes(element.type)) {
-      $input.on("input change", function () {
-        updateConfigValue(element.id, $(this).val());
-      });
-    }
-
-    $wrapper.append($label).append($input);
-    $container.append($wrapper);
+    // Optional: Save to localStorage or send to server here
+    $(this).hide();
+    let res = await kikxApp.system.setUserSettings(userSettings);
+    if (res.data) $(this).show();
   });
 
-  updateOutput();
-}
+  // Optional enum for dropdowns
+  //  const settingOptions = {
+  //"user.theme": ["light", "dark"],
+  // "user.language": ["en", "es", "fr"]
+  // };
 
-function updateConfigValue(id, newValue) {
-  config.kikx = config.kikx.map(el =>
-    el.id === id ? { ...el, value: newValue } : el
-  );
-  updateOutput();
-}
+  // Recursively render settings
+  function renderSettings(settings, parentKey = "") {
+    const container = $("<div class='space-y-2'></div>");
 
-function updateOutput() {
-  $("#config-output").text(JSON.stringify(config, null, 2));
-}
+    for (const key in settings) {
+      const fullKey = parentKey ? `${parentKey}.${key}` : key;
+      const value = settings[key];
 
-async function saveCurrentSettings() {
-  if (!config) return;
+      if (typeof value === "boolean") {
+        container.append(renderCheckbox(fullKey, key, value));
+      } else if (typeof value === "string" || typeof value === "number") {
+        const options = settingOptions[fullKey];
+        if (options) {
+          container.append(renderSelect(fullKey, key, value, options));
+        } else {
+          container.append(renderTextInput(fullKey, key, value));
+        }
+      } else if (typeof value === "object" && value !== null) {
+        const group = $("<fieldset class='border p-2 rounded-md'>");
+        group.append(
+          `<legend class="text-sm font-semibold capitalize">${key}</legend>`
+        );
+        group.append(renderSettings(value, fullKey));
+        container.append(group);
+      }
+    }
 
-  $(this).addClass("hidden");
-
-  let settings = {};
-  config.kikx.forEach(setting => {
-    settings[setting["id"]] = setting["value"];
-  });
-
-  const res = await kikxApp.system.setUserSettings(settings);
-
-  if (res.data) {
-    $(this).removeClass("hidden");
-  }
-}
-
-$("#save-btn").on("click", function () {
-  saveCurrentSettings();
-});
-
-$(async () => {
-  const res = await kikxApp.system.getUserSettings(true);
-
-  if (res.err) {
-    throw Error(res.err);
+    return container;
   }
 
-  config = res.data;
+  function renderCheckbox(id, label, value) {
+    const safeId = id.replace(/\./g, "-");
+    return `
+      <div class="flex items-center justify-between p-3 border rounded bg-white dark:bg-slate-700">
+        <label for="${safeId}" class="capitalize">${label}</label>
+        <input type="checkbox" id="${safeId}" data-key="${id}" ${
+          value ? "checked" : ""
+        }>
+      </div>
+    `;
+  }
 
-  renderUI(config);
+  function renderSelect(id, label, value, options) {
+    const safeId = id.replace(/\./g, "-");
+    const optionsHTML = options
+      .map(
+        opt =>
+          `<option value="${opt}" ${
+            opt === value ? "selected" : ""
+          }>${opt}</option>`
+      )
+      .join("");
+
+    return `
+      <div class="p-3 border rounded bg-white dark:bg-slate-700">
+        <label for="${safeId}" class="block mb-1 capitalize">${label}</label>
+        <select id="${safeId}" data-key="${id}" class="w-full p-1 border rounded">
+          ${optionsHTML}
+        </select>
+      </div>
+    `;
+  }
+
+  function renderTextInput(id, label, value) {
+    const safeId = id.replace(/\./g, "-");
+    return `
+      <div class="p-3 border rounded bg-white dark:bg-slate-700">
+        <label for="${safeId}" class="block mb-1 capitalize">${label}</label>
+        <input type="text" id="${safeId}" data-key="${id}" value="${value}" class="w-full p-1 border rounded" />
+      </div>
+    `;
+  }
+
+  function getUpdatedSettings(original) {
+    const updated = JSON.parse(JSON.stringify(original));
+
+    $("[data-key]").each(function () {
+      const key = $(this).data("key");
+      const keys = key.split(".");
+      let obj = updated;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        obj = obj[keys[i]];
+      }
+
+      const lastKey = keys[keys.length - 1];
+      if ($(this).is(":checkbox")) {
+        obj[lastKey] = $(this).is(":checked");
+      } else {
+        obj[lastKey] = $(this).val();
+      }
+    });
+
+    return updated;
+  }
 
   kikxApp.run(() => {
-    $("html").toggleClass("dark", kikxApp.userSettings.dark_mode);
+    // Initial render
+    userSettings = kikxApp.userSettings;
+    const rendered = renderSettings(userSettings);
+    $("#ui-container").append(rendered);
+
+    $("html").toggleClass("dark", userSettings.display.dark);
 
     $("#loading-screen").fadeOut(400, function () {
       $(this).remove();
     });
   });
+
+  // Hide loading screen
+  //$("#loading-screen").fadeOut();
 });
 
 kikxApp.on("signal", signalData => {
   if (signalData.signal === "update_user_settings") {
-    $("html").toggleClass("dark", signalData.data.dark_mode);
+    $("html").toggleClass("dark", signalData.data.display.dark);
   }
 });

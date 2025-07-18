@@ -1,18 +1,21 @@
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Depends, Query
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import List, Any
 import os
 import shutil
+import logging
 from pathlib import Path
-import httpx
-import mimetypes
+from typing import List, Any
 
-from urllib.parse import urlparse
+from fastapi import (
+  APIRouter, HTTPException, Request,
+  UploadFile, File, Query
+)
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
 from lib.service import create_service
 
-
 srv = create_service(__file__)
+logger = logging.getLogger("storage")
+logging.basicConfig(level=logging.INFO)
 
 class FileWriteRequest(BaseModel):
   filename: str
@@ -26,65 +29,52 @@ class CopyMoveRequest(BaseModel):
   destination: str
 
 
-def resolve_app_path(app, path: str, read: bool):
+def resolve_app_path(app, path: str, read: bool) -> Path:
   core = srv.get_core()
-  
-  try:
+  if "://" in path:
     protocol, full_path = path.split("://", 1)
-  except ValueError:
-    protocol = "data"
-    full_path = path
-    #raise HTTPException(status_code=400, detail="Invalid path protocol")
+  else:
+    protocol, full_path = "data", path
 
-  protocol_paths = {
-    "file": app.get_app_path(),
-    "data": app.get_app_data_path(),
+  ptype = "read" if read else "write"
+  permissions = app.get_permissions("storage")
+
+  if protocol == "data":
+    return app.get_app_data_path() / full_path
+
+  if protocol == "root":
+    if permissions.check("root", ptype):
+      return core.config.resolve_path(full_path)
+    else:
+      srv.exception(400, "Permission denied for root access")
+
+  storage_paths = {
+    "app": app.get_app_path(),
     "home": app.get_home_path()
   }
-  # special access
-  if protocol == "root":
-    permission = "storage.read_root" if read else "storage.write_root"
-    if not app.has_permission(permission):
-      srv.exception(403, "Permission denied")
-    return core.config.resolve_path(full_path)
-  
-  if protocol not in protocol_paths:
-    srv.exception(400, "Invalid path protocol")
-  
-  # maybe remove in future
-  elif protocol == "file" and not read:
-    raise HTTPException(status_code=403, detail="Permission denied can't write to file://")
-  elif protocol == "home":
-    permission = "storage.read_home" if read else "storage.write_home"
-    if not app.has_permission(permission):
-      srv.exception(403, "Permission denied")
 
-  return protocol_paths[protocol] / full_path
+  if protocol not in storage_paths:
+    srv.exception(400, "Invalid protocol")
 
-def resolve_client_path(client, path: str):
+  if not permissions.check(protocol, ptype):
+    srv.exception(400, "Permission denied")
+
+  return storage_paths[protocol] / full_path
+
+
+def resolve_client_path(client, path: str) -> Path:
   core = srv.get_core()
-  # full files access implement permissions later
   return core.config.resolve_path(path)
 
+
 def resolve_path(request: Request, path: str, read: bool = False) -> Path:
-  """Resolve a given path based on protocol type and request context."""
+  """Resolve a given path based on protocol and auth context."""
   client, app = srv.get_client_or_app(request)
-  if app:
-    return resolve_app_path(app, path, read)
-  else:
-    return resolve_client_path(client, path)
+  return resolve_app_path(app, path, read) if app else resolve_client_path(client, path)
 
-
-# implement something like this in core
-@srv.router.get("/map")
-def path_map(request: Request, path: str):
-  return {
-    "apps": "storage://apps"
-  }[path]
 
 @srv.router.post("/copy")
-def copy_item(request: Request, payload: CopyMoveRequest):
-  """Copy a file or directory from source to destination."""
+def copy_item(request: Request, payload: CopyMoveRequest) -> dict:
   src_path = resolve_path(request, payload.source, True)
   dest_path = resolve_path(request, payload.destination)
 
@@ -96,11 +86,12 @@ def copy_item(request: Request, payload: CopyMoveRequest):
   else:
     shutil.copy2(src_path, dest_path)
 
+  logger.info(f"Copied from {src_path} to {dest_path}")
   return {"message": "Copy successful", "source": payload.source, "destination": payload.destination}
 
+
 @srv.router.post("/move")
-def move_item(request: Request, payload: CopyMoveRequest):
-  """Move (rename) a file or directory from source to destination."""
+def move_item(request: Request, payload: CopyMoveRequest) -> dict:
   src_path = resolve_path(request, payload.source)
   dest_path = resolve_path(request, payload.destination)
 
@@ -108,18 +99,18 @@ def move_item(request: Request, payload: CopyMoveRequest):
     raise HTTPException(status_code=404, detail="Source not found")
 
   shutil.move(src_path, dest_path)
-
+  logger.info(f"Moved from {src_path} to {dest_path}")
   return {"message": "Move successful", "source": payload.source, "destination": payload.destination}
 
+
 @srv.router.get("/list", response_model=List[Any])
-def list_files(request: Request, directory: str = ""):
-  """List files and directories inside a given directory."""
+def list_files(request: Request, directory: str = "") -> List[dict]:
   dir_path = resolve_path(request, directory, True)
 
   if not os.path.exists(dir_path):
     raise HTTPException(status_code=404, detail="Directory not found")
-  
-  def file_info(path):
+
+  def file_info(path: Path) -> dict:
     return {
       "name": path.name,
       "suffix": path.suffix,
@@ -128,9 +119,9 @@ def list_files(request: Request, directory: str = ""):
 
   return [file_info(Path(dir_path) / path) for path in os.listdir(dir_path)]
 
+
 @srv.router.get("/read")
-def read_file(request: Request, filename: str):
-  """Read a file efficiently using streaming."""
+def read_file(request: Request, filename: str) -> StreamingResponse:
   file_path = resolve_path(request, filename, True)
 
   if not os.path.exists(file_path):
@@ -138,69 +129,74 @@ def read_file(request: Request, filename: str):
 
   def file_generator():
     with open(file_path, "rb") as file:
-      while chunk := file.read(1024 * 1024):  # Read in 1MB chunks
+      while chunk := file.read(1024 * 1024):
         yield chunk
 
   return StreamingResponse(file_generator(), media_type="application/octet-stream")
 
+
 @srv.router.post("/write")
-def write_file(request: Request, file: FileWriteRequest):
-  """Write content to a file."""
+def write_file(request: Request, file: FileWriteRequest) -> dict:
   file_path = resolve_path(request, file.filename)
-  
+
   with open(file_path, "w", encoding="utf-8") as f:
     f.write(file.content)
 
+  logger.info(f"Wrote to file {file_path}")
   return {"message": "File written successfully", "filename": file.filename}
 
+
 @srv.router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
-  """Upload a file efficiently by writing in chunks."""
+async def upload_file(request: Request, file: UploadFile = File(...)) -> dict:
   file_path = resolve_path(request, file.filename)
 
   with open(file_path, "wb") as f:
-    while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
+    while chunk := await file.read(1024 * 1024):
       f.write(chunk)
 
+  logger.info(f"Uploaded file to {file_path}")
   return {"message": "File uploaded successfully", "filename": file.filename}
 
+
 @srv.router.delete("/delete")
-def delete_file(request: Request, filename: str):
-  """Delete a file."""
+def delete_file(request: Request, filename: str) -> dict:
   file_path = resolve_path(request, filename)
 
   if not os.path.exists(file_path):
     raise HTTPException(status_code=404, detail="File not found")
 
   os.remove(file_path)
+  logger.info(f"Deleted file {file_path}")
   return {"message": "File deleted successfully"}
 
+
 @srv.router.post("/create_directory")
-def create_directory(request: Request, dir_request: DirectoryCreateRequest):
-  """Create a new directory."""
+def create_directory(request: Request, dir_request: DirectoryCreateRequest) -> dict:
   dir_path = resolve_path(request, dir_request.dirname)
 
   if os.path.exists(dir_path):
     raise HTTPException(status_code=400, detail="Directory already exists")
 
   os.makedirs(dir_path)
+  logger.info(f"Created directory {dir_path}")
   return {"message": "Directory created successfully"}
 
+
 @srv.router.delete("/delete_directory")
-def delete_directory(request: Request, dirname: str):
-  """Delete a directory and its contents."""
+def delete_directory(request: Request, dirname: str) -> dict:
   dir_path = resolve_path(request, dirname)
 
   if not os.path.exists(dir_path):
     raise HTTPException(status_code=404, detail="Directory not found")
 
   shutil.rmtree(dir_path)
+  logger.info(f"Deleted directory {dir_path}")
   return {"message": "Directory deleted successfully"}
 
-# remove (deprecated)
+
 @srv.router.get("/serve")
-async def serve_file(request: Request, filename: str):
-  """Serve a locally saved file for downloading."""
+async def serve_file(request: Request, filename: str) -> StreamingResponse:
+  """Deprecated: Serve a file for download."""
   file_path = resolve_path(request, filename, True)
 
   if not os.path.exists(file_path):

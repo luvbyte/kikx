@@ -55,7 +55,14 @@ const updateKuiConfig = async (fth = true) => {
 
 $(function () {
   client.on("app:notify", payload => {
-    addNotify(payload, !client.userSettings.silent);
+    console.log(client.userSettings);
+    addNotify(payload, !client.userSettings.display.silent);
+  });
+  // closing app
+  client.on("app:close", app => {
+    try {
+      if (appFrames[app.name].id === app.id) closeApp(app.name);
+    } catch (e) {}
   });
 
   client.run(async payload => {

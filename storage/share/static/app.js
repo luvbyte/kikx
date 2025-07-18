@@ -195,7 +195,7 @@ class SystemService extends Service {
 
   notify = payload => this.request("notify", "POST", payload);
   sendSignal = signal => this.request(`signal?signal=${signal}`);
-  getUserSettings = (raw = false) => this.request(`user-settings?raw=${raw}`);
+  getUserSettings = () => this.request("user-settings");
   setUserSettings = settings =>
     this.request(`user-settings`, "POST", {
       settings: settings
@@ -203,6 +203,7 @@ class SystemService extends Service {
 
   appFunc = (name, config) =>
     this.request("app/func", "POST", { name, config });
+  closeApp = () => this.request("close-app", "POST");
 }
 
 class ProxyService extends Service {

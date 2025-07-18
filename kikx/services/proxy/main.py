@@ -1,14 +1,11 @@
-from fastapi import Request, HTTPException, Query, Response
 import httpx
+from fastapi import Request, HTTPException, Query, Response
 
 from lib.service import create_service
 
 
 srv = create_service(__file__)
 
-def check_app_permission(app):
-  if "proxy" not in app.config.services:
-    srv.exception(401, "Permission Denied: 'proxy' not found!!?")
 
 async def forward_request(method: str, request: Request, target_url: str):
   """Forwards the request to the target URL while adding CORS headers."""
@@ -17,7 +14,6 @@ async def forward_request(method: str, request: Request, target_url: str):
   client, app = srv.get_client_or_app(request)
   if app:
     headers.pop("kikx-app-id")
-    check_app_permission(app)
   else:
     headers.pop("kikx-client-id")
 
@@ -25,7 +21,6 @@ async def forward_request(method: str, request: Request, target_url: str):
     raise HTTPException(status_code=400, detail="Missing target URL in query parameter")
 
   headers.pop("host", None)
-  # headers = {key: value for key, value in request.headers.items() if key.lower() != "host"}
 
   try:
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
@@ -37,7 +32,6 @@ async def forward_request(method: str, request: Request, target_url: str):
 
     # Forward all headers except 'transfer-encoding' to avoid issues
     response_headers = {k: v for k, v in response.headers.items() if k.lower() != "transfer-encoding"}
-    # print(response_headers.items())
 
     # 🔥 Manually add CORS headers to prevent browser blocking
     response_headers["Access-Control-Allow-Origin"] = "null"  # Allow all domains (change if needed)

@@ -1,14 +1,14 @@
-from fastapi import Request, HTTPException
-from core.func.func import FuncXModel
-from pydantic import BaseModel
 from typing import Literal, Optional
 
+from fastapi import Request, HTTPException
+from pydantic import BaseModel
+
+from core.func.func import FuncXModel
 from lib.service import create_service
+
 import asyncio
 
 srv = create_service(__file__)
-
-# checks and returns client
 
 class NotifyModel(BaseModel):
   type: Literal['info', 'error'] = "info"
@@ -17,13 +17,10 @@ class NotifyModel(BaseModel):
   delay: int = 0
   msg: str
 
-
 @srv.router.post("/notify")
-async def notify(request: Request, payload: NotifyModel):
+async def notify(request: Request, payload: NotifyModel) -> None:
   client, app = srv.get_client_app(request)
 
-  #notification_id = client.user.system.notify(payload.msg)
-  # emit here
   await client.send_event("app:notify", {
     "name": app.name,
     "title": app.title,
@@ -34,55 +31,47 @@ async def notify(request: Request, payload: NotifyModel):
     "displayEvenActive": payload.displayEvenActive
   })
 
-# @srv.router.post("/toast")
-
-# only for app
 @srv.router.get("/user-settings")
-def get_user_settings(request: Request, raw: bool = False):
+def get_user_settings(request: Request, raw: bool = False) -> dict:
   client, app = srv.get_client_app(request)
-  return client.user.settings.raw if raw else client.user.settings.parsed
+  return client.user.settings()
 
 class UserSettingsModel(BaseModel):
   settings: dict
-  
-async def broadcast_signal(signal, data):
+
+async def broadcast_signal(signal: str, data: dict) -> None:
   core = srv.get_core()
-  
-  data = { "signal": signal, "data": data }
+  payload = { "signal": signal, "data": data }
 
   for client in core.clients.values():
-    # sending signal to client
-    await client.send_event("signal", data)
-    # sending for apps
+    await client.send_event("signal", payload)
     for app in client.running_apps.values():
-      await app.send_event("signal", data)
+      await app.send_event("signal", payload)
 
 @srv.router.post("/user-settings")
-async def set_user_settings(request: Request, payload: UserSettingsModel):
+async def set_user_settings(request: Request, payload: UserSettingsModel) -> dict:
   client, app = srv.get_client_app(request)
-  app.user.settings.update(payload.settings)
-  
-  await broadcast_signal("update_user_settings", client.user.settings.parsed)
+  try:
+    app.user.settings.update(payload.settings)
+    await broadcast_signal("update_user_settings", client.user.settings())
+    return { "res": "updated success" }
+  except Exception as e:
+    srv.exception(401, f"Error updating settings : {e}")
 
-  return { "res": "updated success" }
-
-# can work with app only
 @srv.router.post("/app/func")
 async def app_func(request: Request, app_func_model: FuncXModel):
   client, app = srv.get_client_app(request)
-
   try:
     return await app.run_function(app_func_model)
   except Exception as e:
     raise HTTPException(
       status_code=500,
-      detail=str(e), # implement errors
+      detail=str(e),
     )
 
 @srv.router.post("/client/func")
 async def client_func(request: Request, client_func_model: FuncXModel):
   client = srv.get_client(request)
-
   try:
     return await client.run_function(client_func_model)
   except Exception as e:
@@ -91,3 +80,10 @@ async def client_func(request: Request, client_func_model: FuncXModel):
       detail=str(e),
     )
 
+@srv.router.post("/close-app")
+async def close_app(request: Request) -> None:
+  client, app = srv.get_client_app(request)
+  await client.send_event("app:close", {
+    "appID": app.id,
+    "name": app.name
+  })

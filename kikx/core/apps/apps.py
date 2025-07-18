@@ -1,105 +1,102 @@
-from fastapi import WebSocket
-from pathlib import Path
-from uuid import uuid4
 import asyncio
-import signal
-import os
+import logging
+from uuid import uuid4
+from pathlib import Path
+from typing import Dict, Optional, List
 
-from core.errors import raise_error
-from lib.utils import is_websocket_connected, ensure_dir
-from lib.parser import parse_config
-from typing import Dict, Optional
-from pydantic import BaseModel
-from lib.utils import dynamic_import
+from fastapi import WebSocket
 
-from core.config.models import AppModel
-from .modules.tasks import Tasks
-
+from lib.utils import is_websocket_connected, ensure_dir, dynamic_import, send_event
+from core.models.app_models import AppModel
 from core.func import FuncX, funcx, funcx_handler
 
 
+logger = logging.getLogger(__name__)
+
+
 class App(FuncX):
-  def __init__(self, client_id: str, name: str, app_path: Path, config: AppModel, user):
+  def __init__(self, client_id: str, name: str, app_path: Path, config: AppModel, user: object):
     super().__init__()
-    self.name = name
-    self.id = uuid4().hex
-    # apps/[app]
-    self.user = user # user object
-    
-    self.app_path = app_path  # current app path
-    self.client_id = client_id
-  
-    self.config = config # app config like permissions & others
-    self.title = self.config.title
-    # self.config = parse_config(self.app_path / "config.json", AppRootConfigModel)
+    self.name: str = name
+    self.id: str = uuid4().hex
+    self.client_id: str = client_id
+    self.app_path: Path = app_path
+    self.config: AppModel = config
+    self.title: str = config.title
+    self.user = user  # Custom user object
+
     self.websocket: Optional[WebSocket] = None
-    # default env for task_template
-    # adding tasks module
-    self.__modules = []
-    # load app required modules on startup
+    self.__modules: List[Dict[str, object]] = []
+
     self.load_modules()
 
   @property
-  def connected(self):
+  def connected(self) -> bool:
+    """Check if WebSocket is still connected."""
     return is_websocket_connected(self.websocket)
-    
-  def load_modules(self):
+
+  def load_modules(self) -> None:
+    """Dynamically load app modules from config."""
     modules_list = set(self.config.modules)
     for module_name in modules_list:
-      module = dynamic_import(f"app_{module_name}", f"./core/apps/modules/{module_name}.py")
-      module_obj = getattr(module, module_name.capitalize())(self)
+      try:
+        module = dynamic_import(
+          f"app_{module_name}",
+          f"./core/apps/modules/{module_name}.py"
+        )
+        module_class = getattr(module, module_name.capitalize())
+        module_obj = module_class(self)
 
-      setattr(self, module_name, module_obj)
-      
-      self.__modules.append({
-        "name": module_name,
-        "module": module,
-        "obj": module_obj
-      })
-      print("Added app module ", module_name)
+        setattr(self, module_name, module_obj)
+        self.__modules.append({
+          "name": module_name,
+          "module": module,
+          "obj": module_obj
+        })
+        logger.info(f"Module loaded: {module_name}")
+      except Exception as e:
+        logger.exception(f"Failed to load module '{module_name}': {e}")
 
-  # check permissions (remove no use)
-  def has_permission(self, permission):
-    # storage.<permission>
-    if permission.startswith("storage.") and permission.split(".", 1)[1] in set(self.config.storage):
-      return True
-    return False
+  def get_permissions(self, sub: Optional[str] = None) -> object:
+    """Access permission config or subsection."""
+    if sub is None:
+      return self.config
+    elif sub == "storage":
+      return self.config.storage
+    elif sub == "system":
+      return self.config.system
+    else:
+      raise ValueError(f"Permissions: '{sub}' not found")
 
-  # create paths if not exists
-  def get_app_path(self):
+  def get_app_path(self) -> Path:
     return self.app_path
 
-  # create paths if not exists
-  def get_home_path(self):
-    # check permission and raise error
+  def get_home_path(self) -> Path:
     return self.user.home_path
-  
-  # ---++-------- websockets
-  # create paths if not exists
-  def get_app_data_path(self):
+
+  def get_app_data_path(self) -> Path:
+    """Return or create the app's data directory."""
     return ensure_dir(self.user.data_path / "data" / self.name)
 
-  def connect_websocket(self, websocket: WebSocket):
+  def connect_websocket(self, websocket: WebSocket) -> None:
+    """Bind a WebSocket connection to the app."""
     self.websocket = websocket if isinstance(websocket, WebSocket) else None
-  
-  # used to send to websocket
-  async def send(self, data):
-    if self.connected:
-      await self.websocket.send_json(data)
-    else:
-      print(f"{self.name} : cant send data websocket not connected")
-  
-  # used to send to websocket
-  async def send_event(self, event: str, payload):
-    await self.send({"event": event, "payload": payload})
+    logger.info(f"WebSocket connected for app: {self.name}")
 
-  @funcx
-  async def echo(self, *args, **kwargs):
-    pass
+  async def send_event(self, event: str, payload: object) -> None:
+    """Send event to frontend."""
+    await send_event(self.websocket, event, payload)
 
-  async def on_close(self):
-    await asyncio.gather(*[getattr(self, f"{module['name']}").on_close() for module in self.__modules], return_exceptions=True)
+  async def on_close(self) -> None:
+    """Clean up all modules on app close."""
+    results = await asyncio.gather(
+      *[getattr(self, module["name"]).on_close() for module in self.__modules],
+      return_exceptions=True
+    )
+    for module, result in zip(self.__modules, results):
+      if isinstance(result, Exception):
+        logger.warning(f"Error closing module {module['name']}: {result}")
     await super().on_close()
 
-  def __str__(self):
+  def __str__(self) -> str:
     return f"{self.name} - {self.id}"

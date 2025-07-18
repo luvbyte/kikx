@@ -1,1 +1,0 @@
-These are services for both client and app

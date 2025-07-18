@@ -6,6 +6,9 @@
   },
   "task_template": "{name} {args}",
   "modules": ["tasks"],
-  "storage": ["write_root"],
-  "services": ["proxy"]
+  "services": ["system", "fs"],
+
+  "storage": {
+    "home": "*"
+  }
 }

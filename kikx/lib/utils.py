@@ -1,27 +1,29 @@
+import base64
+import sys
+from importlib import import_module
+from importlib import util as importlib_util
+from pathlib import Path
+from typing import Any, Callable, Union
+
 from fastapi import WebSocket
 from starlette.websockets import WebSocketState
 
-from importlib import import_module, util as importlib_util
-from pathlib import Path
-import base64
-import sys
 
-
-def import_relative_module(path: str, name: str):
+def import_relative_module(path: str, name: str) -> Any:
   """
-  Import a module relatively using the standard import mechanism.
+  Import a module relatively using standard import mechanisms.
   """
   return import_module(path, name)
 
 
-def dynamic_import(module_name: str, file_path: str, cache: bool = False):
+def dynamic_import(module_name: str, file_path: str, cache: bool = False) -> Any:
   """
-  Dynamically import a module from a file path.
+  Dynamically import a Python module from a file path.
 
   Args:
-    module_name: Name to assign to the module.
-    file_path: Path to the Python file.
-    cache: Whether to cache the module in sys.modules.
+    module_name: The name to assign to the module.
+    file_path: The file path of the module.
+    cache: Whether to store it in sys.modules.
 
   Returns:
     The imported module object.
@@ -47,7 +49,7 @@ def dynamic_import(module_name: str, file_path: str, cache: bool = False):
 
 def is_websocket_connected(ws: WebSocket) -> bool:
   """
-  Check if a WebSocket connection is still active.
+  Check if a WebSocket connection is active.
 
   Args:
     ws: The WebSocket instance.
@@ -58,28 +60,50 @@ def is_websocket_connected(ws: WebSocket) -> bool:
   return isinstance(ws, WebSocket) and ws.client_state != WebSocketState.DISCONNECTED
 
 
-def convert_to_base64(data: bytes) -> str:
+async def send_event(websocket: WebSocket, event: str, payload: Union[dict, Callable[[], dict]]) -> None:
   """
-  Convert bytes to a base64-encoded UTF-8 string.
+  Send a JSON event to a WebSocket client.
 
   Args:
-    data: Bytes to encode.
+    websocket: WebSocket connection.
+    event: Event name string.
+    payload: Dict or callable returning a dict.
+  """
+  if is_websocket_connected(websocket):
+    try:
+      await websocket.send_json({
+        "event": event,
+        "payload": payload() if callable(payload) else payload
+      })
+    except Exception as e:
+      await websocket.send_json({
+        "event": "kikx:error",
+        "payload": {"detail": str(e)}
+      })
+
+
+def convert_to_base64(data: bytes) -> str:
+  """
+  Convert bytes to a base64-encoded string.
+
+  Args:
+    data: Byte data to encode.
 
   Returns:
-    Base64-encoded string.
+    UTF-8 base64-encoded string.
   """
   return base64.b64encode(data).decode("utf-8")
 
 
 def ensure_dir(path: str) -> str:
   """
-  Ensure a directory exists; create it if it doesn't.
+  Ensure a directory exists; create it if missing.
 
   Args:
-    path: Path to the directory.
+    path: Directory path.
 
   Returns:
-    The same path, for chaining if needed.
+    Same path.
   """
   Path(path).mkdir(parents=True, exist_ok=True)
   return path

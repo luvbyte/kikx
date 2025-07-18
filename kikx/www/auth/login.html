@@ -1,29 +1,33 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login</title>
 
     <!-- External Scripts -->
     <script src="/share/cdn/tailwind-3.js"></script>
     <script src="/share/cdn/jquery.min.js"></script>
-  </head>
 
+    <style>
+      /* Prevent FOUC for spinner on slow loads */
+      #loading-spinner {
+        display: none;
+      }
+    </style>
+  </head>
   <body class="bg-gray-100">
-    <div
-      id="root"
-      class="relative flex items-center justify-center min-h-screen"
-    >
-      <div class="w-full max-w-md rounded-lg p-6 bg-white shadow">
+    <div id="root" class="flex items-center justify-center min-h-screen">
+      <div class="w-full max-w-md p-6 bg-white rounded-lg shadow">
         <h2 class="text-2xl font-semibold text-center text-gray-700">
           KIKX LOGIN
         </h2>
 
         <form id="user-form" method="POST" class="mt-4">
           <div>
-            <label class="block text-gray-600">Username</label>
+            <label for="username" class="block text-gray-600">Username</label>
             <input
+              id="username"
               name="username"
               type="text"
               placeholder="Enter your username"
@@ -33,8 +37,9 @@
           </div>
 
           <div class="mt-4">
-            <label class="block text-gray-600">Password</label>
+            <label for="password" class="block text-gray-600">Password</label>
             <input
+              id="password"
               name="password"
               type="password"
               placeholder="Enter your password"
@@ -43,7 +48,7 @@
             />
           </div>
 
-          <h1 id="error" class="text-red-400 mt-2"></h1>
+          <p id="error" class="mt-2 text-sm text-red-500"></p>
 
           <button
             id="submit-btn"
@@ -53,7 +58,7 @@
             <span id="btn-text">Login</span>
             <svg
               id="loading-spinner"
-              class="w-5 h-5 ml-2 hidden animate-spin"
+              class="w-5 h-5 ml-2 animate-spin"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -78,23 +83,23 @@
     </div>
 
     <script>
-      $(document).ready(function () {
+      document.addEventListener("DOMContentLoaded", function () {
         const $form = $("#user-form");
         const $submitBtn = $("#submit-btn");
         const $btnText = $("#btn-text");
         const $spinner = $("#loading-spinner");
         const $errorMsg = $("#error");
-        
+
         function setLoadingState(isLoading) {
           $submitBtn.prop("disabled", isLoading);
           $btnText.text(isLoading ? "Logging in..." : "Login");
           $spinner.toggleClass("hidden", !isLoading);
-          }
+        }
 
-        $form.submit(function (e) {
+        $form.on("submit", function (e) {
           e.preventDefault();
           setLoadingState(true);
-          $errorMsg.text(""); // Clear previous errors
+          $errorMsg.text("");
 
           $.ajax({
             url: "/login",

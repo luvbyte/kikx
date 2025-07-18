@@ -78,7 +78,8 @@ async function openApp(name, icon, title) {
     appFrames[name] = {
       iframe: $iframe[0],
       title,
-      icon
+      icon,
+      id
     };
     openApps.push(name);
 
