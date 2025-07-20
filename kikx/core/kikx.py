@@ -258,16 +258,19 @@ async def websocket_client_endpoint(websocket: WebSocket, access_token: str = Co
 
     client = Client(core.user, core.config.resolve_path, websocket)
     core.clients[client.id] = client
+  except Exception:
+    await websocket.close(reason="Unauthorized")
+    return
 
-    logger.info(f"WebSocket: Client connected {client.id}")
-    await client.send_event("connected", {
-      "client_id": client.id,
-      "settings": client.user.settings()
-    })
-
+  logger.info(f"WebSocket: Client connected {client.id}")
+  await client.send_event("connected", {
+    "client_id": client.id,
+    "settings": client.user.settings()
+  })
+  
+  try:
     while True:
       await websocket.receive_json()
-
   except WebSocketDisconnect:
     logger.info("WebSocket: Client disconnected")
     await core.on_client_disconnect(client)
