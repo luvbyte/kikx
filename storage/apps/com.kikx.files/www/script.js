@@ -129,10 +129,10 @@ const loadFiles = async () => {
 };
 
 $(async () => {
-  kikxApp.system.getUserSettings().then(res => {
+  loadFiles();
+  kikxApp.system.getUserSettings("display.dark").then(res => {
     if (res.data) {
-      $("html").toggleClass("dark", res.data.dark_mode);
+      $("html").toggleClass("dark", res.data.setting);
     }
   });
-  loadFiles();
 });

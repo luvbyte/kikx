@@ -18,7 +18,8 @@
 
     <script src="/share/static/kikx-utils.js"></script>
     <script src="/share/static/client.js"></script>
-    <script src="/share/static/wake-lock.js"></script>
+    <script src="/share/lib/touch-gestures.js"></script>
+    <script src="/share/lib/wake-lock.js"></script>
 
     <style>
       #apps {
@@ -32,7 +33,8 @@
     <!-- Loading Screen -->
     <div
       id="loading-screen"
-      class="fixed inset-0 w-full h-full bg-slate-900/70 backdrop-blur-md flex flex-col justify-center items-center z-[169] transition-opacity duration-300 ease-in-out"
+      style="background: #1a1a1a"
+      class="fixed inset-0 w-full h-full backdrop-blur-md flex flex-col justify-center items-center z-[169] transition-opacity duration-300 ease-in-out"
     >
       <!-- Smooth Circular Spinner -->
       <div class="relative flex justify-center items-center mb-6">

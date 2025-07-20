@@ -59,9 +59,6 @@ class Utils:
 
 # can support absolute files
 def run_script(path: Path, *args) -> Union[None, str]:
-  panel.clear(True)
-  js.run_code(f"runningScript = 'neko {path}' ;setSubTaskName('{path.name}')")
-
   # support for binary file
   if path.suffix == "":
     binary_path = (path).as_posix()
@@ -98,10 +95,6 @@ def run_script(path: Path, *args) -> Union[None, str]:
   else:
     raise Exception(f"Cant run '{path.suffix}' file")
 
-  # setting default after complete and hiding input
-  js.set_default_config()
-  js.hide_input_panel()
-  
 def set_next_scripts_path():
   global SCRIPTS_DIR
   global SCRIPTS_DIR_NAME
@@ -152,12 +145,12 @@ def list_scripts(scripts_panel: Element, path: Path, directory: str=".") -> None
   """
 
   scripts_panel.replace(f"""
-    <div class='h-9 p-1 py-3 bg-gradient-to-r border-2 border-white/80 from-pink-400/80 to-blue-400/80 text-black flex justify-between items-center'>
+    <div class='h-9 p-1 py-3 bg-gradient-to-r border-2 border-white/80 from-pink-400/80 to-blue-400/80 text-black flex gap-2 justify-between items-center'>
       <div class="flex items-center gap-1" onclick="sendInput('$next')">
         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14.293 2.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L16.586 8H5a1 1 0 0 1 0-2h11.586l-2.293-2.293a1 1 0 0 1 0-1.414m-4.586 10a1 1 0 0 1 0 1.414L7.414 16H19a1 1 0 1 1 0 2H7.414l2.293 2.293a1 1 0 0 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0"/></svg>
         <div class="font-bold text-md">{SCRIPTS_DIR_NAME}</div>
       </div>
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1 overflow-y-auto">
         {right_text}
       </div>
     </div>
@@ -191,27 +184,29 @@ class Neko:
 
   def create_home_screen(self) -> None:
     self.top_box = Div()
-    self.top_box.cls.add_class("bg-purple-400/40 h-[220px] overflow-y-auto")
+    self.top_box.cls.add_class("bg-purple-400/40 h-[220px] landscape:h-full landscape:flex-1 overflow-y-auto")
     self.top_box.set_property("onclick", "sendInput('$banner')")
   
     self.scripts_panel = Div()
-    self.scripts_panel.cls.add_class("flex-1 flex flex-col overflow-hidden")
+    self.scripts_panel.cls.add_class("flex-1 flex flex-col landscape:bg-purple-400/40 landscape:flex-1 overflow-hidden")
   
-    self.box = Div(self.top_box, self.scripts_panel)
-    self.box.cls.add_class("w-full h-full flex flex-col")
+    landscape_divider = Div()
+    landscape_divider.cls.add_class("hidden landscape:block w-[2px] bg-white")
+  
+    self.box = Div(self.top_box, landscape_divider, self.scripts_panel)
+    self.box.cls.add_class("w-full h-full flex flex-col landscape:flex-row")
   
     self.random_banner(self.current_banner)
 
-    panel.clear(True)
-    panel.append(self.box)
+    #panel.clear(True)
+    panel.inject(self.box)
     
     # resets to neko on home screen
     js.run_code("runningScript = 'neko'; setSubTaskName()")
 
-
   def create_home_button(self) -> None:
     panel.append("""
-      <div onclick="sendInput('$home')" class="absolute z-[800] bottom-6 right-4 bg-purple-400/40 p-3 rounded-full">
+      <div onclick="sendInput('$home')" class="absolute z-[800] bottom-6 right-6 bg-purple-400/40 p-3 rounded-full">
         <div class="w-6 h-6">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 15l3-3m0 0l-3-3m3 3H4m0-4.752V7.2c0-1.12 0-1.68.218-2.108c.192-.377.497-.682.874-.874C5.52 4 6.08 4 7.2 4h9.6c1.12 0 1.68 0 2.107.218c.377.192.683.497.875.874c.218.427.218.987.218 2.105v9.607c0 1.118 0 1.677-.218 2.104a2 2 0 0 1-.875.874c-.427.218-.986.218-2.104.218H7.197c-1.118 0-1.678 0-2.105-.218a2 2 0 0 1-.874-.874C4 18.48 4 17.92 4 16.8v-.05"/></svg>
         </div>
@@ -221,8 +216,8 @@ class Neko:
   def random_banner(self, banner=None) -> None:
     self.current_banner = banner if banner else choice([i for i in BANNERS if i != self.current_banner])
   
-    banner_text = Pre(Animate(Text(self.current_banner)))
-    banner_text.cls.add_class("w-full h-full flex items-end justify-center")
+    banner_text = Div(self.current_banner)
+    banner_text.cls.add_class("w-full h-full")
     
     self.top_box.replace(banner_text)
   
@@ -262,8 +257,7 @@ class Neko:
           self.top_box.replace(Animate(Text(script_path.read_text(encoding="utf-8"))))
           self.top_box.scroll_to_top()
         else:
-          run_script(script_path)
-          self.create_home_button()
+          self.run_script(script_path)
 
     elif command == "$home":
       return "display-home"
@@ -279,14 +273,26 @@ class Neko:
         self.display_scripts()
   
   def run_script(self, script_name, *args):
-    run_script(Path(script_name), *args)
+    script_name = Path(script_name)
+    
+    # clearing panel
+    panel.clear(True)
+    js.run_code(f"runningScript = 'neko {script_name}' ;setSubTaskName('{script_name.name}')")
+
+    run_script(script_name, *args)
     self.create_home_button()
-    if input().strip() != "$home":
-      return True
+  
+    # setting default after complete and hiding input
+    js.set_default_config()
+    js.hide_input_panel()
 
   def main(self, script_name=None, *args):
-    if script_name and self.run_script(script_name, *args):
-      return 
+    # if started withoit home screen
+    if script_name:
+      self.run_script(script_name, *args)
+      # no need for checking good for now
+      if input().strip() != "$home":
+        return
 
     self.run()
 

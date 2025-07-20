@@ -1,6 +1,6 @@
 PHONY: venv install run
 
-VENV_BIN=./venv/bin
+PY_PATH=venv/bin/python3
 
 # Create a virtual environment
 venv:
@@ -10,18 +10,18 @@ venv:
 
 # Install dependencies from requirements.txt
 install:
-	$(VENV_BIN)/pip install -r requirements.txt
+	$(PY_PATH) -m pip install -r requirements.txt
 	@echo "Dependencies installed."
 
 # Run the Python script
 run:
-	cd kikx && ../venv/bin/python3 main.py
+	cd kikx && ../$(PY_PATH) main.py
 
 serve:
-	cd kikx && ../venv/bin/uvicorn main:app --reload
+	cd kikx && ../$(PY_PATH) -m uvicorn main:app --reload
 
 test:
-	cd kikx && ../venv/bin/pytest
+	cd kikx && ../$(PY_PATH) -m pytest
 
 # Clean up the virtual environment and cache
 clean:

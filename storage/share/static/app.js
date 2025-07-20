@@ -1,11 +1,14 @@
-// Faster UUID generation using secure browser API
+
+// --------------------------------------
+// UUID Utilities
+// --------------------------------------
+
+// Fast UUID generation using secure browser API
 const generateUUID_https = () => crypto.randomUUID();
 
+// UUID generator with fallback
 function generateUUID() {
-  if (crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  // Fallback
+  if (crypto.randomUUID) return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
     const r =
       (crypto.getRandomValues(new Uint8Array(1))[0] & 15) >>
@@ -14,7 +17,10 @@ function generateUUID() {
   });
 }
 
-// Convert Base64 to Uint8Array (Optimized)
+// --------------------------------------
+// Byte and Encoding Utilities
+// --------------------------------------
+
 const base64ToBytes = base64 =>
   new Uint8Array(
     atob(base64)
@@ -23,18 +29,22 @@ const base64ToBytes = base64 =>
   );
 
 async function blobToText(blob) {
-  const text = await blob.text();
-  // console.log(text);
-  return text;
+  return await blob.text();
 }
 
-// Decode Uint8Array to String (Optimized)
 const decodeBytes = (data, enc = "utf-8", fatal = true) =>
   new TextDecoder(enc, { fatal }).decode(data);
 
-// Extract app ID from URL
+// --------------------------------------
+// App Info Helpers
+// --------------------------------------
+
 const getAppID = () => location.pathname.split("/")[2];
 const appID = getAppID();
+
+// --------------------------------------
+// Argument Parser
+// --------------------------------------
 
 function parseArgsAndKwargs(...args) {
   if (
@@ -46,6 +56,10 @@ function parseArgsAndKwargs(...args) {
   }
   return { args, options: {} };
 }
+
+// --------------------------------------
+// Handler Class
+// --------------------------------------
 
 class Handler {
   constructor() {
@@ -74,12 +88,13 @@ class Handler {
       this.events[payload.status]?.(payload)
     );
   }
+
   onData(callback) {
     this._ondata_callbacks.add(callback);
   }
 }
 
-// Global event handlers
+// Global handler registry
 const appEventHandlers = new Map();
 
 const createHandler = () => {
@@ -90,18 +105,18 @@ const createHandler = () => {
 
 const removeHandler = handlerID => appEventHandlers.delete(handlerID);
 
-// Service class for handling requests
+// --------------------------------------
+// Base Service Class
+// --------------------------------------
+
 class Service {
   constructor(name) {
     this.serviceName = name;
     this.baseURL = `/service/${this.serviceName}`;
   }
-  async _request(endpoint, method, headers, body) {
-    Object.assign(headers, {
-      "kikx-app-id": appID
-    });
 
-    //console.log(endpoint, method, headers, body);
+  async _request(endpoint, method, headers, body) {
+    Object.assign(headers, { "kikx-app-id": appID });
 
     return await fetch(`${this.baseURL}/${endpoint}`, {
       method,
@@ -109,44 +124,36 @@ class Service {
       body
     });
   }
+
   async request(endpoint, method = "GET", body = null, isJson = true) {
     let headers = {};
 
-    // Prepare headers and body if JSON is expected
     if (body && isJson) {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify(body);
     }
 
     try {
-      // Call the internal request method
       const response = await this._request(endpoint, method, headers, body);
-      let data = null;
-
-      // Check if Content-Type header is present
       const contentType = response.headers.get("content-type");
 
-      // Parse response data based on content type
-      if (contentType) {
-        if (contentType.includes("application/json")) {
-          data = await response.json();
-        } else if (contentType.includes("text/")) {
-          data = await response.text();
-        } else if (contentType.includes("application/octet-stream")) {
-          data = await response.blob(); // or .arrayBuffer() depending on use case
-        }
-        // Add more types if needed
+      let data = null;
+      if (contentType?.includes("application/json")) {
+        data = await response.json();
+      } else if (contentType?.includes("text/")) {
+        data = await response.text();
+      } else if (contentType?.includes("application/octet-stream")) {
+        data = await response.blob();
       }
 
       return {
         ok: response.ok,
         code: response.status,
-        contentType: contentType,
+        contentType,
         data: response.ok ? data : null,
         error: response.ok ? null : data || `Error ${response.status}`
       };
     } catch (err) {
-      // Catch network or parsing errors
       return {
         code: 500,
         ok: false,
@@ -157,10 +164,15 @@ class Service {
   }
 }
 
+// --------------------------------------
+// Specific Services
+// --------------------------------------
+
 class FileSystemService extends Service {
   constructor() {
     super("fs");
   }
+
   listFiles = (directory = "") =>
     this.request(`list?directory=${encodeURIComponent(directory)}`);
   readFile = filename =>
@@ -177,10 +189,7 @@ class FileSystemService extends Service {
   createDirectory = dirname =>
     this.request("create_directory", "POST", { dirname });
   deleteDirectory = dirname =>
-    this.request(
-      `delete_directory?dirname=${encodeURIComponent(dirname)}`,
-      "DELETE"
-    );
+    this.request(`delete_directory?dirname=${encodeURIComponent(dirname)}`, "DELETE");
   copy = (source, destination) =>
     this.request("copy", "POST", { source, destination });
   move = (source, destination) =>
@@ -195,12 +204,10 @@ class SystemService extends Service {
 
   notify = payload => this.request("notify", "POST", payload);
   sendSignal = signal => this.request(`signal?signal=${signal}`);
-  getUserSettings = () => this.request("user-settings");
+  getUserSettings = (setting = null) =>
+    this.request(`user-settings?setting=${setting}`);
   setUserSettings = settings =>
-    this.request(`user-settings`, "POST", {
-      settings: settings
-    });
-
+    this.request("user-settings", "POST", { settings });
   appFunc = (name, config) =>
     this.request("app/func", "POST", { name, config });
   closeApp = () => this.request("close-app", "POST");
@@ -210,16 +217,18 @@ class ProxyService extends Service {
   constructor() {
     super("proxy");
   }
+
   fetch(url, method = "GET", headers = {}, body = null) {
     return this._request(`?url=${url}`, method, headers, body);
   }
-  get = (url, headers = {}) => {
-    return this.fetch(url, "GET", headers);
-  };
-  post = (url, body = null, headers = {}) => {
-    return this.fetch(url, "POST", headers, body);
-  };
+
+  get = (url, headers = {}) => this.fetch(url, "GET", headers);
+  post = (url, body = null, headers = {}) => this.fetch(url, "POST", headers, body);
 }
+
+// --------------------------------------
+// Kikx App Controller
+// --------------------------------------
 
 class KikxApp {
   constructor() {
@@ -230,19 +239,17 @@ class KikxApp {
 
     this.ws = null;
     this.eventCallbacks = {};
-    this.reconnectDelay = 1000; // Exponential backoff
+    this.reconnectDelay = 1000;
 
-    // these will update on app.run call
     this.userSettings = {};
     this.appConfig = {};
 
-    this.on("handler-data", payload =>
+    this.on("handler-data", payload => {
       appEventHandlers
         .get(payload.id)
-        ?._ondata_callbacks.forEach(f => f(payload.data))
-    );
+        ?._ondata_callbacks.forEach(f => f(payload.data));
+    });
 
-    // user settings
     this.on("signal", signalData => {
       if (signalData.signal === "update_user_settings") {
         Object.assign(this.userSettings, signalData.data);
@@ -252,30 +259,24 @@ class KikxApp {
 
   run(callback = null) {
     if (this.ws) return;
-
-    // connected event
-    if (typeof callback === "function") {
-      this.on("connected", callback);
-    }
+    if (typeof callback === "function") this.on("connected", callback);
 
     const url = `${location.protocol === "https:" ? "wss" : "ws"}://${
       location.host
     }/app/${appID}`;
+
     this.ws = new WebSocket(url);
 
     this.ws.onopen = e => this._callEvent("ws:onopen", e);
     this.ws.onmessage = e => {
       try {
         const message = JSON.parse(e.data);
-        // will check first
         if (message.event === "connected") {
           this.appConfig = message.payload.config;
           this.userSettings = message.payload.settings;
         }
-        // later emits
         message.event && this._callEvent(message.event, message.payload);
       } catch (error) {
-        console.log(this.eventCallbacks);
         console.error("WebSocket error:", error);
       }
     };
@@ -283,13 +284,11 @@ class KikxApp {
     this.ws.onclose = () => {
       this.ws = null;
       this._callEvent("ws:onclose");
-      // setTimeout(() => this.run(), (this.reconnectDelay *= 2)); // Exponential backoff
     };
 
     this.ws.onerror = e => this._callEvent("ws:onerror", e);
   }
 
-  // this will call on any event
   _callEvent(event, data = null) {
     this.eventCallbacks[event]?.forEach(func => func(data));
   }
@@ -297,37 +296,34 @@ class KikxApp {
   on(event, callback) {
     (this.eventCallbacks[event] ||= []).push(callback);
   }
-  // send event using ws
+
   send = data => this.ws?.send(JSON.stringify(data));
   func = (name, options) => this.system.appFunc(name, options);
-
   createNeuron = name => new NeuronService(name);
 }
 
 const kikxApp = new KikxApp();
 
-// code based on above
-// AppTaskModule
+// --------------------------------------
+// App Task Module
+// --------------------------------------
+
 class AppTask {
   constructor(name) {
-    this.handler = createHandler();
     this.name = name;
+    this.handler = createHandler();
     this.task_result = null;
-    // prevents recalling run function
     this.running = false;
 
     this.handler.onData(data => {
-      if (data.status === "ended") {
-        this.running = false;
-      }
+      if (data.status === "ended") this.running = false;
     });
   }
+
   async __run(args = "") {
     this.task_result = await kikxApp.func("tasks.run_task", {
       args: [`${this.name} ${args}`.trim()],
-      options: {
-        handler_id: this.handler.handlerID
-      }
+      options: { handler_id: this.handler.handlerID }
     });
 
     if (this.task_result?.error) {
@@ -336,13 +332,13 @@ class AppTask {
 
     return this.task_result;
   }
+
   run(args) {
     if (this.running) return;
     this.running = true;
     return this.__run(args);
-    // return this.task_result ? this.task_result : this.__run();
   }
-  // this will send all type of data
+
   async send(input) {
     if (!this.task_result || !input) throw Error("No input or task error");
 
@@ -350,46 +346,41 @@ class AppTask {
       args: [this.task_result.data, input]
     });
   }
+
   on(callback) {
     this.handler.onData(callback);
   }
+
   async kill() {
     await kikxApp.func("tasks.kill", {
       args: [this.task_result.data]
     });
   }
 }
-// create task
+
+// --------------------------------------
+// Task Utility Shortcuts
+// --------------------------------------
+
 const createTask = name => new AppTask(name);
-// deletes handler on ended
+
 const runTask = async (name, callback) => {
   const task = new AppTask(name);
   task.on(callback);
-  // removing after completed
-  task.handler.onended = payload => {
+  task.handler.onended = () => {
     removeHandler(task.handler.handlerID);
   };
-  // running task
   return await task.__run();
 };
 
 const quickTask = async (task_cmd, task_input = []) => {
   const result = await kikxApp.func("tasks.sh", {
     args: [task_cmd.trim()],
-    options: {
-      task_input: task_input
-    }
+    options: { task_input }
   });
 
-  // Before runtime error
-  if (result.err) {
-    throw result.err;
-  }
-
-  // Runtime error
-  if (result.data.stderr) {
-    throw result.data.stderr;
-  }
+  if (result.err) throw result.err;
+  if (result.data.stderr) throw result.data.stderr;
 
   return result.data.stdout;
 };

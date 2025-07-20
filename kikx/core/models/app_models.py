@@ -16,6 +16,13 @@ class OpenAppModel(BaseModel):
   
 class AppsListModel(BaseModel):
   client_id: str
+  
+# used for /apps/list apps
+class AppManifestModel(BaseModel):
+  title: str
+  icon: str
+  category: str | None = None
+
 
 # ---------+++--------
 class AppStoragePermissionsModel(BaseModel):

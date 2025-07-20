@@ -7,8 +7,7 @@
   },
   "ui": {
     "kui": {
-      "path": "storage://ui/kui",
-      "require_auth": false
+      "path": "storage://ui/kui"
     }
   }
 }

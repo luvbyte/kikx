@@ -1,5 +1,6 @@
 const client = new Client();
-let kuiConfig = { bg: "bg.png" };
+const defaultBackground = "bg.jpg";
+let kuiConfig = { bg: defaultBackground };
 let screenOrientation = "portrait";
 let isBrowserFullScreen = false;
 let isFullScreen = false;
@@ -30,7 +31,7 @@ const handleOrientation = orientation => {
 };
 
 // set valid background-image
-function setValidBackground(url, fallback = "bg.png") {
+function setValidBackground(url, fallback = defaultBackground) {
   const img = new Image();
   img.onload = () => $("#apps").css("background-image", `url("${url}")`);
   img.onerror = () => $("#apps").css("background-image", `url("${fallback}")`);
@@ -71,7 +72,7 @@ $(function () {
 
     loadApps(payload);
     await updateKuiConfig();
-    $("#loading-screen").fadeOut(400, () => $(this).remove());
+    $("#loading-screen").fadeOut(600, () => $(this).remove());
   });
 
   initTouchGestures("#apps", {

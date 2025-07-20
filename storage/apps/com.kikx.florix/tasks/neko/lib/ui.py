@@ -259,11 +259,12 @@ class Box(Element):
     self.style.add_style("height", height)
 
 class Animate(Template):
-  def __init__(self, child, effect="fadeIn"):
+  def __init__(self, child, effect="fadeIn", delay=None):
+    """ delay in seconds - 1 to 5 for now """
     super().__init__(child)
-
-    self.cls.add_class(*["animate__animated", f"animate__{effect}"])
-
+    
+    delay = "" if delay is None else f"animate__delay-{delay}s"
+    self.cls.add_class(f"animate__animated animate__{effect} {delay}")
 
 class Padding(Template):
   def __init__(self, child, value="0.25rem"):

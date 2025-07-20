@@ -68,21 +68,15 @@ const kuiSettingsApp = {
       if (kuiConfig.bg === kuiSettingsApp.selectedImage) {
         // if deleted selected image
         kuiSettingsApp.selectedImage = null;
-        kuiSettingsApp.settings.bg = "bg.png";
-        $("#apps").css("background-image", `url("bg.png")`);
+        kuiSettingsApp.settings.bg = defaultBackground;
+        $("#apps").css("background-image", `url("${defaultBackground}")`);
       } else {
         // if non selected image
         kuiSettingsApp.selectedImage = null;
         kuiSettingsApp.settings.bg = kuiConfig.bg;
 
         setValidBackground(kuiConfig.bg);
-        //$("#apps").css("background-image", `url("${}")`);
-        //$("#apps").css("background-image", kuiConfig.bg);
       }
-
-      //kuiSettingsApp.selectedImage = null;
-      //kuiSettingsApp.settings.bg = "";
-      //$("#apps").css("background-image", "none");
     } catch (err) {
       $("#bg-upload-error").text("Unexpected error while deleting.");
       console.error(err);

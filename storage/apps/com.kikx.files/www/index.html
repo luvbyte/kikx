@@ -71,46 +71,7 @@
           class="flex-1 bg-transparent rounded border focus:outline-none px-2"
         />
 
-        <!-- back -->
-        <div class="active:bg-purple-400/40 rounded-full">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="25"
-            height="25"
-            fill="currentColor"
-            class="bi bi-arrow-left-circle"
-            viewBox="0 0 16 16"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z"
-            />
-          </svg>
-        </div>
-        <!-- forward -->
-        <div class="active:bg-purple-400/40 rounded-full">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="25"
-            height="25"
-            fill="currentColor"
-            class="bi bi-arrow-right-circle"
-            viewBox="0 0 16 16"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0M4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5z"
-            />
-          </svg>
-        </div>
       </div>
-      <!-- 
-      <div
-        id="files-panel"
-        class="flex-1 flex flex-wrap overflow-y-auto p-1"
-      ></div>
-      -->
-
       <div
         id="files-panel"
         class="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-3 p-2 overflow-y-auto"
@@ -155,7 +116,10 @@
     </div>
 
     <!-- image viewer -->
-    <div id="image-viewer" class="panel hidden relative h-screen flex flex-col">
+    <div
+      id="image-viewer"
+      class="panel hidden relative h-screen flex flex-col bg-white dark:bg-slate-800"
+    >
       <div class="bg-blue-400 p-2 px-4 flex justify-between items-center">
         <div id="text-filename"></div>
         <div onclick="closeFile()" class="active:bg-red-400/60">
@@ -176,7 +140,9 @@
           </svg>
         </div>
       </div>
-      <img id="image-frame" class="p-2" />
+      <div class="flex-1 flex justify-center items-center">
+        <img id="image-frame" class="border dark:border-none w-[80%]" />
+      </div>
     </div>
 
     <script src="/share/cdn/jquery.min.js"></script>

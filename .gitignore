@@ -82,7 +82,8 @@ docs/_build/
 # Linux
 *.swp
 
-# Scripts output
+# 
 output/
 backup
 storage/home/*
+private

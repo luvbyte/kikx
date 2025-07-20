@@ -7,10 +7,12 @@ class UserDataModel(BaseModel):
   age: int = Field(..., description="User age")
   gender: Literal['male', 'female'] = Field(..., description="User gender")
 
-class UserModel(BaseModel):
+class UserAuthModel(BaseModel):
   name: str = Field(..., description="User name")
   username: str = Field(..., description="Username")
   password: str = Field(..., description="Password")
+  
+  expire: int = Field(..., description="Token expire minutes")
   
   ui: List[str] = Field(..., description="Ui list")
   default_ui: str = Field(..., description="default one to use")

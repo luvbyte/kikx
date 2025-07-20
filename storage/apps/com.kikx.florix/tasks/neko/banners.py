@@ -1,4 +1,6 @@
-B1 = r"""
+from neko.lib.ui import Pre, Text, Animate
+
+B1 = Animate(Pre(Text(r"""
 ♡  /)/)
  （„• ֊ •„)♡              
 ┏ • UU • - • - • - • - • - • - • ღ❦ღ┓
@@ -9,26 +11,23 @@ B1 = r"""
        | |                  | |
       _/ \_                _/ \_
 /````````````````````````````````````\
-"""
+""")))
+B1.cls.add_class("w-full h-full flex items-end justify-center")
 
-B2 = r"""
-       /)/) E            K (\(\
-      (•.•)/              \(•.•)
-     N/| |                  | |\O
-      _/ \_                _/ \_
-/````````````````````````````````````\
-"""
+B2 = Animate(Pre(Text(r"""
+  /)/) E            K (\(\
+ (•.•)/              \(•.•)
+N/| |                  | |\O
+ _/ \_                _/ \_
+""")), "slideInUp")
+B2.cls.add_class("w-full h-full flex items-end justify-center")
 
-B3 = r"""
+B3 = Animate(Pre(Text(r"""
 (`“ •.  (`“•.¸🌼¸.•“´)  ¸. •“´)
     🌸«•🍃   NEKO  🍃•“»🌸
 (¸. • “´(¸.•“´🌼 `“•)` “° •.¸)
-
-
-
-
-
-"""
+""")), "rubberBand")
+B3.cls.add_class("w-full h-full flex items-center justify-center")
 
 
 BANNERS = [B1, B2, B3]

@@ -13,5 +13,5 @@
       "title": "Vi"
     }
   },
-  "enabled": ["system", "fs", "proxy", "vi"]
+  "enabled": ["system", "fs", "proxy"]
 }

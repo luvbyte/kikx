@@ -2,10 +2,10 @@ from typing import Literal, Optional
 
 from fastapi import Request, HTTPException
 from pydantic import BaseModel
+from functools import reduce
 
 from core.func.func import FuncXModel
 from lib.service import create_service
-
 import asyncio
 
 srv = create_service(__file__)
@@ -32,9 +32,13 @@ async def notify(request: Request, payload: NotifyModel) -> None:
   })
 
 @srv.router.get("/user-settings")
-def get_user_settings(request: Request, raw: bool = False) -> dict:
+def get_user_settings(request: Request, setting: Optional[str] = None) -> dict:
   client, app = srv.get_client_app(request)
-  return client.user.settings()
+  try:
+    settings =  client.user.settings
+    return { "setting": reduce(getattr, setting.split("."), settings._settings) } if setting else settings()
+  except Exception as e:
+    srv.exception(404, str(e))
 
 class UserSettingsModel(BaseModel):
   settings: dict
