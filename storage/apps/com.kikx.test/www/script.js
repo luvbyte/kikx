@@ -1,8 +1,12 @@
 function notify(tp, delay) {
   kikxApp.system.notify({
-    msg: "hello",
+    msg: "A message",
     type: tp,
     displayEvenActive: true,
+    extra: {
+      delay: 250,
+      frames: ["(⌐■_■)", "( •_•)>⌐■-■", "(⌐■_■)"]
+    },
     delay: delay
   });
 }

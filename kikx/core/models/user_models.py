@@ -4,6 +4,7 @@ from typing import Dict, List, Literal, Optional
 
 class UserDataModel(BaseModel):
   name: str = Field(..., description="User full name")
+  username: str = Field(..., description="Username name")
   age: int = Field(..., description="User age")
   gender: Literal['male', 'female'] = Field(..., description="User gender")
 

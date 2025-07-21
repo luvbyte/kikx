@@ -7,6 +7,57 @@ function debounce(func, delay) {
   };
 }
 
+// return value or return default
+
+
+const getValue = (value, options = {}) => {
+  const {
+    default: defaultValue,
+    type,               // e.g., "string", "number", "object", "boolean", "array"
+    validate,           // custom validation function: (value) => boolean
+    allowed,            // list of allowed values: ["foo", "bar"]
+    required = false    // whether null/undefined should fail
+  } = options;
+
+  try {
+    // Required check
+    if (required && (value === undefined || value === null)) {
+      return defaultValue;
+    }
+
+    // Skip further checks if value is nullish
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+
+    // Type check
+    if (type) {
+      if (type === "array" && !Array.isArray(value)) {
+        return defaultValue;
+      }
+      if (type !== "array" && typeof value !== type) {
+        return defaultValue;
+      }
+    }
+
+    // Allowed values check
+    if (allowed && !allowed.includes(value)) {
+      return defaultValue;
+    }
+
+    // Custom validation function
+    if (validate && typeof validate === "function" && !validate(value)) {
+      return defaultValue;
+    }
+
+    // Passed all checks
+    return value;
+
+  } catch {
+    return defaultValue;
+  }
+};
+
 function isAndroidWebView() {
   const ua = navigator.userAgent || "";
   return (

@@ -1,5 +1,4 @@
-const kuiSettingsApp = {
-  settings: JSON.parse(JSON.stringify(kuiConfig)),
+const kuiImageSetting = {
   selectedImage: null,
   basePath: "/share/images/bg/",
   imageExtensions: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"],
@@ -12,8 +11,7 @@ const kuiSettingsApp = {
         "h-full cursor-pointer border-2 border-transparent hover:border-blue-500 p-1"
       )
       .on("click", function () {
-        kuiSettingsApp.settings.bg = src;
-        kuiSettingsApp.selectedImage = src; // Save currently selected image
+        kuiImageSetting.selectedImage = src; // Save currently selected image
         $("#apps").css("background-image", `url("${src}")`);
         $("#image-list img").removeClass("border-blue-500");
         $(this).addClass("border-blue-500");
@@ -32,11 +30,11 @@ const kuiSettingsApp = {
       .filter(
         file =>
           !file.directory &&
-          kuiSettingsApp.imageExtensions.includes(file.suffix.toLowerCase())
+          kuiImageSetting.imageExtensions.includes(file.suffix.toLowerCase())
       )
       .forEach(file => {
-        const imgSrc = kuiSettingsApp.basePath + file.name;
-        $imageList.append(kuiSettingsApp.createImageElement(imgSrc));
+        const imgSrc = kuiImageSetting.basePath + file.name;
+        $imageList.append(kuiImageSetting.createImageElement(imgSrc));
       });
   },
 
@@ -44,18 +42,18 @@ const kuiSettingsApp = {
     return await client.fs.deleteFile(path);
   },
   handleDeleteSelectedImage: async function () {
-    const selected = kuiSettingsApp.selectedImage;
+    const selected = kuiImageSetting.selectedImage;
 
     if (!selected) {
       $("#bg-upload-error").text("No image selected.");
       return;
     }
 
-    const fileName = selected.replace(kuiSettingsApp.basePath, "");
+    const fileName = selected.replace(kuiImageSetting.basePath, "");
     const fullPath = `share://images/bg/${fileName}`;
 
     try {
-      const res = await kuiSettingsApp.deleteImage(fullPath);
+      const res = await kuiImageSetting.deleteImage(fullPath);
 
       if (res.error) {
         $("#bg-upload-error").text("Delete failed. " + (res.message || ""));
@@ -65,17 +63,14 @@ const kuiSettingsApp = {
       // Remove image from list and reset state
       $(`#image-list img[src="${selected}"]`).remove();
 
-      if (kuiConfig.bg === kuiSettingsApp.selectedImage) {
+      if (kuiConfig.config.bg === kuiImageSetting.selectedImage) {
         // if deleted selected image
-        kuiSettingsApp.selectedImage = null;
-        kuiSettingsApp.settings.bg = defaultBackground;
+        kuiImageSetting.selectedImage = defaultBackground;
+        kuiConfig.config.bg = defaultBackground;
         $("#apps").css("background-image", `url("${defaultBackground}")`);
       } else {
         // if non selected image
-        kuiSettingsApp.selectedImage = null;
-        kuiSettingsApp.settings.bg = kuiConfig.bg;
-
-        setValidBackground(kuiConfig.bg);
+        kuiConfig.parse();
       }
     } catch (err) {
       $("#bg-upload-error").text("Unexpected error while deleting.");
@@ -114,9 +109,9 @@ const kuiSettingsApp = {
       }
 
       // Show preview using the new path
-      const imageUrl = kuiSettingsApp.basePath + newFileName;
+      const imageUrl = kuiImageSetting.basePath + newFileName;
       const $imageList = $("#image-list");
-      const $img = kuiSettingsApp.createImageElement(imageUrl);
+      const $img = kuiImageSetting.createImageElement(imageUrl);
       $imageList.prepend($img);
       $img.click();
     } catch (err) {
@@ -136,7 +131,7 @@ const kuiSettingsApp = {
     const testImage = new Image();
     testImage.onload = function () {
       const $imageList = $("#image-list");
-      const $img = kuiSettingsApp.createImageElement(imageUrl);
+      const $img = kuiImageSetting.createImageElement(imageUrl);
       $imageList.prepend($img);
       $img.click(); // auto-select
     };
@@ -150,23 +145,23 @@ const kuiSettingsApp = {
   // Open settings UI
   async openSettings() {
     $controlCenter.hide();
+    this.selectedImage = null;
 
     $("#main").append(`
       <div id="kui-settings"
+        onclick="kuiImageSetting.frameClick(event)"
         class="absolute w-full h-full flex flex-col insert-0 bg-slate-800/80 text-white z-[499]">
-          <div class="text-center p-2 bg-gradient-to-b from-purple-400 to-blue-400/80 font-bold">KUI SETTINGS</div>
-    
           <div class="p-1 border round-style m-2 bg-blue-400/60 flex justify-center items-center gap-1">
             <div class="w-6 h-6">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M5 19h14V5H5zm4-5.86l2.14 2.58l3-3.87L18 17H6z" opacity="0.3"/><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m0 16H5V5h14zm-4.86-7.14l-3 3.86L9 13.14L6 17h12z"/></svg>
             </div>
             <div>Wallpaper</div>
           </div>
-          
+        <!-- 
         <div class="absolute bottom-6 right-4 flex gap-2 items-center px-2">
-          <div class="border bg-red-400/60 p-1 w-20 flex justify-center round-style" onclick="kuiSettingsApp.kuiSettingsUpdate(false)">CANCEL</div>
-          <div class="border bg-green-400/60 p-1 w-20 flex justify-center round-style" onclick="kuiSettingsApp.kuiSettingsUpdate(true)">SAVE</div>
+          <div class="border bg-green-400/60 p-1 w-20 flex justify-center round-style" onclick="kuiImageSetting.close()">DONE</div>
         </div>
+        -->
         
         <div class="flex flex-col gap-0.5 px-2">
           <div class="flex gap-1 items-center">
@@ -175,7 +170,7 @@ const kuiSettingsApp = {
               class="w-full focus:outline-none border round-style p-1 bg-transparent"
               placeholder="Image url"
             />
-            <div class="border rounded rounded-br-none bg-purple-400/60 p-1 px-4" onclick="kuiSettingsApp.setBackgroundCustomUrl()">
+            <div class="border rounded rounded-br-none bg-purple-400/60 p-1 px-4" onclick="kuiImageSetting.setBackgroundCustomUrl()">
                SET
             </div>
           </div>
@@ -195,7 +190,7 @@ const kuiSettingsApp = {
             <div
               id="bg-delete"
               class="flex-1 border bg-red-500/60 px-4 py-1 round-style flex justify-center cursor-pointer"
-              onclick="kuiSettingsApp.handleDeleteSelectedImage()"
+              onclick="kuiImageSetting.handleDeleteSelectedImage()"
             >
               DELETE
             </div>
@@ -206,7 +201,7 @@ const kuiSettingsApp = {
             type="file"
             accept="image/*"
             class="hidden"
-            onchange="kuiSettingsApp.handleImageUpload(event)"
+            onchange="kuiImageSetting.handleImageUpload(event)"
           />
           
           <!-- Error message -->
@@ -216,44 +211,25 @@ const kuiSettingsApp = {
       </div>
     `);
 
-    await kuiSettingsApp.renderImages();
-  },
-
-  getSettings() {
-    //if (Object.keys(kuiSettingsApp.settings).length === 0) {
-    //return null;
-    //}
-    return JSON.stringify(kuiSettingsApp.settings);
-  },
-
-  // Save settings to disk
-  async saveSettings() {
-    $("#kui-settings").remove();
-    const updatedSettings = kuiSettingsApp.getSettings();
-
-    //if (updatedSettings) {
-    await client.fs.createDirectory("home://.config/kui");
-    await client.fs.writeFile(
-      "home://.config/kui/config.json",
-      updatedSettings
-    );
-    // }
-  },
-
-  // Cancel without saving
-  cancelSettings() {
-    $("#kui-settings").remove();
+    await kuiImageSetting.renderImages();
   },
 
   // Handle save or cancel
-  async kuiSettingsUpdate(save = true) {
-    if (save) {
-      await kuiSettingsApp.saveSettings();
-      kuiSettingsApp.settings = {}; // Reset temp settings
-      await updateKuiConfig(); // Apply new config
-    } else {
-      kuiSettingsApp.cancelSettings(); // Just close UI, no apply
-      await updateKuiConfig(false); // Apply new config
+  async close() {
+    $("#kui-settings").remove();
+    if (!this.selectedImage) return;
+
+    kuiConfig.config.bg = this.selectedImage;
+
+    await kuiConfig.save();
+    // kuiConfig.parse();
+  },
+
+  frameClick(event) {
+    // Check if the clicked element is the parent (not a child element)
+    if (event.target === event.currentTarget) {
+      // Call something if the click is on the parent
+      kuiImageSetting.close();
     }
   }
 };

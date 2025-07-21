@@ -1,47 +1,14 @@
 from typing import Literal, Optional
 
 from fastapi import Request, HTTPException
-from pydantic import BaseModel
 from functools import reduce
-
+from .models import NotifyModel, UserSettingsModel
 from core.func.func import FuncXModel
 from lib.service import create_service
 import asyncio
 
 srv = create_service(__file__)
 
-class NotifyModel(BaseModel):
-  type: Literal['info', 'error'] = "info"
-  frames: Optional[list[str]] = None
-  displayEvenActive: bool = False
-  delay: int = 0
-  msg: str
-
-@srv.router.post("/notify")
-async def notify(request: Request, payload: NotifyModel) -> None:
-  client, app = srv.get_client_app(request)
-
-  await client.send_event("app:notify", {
-    "name": app.name,
-    "title": app.title,
-    "msg": payload.msg,
-    "type": payload.type,
-    "frames": payload.frames,
-    "delay": payload.delay,
-    "displayEvenActive": payload.displayEvenActive
-  })
-
-@srv.router.get("/user-settings")
-def get_user_settings(request: Request, setting: Optional[str] = None) -> dict:
-  client, app = srv.get_client_app(request)
-  try:
-    settings =  client.user.settings
-    return { "setting": reduce(getattr, setting.split("."), settings._settings) } if setting else settings()
-  except Exception as e:
-    srv.exception(404, str(e))
-
-class UserSettingsModel(BaseModel):
-  settings: dict
 
 async def broadcast_signal(signal: str, data: dict) -> None:
   core = srv.get_core()
@@ -51,6 +18,15 @@ async def broadcast_signal(signal: str, data: dict) -> None:
     await client.send_event("signal", payload)
     for app in client.running_apps.values():
       await app.send_event("signal", payload)
+
+@srv.router.get("/user-settings")
+def get_user_settings(request: Request, setting: Optional[str] = None) -> dict:
+  client, app = srv.get_client_app(request)
+  try:
+    settings =  client.user.settings
+    return { "setting": reduce(getattr, setting.split("."), settings._settings) } if setting else settings()
+  except Exception as e:
+    srv.exception(404, str(e))
 
 @srv.router.post("/user-settings")
 async def set_user_settings(request: Request, payload: UserSettingsModel) -> dict:
@@ -90,4 +66,20 @@ async def close_app(request: Request) -> None:
   await client.send_event("app:close", {
     "appID": app.id,
     "name": app.name
+  })
+
+
+@srv.router.post("/notify")
+async def notify(request: Request, payload: NotifyModel) -> None:
+  client, app = srv.get_client_app(request)
+
+  await client.send_event("app:notify", {
+    "name": app.name,
+    "id": app.id,
+    "title": app.title,
+    "msg": payload.msg,
+    "type": payload.type,
+    "extra": payload.extra,
+    "delay": payload.delay,
+    "displayEvenActive": payload.displayEvenActive
   })

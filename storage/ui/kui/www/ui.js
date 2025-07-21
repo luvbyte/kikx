@@ -1,3 +1,4 @@
+// TODO: update this wih purifyDom
 const escapeHTML = str => $("<div>").text(str).html(); // Escape potentially malicious input
 const isVisible = element => {
   return $(element).is(":visible");
@@ -20,20 +21,7 @@ let appFrames = {}; // Store iframe elements
 // { iframe, name, title, icon }
 let lastApp = null;
 
-const notyf = new Notyf({
-  duration: 3000,
-  position: {
-    x: "right",
-    y: "top"
-  },
-  types: [
-    {
-      type: "info",
-      background: "purple",
-      dismissible: true
-    }
-  ]
-});
+let uiSettings = {};
 
 const closeAppsPanel = () => $appsPanel.fadeOut(300);
 
@@ -289,12 +277,6 @@ const toggleNotificationsPanel = () => {
   $("#control-center").fadeToggle();
 };
 
-const clearNotificationsPanel = () => {
-  $("#cc-notifications-panel").fadeOut(300, function () {
-    $(this).empty(); // clear after fadeOut completes
-  });
-};
-
 // loading and rendering apps
 const loadApps = async payload => {
   try {
@@ -312,177 +294,327 @@ const loadApps = async payload => {
   }
 };
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 // ------------ notifications
-let animationAbortController = null;
+const notifyApp = {
+  notifyQueue: [], // waiting list
+  isProcessing: false,
+  animationAbortController: null,
+  silentMode: false,
 
-const animateNotify = async payload => {
-  if (animationAbortController) {
-    animationAbortController.abort(); // Cancel the previous animation
-  }
-  animationAbortController = new AbortController();
-  const { signal } = animationAbortController;
+  totalCount: 0,
 
-  const el = $("#notify-animation");
-  if (!payload.frames) {
-    if (payload.type === "error") {
-      frames = [
-        "(｡>ㅅ<｡)    💌",
-        "(｡>ㅅ<｡)   💌",
-        "(｡>ㅅ<｡)  💌",
-        "(｡>ㅅ<｡) 💌",
-        "(｡>ㅅ<｡)💌"
-      ];
+  // updates.ui
+  updateCount() {
+    const $badge = $("#notify-count");
+
+    $badge
+      .text(this.totalCount)
+      .toggleClass("hidden", this.totalCount === 0)
+      .toggleClass("opacity-50", this.totalCount === 0)
+      .toggleClass("scale-95", this.totalCount === 0)
+      .toggleClass("bg-white/20", this.totalCount === 0)
+      .toggleClass("bg-white/40", this.totalCount > 0);
+  },
+
+  decreaseCount() {
+    this.totalCount = Math.max(0, this.totalCount - 1);
+    this.updateCount();
+  },
+
+  incrementCount() {
+    this.totalCount++;
+    this.updateCount();
+  },
+
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+
+  clearQueue() {
+    this.notifyQueue = [];
+
+    if (this.animationAbortController) {
+      this.animationAbortController.abort();
+    }
+
+    this.isProcessing = false;
+
+    $("#notify-animation")
+      .stop(true, true)
+      .fadeOut(200, function () {
+        $(this).empty();
+        $("#notify-app-title").hide();
+        $("#clock-text").fadeIn(300);
+        $("#status-bar-name").fadeIn(300);
+      });
+  },
+
+  // Add a new payload to queue
+  enqueue(payload) {
+    if (this.silentMode) {
+      $("#notify-count")
+        .text(this.totalCount)
+        .removeClass("hidden")
+        .addClass("bg-white/40 scale-100 opacity-100");
     } else {
-      frames = [
-        "(๑'ᴗ')ゞ    💌",
-        "(๑'ᴗ')ゞ   💌",
-        "(๑'ᴗ')ゞ  💌",
-        "(๑'ᴗ')ゞ 💌",
-        "(๑'ᴗ')ゞ💌"
-      ];
+      this.notifyQueue.push(payload);
+      this.processQueue();
     }
-  }
+  },
 
-  el.fadeIn(200); // Fade in effect before animation starts
+  // Sequentially animate each payload in queue
+  async processQueue() {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
 
-  try {
-    for (const frame of frames) {
-      if (signal.aborted) return; // Stop if a new call was made
-      el.text(frame);
-      await sleep(300);
+    while (this.notifyQueue.length > 0) {
+      const payload = this.notifyQueue.shift();
+      await this.animate(payload);
     }
-  } catch (err) {
-    return; // Ignore if aborted
-  }
 
-  el.fadeOut(200, () => {
-    el.empty(); // Clear text after fade-out is complete
-  });
-};
+    this.isProcessing = false;
+  },
 
-function createNotifyDiv(payload) {
-  // Tailwind color by type
-  let color = "bg-white";
-  if (payload.type === "error") color = "bg-red-200 text-black";
-  else if (payload.type === "success") color = "bg-green-200 text-white";
-  else if (payload.type === "warning") color = "bg-yellow-200 text-white";
+  async animate(payload) {
+    // Abort any current animation
+    if (this.animationAbortController) {
+      this.animationAbortController.abort();
+    }
 
-  const notifyDiv = $("<div>", {
-    class: `${color} rounded-sm px-3 py-2 text-sm w-full max-w-sm cursor-pointer transition-all duration-300`,
-    css: {
-      willChange: "transform, opacity"
-    },
+    this.animationAbortController = new AbortController();
+    const { signal } = this.animationAbortController;
 
-    click: function () {
-      if (openApps.includes(payload.name)) {
-        switchApp(payload.name);
-        $("#control-center").hide();
+    const $el = $("#notify-animation");
+    const $clock = $("#clock-text");
+    const $name = $("#status-bar-name");
+
+    // setting app title
+    const $notifyTitle = $("#notify-app-title");
+    $notifyTitle.text(payload.title);
+    $notifyTitle.show();
+
+    let frames = payload.extra.frames;
+    let delay = 300;
+
+    // if frames found animate it else show msg
+    if (!Array.isArray(frames) || frames.length <= 0) {
+      frames = [payload.msg];
+      delay = 3000;
+    } else {
+      delay =
+        typeof payload?.extra?.delay === "number" &&
+        payload.extra.delay >= 0 &&
+        payload.extra.delay <= 1000
+          ? payload.extra.delay
+          : 300;
+    }
+
+    $clock.stop(true, true).fadeOut(150);
+    $name.stop(true, true).fadeOut(150);
+
+    try {
+      $el.stop(true, true).fadeIn(150);
+
+      for (const frame of frames) {
+        if (signal.aborted) return;
+
+        await new Promise(resolve => {
+          $el.fadeOut(100, () => {
+            $el.text(frame).fadeIn(200, resolve);
+          });
+        });
+
+        await this.sleep(delay);
       }
-      $(this).remove();
+    } finally {
+      if (!signal.aborted) {
+        await new Promise(resolve => {
+          $el.fadeOut(200, () => {
+            $el.empty();
+            $clock.fadeIn(300);
+            $name.fadeIn(400);
+
+            $notifyTitle.hide();
+            resolve();
+          });
+        });
+      }
     }
-  });
+  },
 
-  // Title and message
-  const titleEl = $("<div>", {
-    class: "font-semibold mb-0.5 text-xs",
-    text: payload.title
-  });
-  const messageEl = $("<div>", {
-    text: payload.msg
-  });
-  notifyDiv.append(titleEl, messageEl);
+  //
+  notify(payload) {
+    // Append message box to panel
+    $("#cc-notifications-panel")
+      .append(notifyApp._createNotifyDiv(payload))
+      .fadeIn(300);
 
-  let startX = 0;
-  let isSwiping = false;
+    notifyApp.incrementCount();
+    // adding to queue
+    notifyApp.enqueue(payload);
+  },
 
-  notifyDiv.on("touchstart", function (e) {
-    startX = e.originalEvent.touches[0].clientX;
-    isSwiping = true;
-  });
+  _createNotifyDiv(payload) {
+    // Tailwind color by type
+    let color = "bg-white";
+    if (payload.type === "error") color = "bg-red-200 text-black";
+    else if (payload.type === "success") color = "bg-green-200 text-white";
+    else if (payload.type === "warning") color = "bg-yellow-200 text-white";
 
-  notifyDiv.on("touchmove", function (e) {
-    if (!isSwiping) return;
+    const notifyDiv = $("<div>", {
+      class: `${color} rounded-sm px-3 py-2 text-sm w-full max-w-sm cursor-pointer transition-all duration-300`,
+      css: {
+        willChange: "transform, opacity"
+      },
 
-    const currentX = e.originalEvent.touches[0].clientX;
-    const diffX = currentX - startX;
-
-    if (diffX > 0) {
-      // Max distance after which it becomes fully transparent
-      const maxSwipe = 100;
-      const limitedDiff = Math.min(diffX, maxSwipe);
-      const opacity = 1 - limitedDiff / maxSwipe;
-
-      $(this).css({
-        transform: `translateX(${limitedDiff}px)`,
-        opacity: opacity
-      });
-    }
-  });
-
-  notifyDiv.on("touchend", function (e) {
-    const endX = e.originalEvent.changedTouches[0].clientX;
-    const diffX = endX - startX;
-
-    if (diffX > 100) {
-      // Fast, smooth fade out and slide using transform
-      $(this).css({
-        transition: "transform 0.2s ease-out, opacity 0.2s ease-out",
-        transform: "translateX(400px)",
-        opacity: 0
-      });
-
-      setTimeout(() => {
+      click: function () {
+        if (openApps.includes(payload.name)) {
+          switchApp(payload.name);
+          $("#control-center").hide();
+        }
         $(this).remove();
-      }, 200);
-    } else {
-      // Snap back
-      $(this).css({
-        transition: "transform 0.2s ease-out, opacity 0.2s ease-out",
-        transform: "translateX(0)",
-        opacity: 1
-      });
-    }
+        notifyApp.decreaseCount();
+      }
+    });
 
-    isSwiping = false;
-  });
+    // Title and message
+    const titleEl = $("<div>", {
+      class: "font-semibold mb-0.5 text-xs",
+      text: payload.title
+    });
+    const messageEl = $("<div>", {
+      text: payload.msg
+    });
+    notifyDiv.append(titleEl, messageEl);
 
-  return notifyDiv;
-}
+    let startX = 0;
+    let isSwiping = false;
 
-// Modified addNotify function
-const addNotify = (payload, toast) => {
-  // dont show if app is active except on property
-  if (currentApp === payload.name && !payload.displayEvenActive) return;
+    notifyDiv.on("touchstart", function (e) {
+      startX = e.originalEvent.touches[0].clientX;
+      isSwiping = true;
+    });
 
-  setTimeout(() => {
-    if (toast) {
-      // adding to notificon in status bar
-      let notificon = notyf
-        .open({
-          type: payload.type,
-          message: escapeHTML(`[${payload.title}] ${payload.msg}`),
-          dismissible: true
-        })
-        .on("click", ({ target, event }) => switchApp(payload.name));
-    } else {
-      animateNotify(payload);
-    }
-    $("#cc-notifications-panel").append(createNotifyDiv(payload)).fadeIn(300); // Clear previous notifications
-  }, payload.delay * 1000);
+    notifyDiv.on("touchmove", function (e) {
+      if (!isSwiping) return;
+
+      const currentX = e.originalEvent.touches[0].clientX;
+      const diffX = currentX - startX;
+
+      if (diffX > 0) {
+        // Max distance after which it becomes fully transparent
+        const maxSwipe = 100;
+        const limitedDiff = Math.min(diffX, maxSwipe);
+        const opacity = 1 - limitedDiff / maxSwipe;
+
+        $(this).css({
+          transform: `translateX(${limitedDiff}px)`,
+          opacity: opacity
+        });
+      }
+    });
+
+    notifyDiv.on("touchend", function (e) {
+      const endX = e.originalEvent.changedTouches[0].clientX;
+      const diffX = endX - startX;
+
+      if (diffX > 100) {
+        // Animate out
+        $(this).css({
+          transition: "transform 0.2s ease-out, opacity 0.2s ease-out",
+          transform: "translateX(400px)",
+          opacity: 0
+        });
+
+        const self = this;
+
+        setTimeout(() => {
+          $(self).remove();
+
+          // Decrease count
+          notifyApp.decreaseCount();
+        }, 200);
+      } else {
+        // Snap back
+        $(this).css({
+          transition: "transform 0.2s ease-out, opacity 0.2s ease-out",
+          transform: "translateX(0)",
+          opacity: 1
+        });
+      }
+
+      isSwiping = false;
+    });
+
+    return notifyDiv;
+  }
 };
+
+$("#status-bar").on("dblclick", () => {
+  notifyApp.clearQueue();
+
+  $("#status-bar")
+    .addClass("bg-red-600/80")
+    .removeClass("bg-gradient-to-r")
+    .delay(250)
+    .queue(function (next) {
+      $(this).removeClass("bg-red-600/80").addClass("bg-gradient-to-r");
+      next();
+    });
+});
+
+$("#clear-notify-btn").on("click", function () {
+  // Clear notification panelclearNotificationsPanel
+
+  $("#cc-notifications-panel").fadeOut(300, function () {
+    $(this).empty(); // clear after fadeOut completes
+  });
+  $("#notify-count").addClass("hidden");
+
+  // Also clear animation queue just in case
+  notifyApp.totalCount = 0;
+  notifyApp.clearQueue();
+});
 
 // this will update user data
 const updateUserData = userData => {
   setTimeout(() => {
-    $("#user-name-text")
-      .text("Hello, " + userData.name)
-      .slideDown(300);
-  }, 600);
+    $("#user-name-text").text(userData.username).slideDown(600);
+  }, 800);
 };
+
+// button highlight for
+function updateToggleHighlight(option, element) {
+  let $el = $(element);
+
+  if (option) {
+    // mode ON — green highlight
+    $el
+      .removeClass("bg-transparent text-black")
+      .addClass("bg-gradient-to-r from-blue-400/60 to-purple-400/60 shadow-md");
+  } else {
+    // mode OFF — normal look
+    $el
+      .removeClass(
+        "bg-gradient-to-r from-blue-400/60 to-purple-400/60 shadow-md"
+      )
+      .addClass("bg-transparent text-black");
+  }
+}
+
+// toggle buttons in cc
+function toggleSilentMode(option) {
+  // If option is explicitly passed, use it; otherwise toggle
+  const silent = typeof option === "boolean" ? option : !notifyApp.silentMode;
+
+  // Set the value
+  notifyApp.silentMode = silent;
+
+  // Update the toggle button visually
+  updateToggleHighlight(silent, $("#silent-toggle-btn"));
+}
+
+// initialize
 const updateControlPanel = userSettings => {
-  // console.log(userSettings);
+  toggleSilentMode(userSettings.display.silent);
 };

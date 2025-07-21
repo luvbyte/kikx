@@ -21,12 +21,15 @@ from neko.banners import BANNERS
 
 from typing import List, Union
 
+def ensure_dir(path: str) -> str:
+  Path(path).mkdir(parents=True, exist_ok=True)
+  return path
 
 NEKO_PATH = Path(__file__).resolve().parent / "neko"
 # scripts directory
 SCRIPT_DIRS = [
-  ("App", NEKO_PATH / "scripts"),
-  ("Local", Path(os.environ.get("KIKX_HOME_PATH")) / "dev/neko_scripts")
+  ("App", ensure_dir(NEKO_PATH / "scripts")),
+  ("Local", ensure_dir(Path(os.environ.get("KIKX_HOME_PATH", NEKO_PATH / "scripts")) / "etc/nsc"))
 ]
 
 SCRIPTS_DIR_NAME, SCRIPTS_DIR = SCRIPT_DIRS[0]

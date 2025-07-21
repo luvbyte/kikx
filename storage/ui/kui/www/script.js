@@ -1,9 +1,40 @@
 const client = new Client();
 const defaultBackground = "bg.jpg";
-let kuiConfig = { bg: defaultBackground };
 let screenOrientation = "portrait";
 let isBrowserFullScreen = false;
 let isFullScreen = false;
+// congig file
+const kuiConfig = {
+  filePath: "home://.config/kui/config.json",
+  // default config
+  config: {
+    bg: defaultBackground, // only string, required
+  },
+  async load() {
+    const res = await client.fs.readFile(kuiConfig.filePath);
+    if (res.data) {
+      try {
+        Object.assign(kuiConfig.config, JSON.parse(await blobToText(res.data)));
+      } catch (e) {
+        Swal.fire({
+          icon: "error",
+          title: "Error parsing kui config!!",
+          text: e.toString(),
+          footer: "using default config"
+        });
+      }
+    }
+  },
+  async save() {
+    try {
+      await client.fs.createDirectory("home://.config/kui");
+      await client.fs.writeFile(this.filePath, JSON.stringify(this.config));
+    } catch (_) {}
+  },
+  async parse() {
+    setValidBackground(kuiConfig.config.bg);
+  }
+};
 
 const setFullScreen = active => {
   isFullScreen = active;
@@ -39,25 +70,25 @@ function setValidBackground(url, fallback = defaultBackground) {
 }
 
 const updateKuiConfig = async (fth = true) => {
-  if (fth) {
-    const res = await client.fs.readFile("home://.config/kui/config.json");
-
-    if (res.data)
-      try {
-        Object.assign(kuiConfig, JSON.parse(await blobToText(res.data)));
-      } catch (_) {
-        // TODO: show error as alert notfy
-      }
-  }
-  // setting default bg if not found
-  setValidBackground(kuiConfig.bg);
-  //$("#apps").css("background-image", `url("${kuiConfig.bg}")`);
+  await kuiConfig.load();
+  kuiConfig.parse()
 };
 
 $(function () {
+  // for this ui cant auto reconnect
+  client.on("ws:onclose", () => {
+    $("#top-panel").hide();
+    $("#top-refresh-panel").show();
+    Swal.fire({
+      icon: "error",
+      title: "Client Error",
+      text: "Client disconnected press refresh to connect"
+    });
+  });
+  // notify event
   client.on("app:notify", payload => {
-    console.log(client.userSettings);
-    addNotify(payload, !client.userSettings.display.silent);
+    if (payload.name === currentApp && !payload.displayEvenActive) return;
+    notifyApp.notify(payload);
   });
   // closing app
   client.on("app:close", app => {
@@ -67,16 +98,20 @@ $(function () {
   });
 
   client.run(async payload => {
+    await updateKuiConfig();
+    updateControlPanel(client.userSettings);
+
     const userRes = await client.func("user_data");
     if (userRes.data) updateUserData(userRes.data);
 
     loadApps(payload);
-    await updateKuiConfig();
     $("#loading-screen").fadeOut(600, () => $(this).remove());
   });
 
   initTouchGestures("#apps", {
-    swipeUp: () => $("#apps-menu").fadeIn()
+    swipeUp: () => {
+      $("#apps-menu").fadeIn();
+    }
   });
 
   $appsMenu.on("click", function () {
