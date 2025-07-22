@@ -25,8 +25,8 @@ class Client(FuncX):
     self.id: str = uuid4().hex
     self.user: object = user
     self.websocket: WebSocket = websocket
-    self.apps_path = resolve_path("apps://")
 
+    self.apps_path = resolve_path("apps://")
     self.running_apps: Dict[str, App] = {}
 
     logger.info(f"Client initialized (ID: {self.id})")

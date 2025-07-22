@@ -26,7 +26,6 @@ class ServicesModel(BaseModel):
 
 class UIConfigModel(BaseModel):
   path: str = Field(..., description="Ui path")
-  require_auth: bool = Field(True, description="Require auth")
 
 class ConfigSettingsModel(BaseModel):
   pass

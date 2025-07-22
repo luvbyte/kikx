@@ -21,6 +21,7 @@ from core.core import Core
 from core.client import Client
 from core.models.app_models import CloseAppModel, OpenAppModel, AppsListModel, AppManifestModel
 
+from datetime import timedelta
 # -------------------------------------
 # Logging Configuration
 # -------------------------------------
@@ -179,17 +180,12 @@ async def app_public(name: str, path: str):
 @app.get("/ui/{ui_name}/{path:path}")
 def home_page(request: Request, ui_name: str, path: str):
   token = request.cookies.get("access_token")
-  token = core.auth.check_token(token)
-
-  ui_config = core.config.kikx.ui.get(ui_name)
-  if not ui_config:
-    raise HTTPException(status_code=404, detail="UI config not found")
-
-  if ui_config.require_auth and not token:
+  if not core.auth.check_token(token):
     return RedirectResponse("/login")
 
-  if ui_name not in core.auth.user_config.ui:
-    raise HTTPException(status_code=404, detail="UI not found")
+  ui_config = core.config.kikx.ui.get(ui_name)
+  if not ui_config or ui_name not in core.auth.user_config.ui:
+    raise HTTPException(status_code=404, detail="UI not found in auth.json")
 
   if not path.strip():
     path = "index.html"
@@ -197,11 +193,8 @@ def home_page(request: Request, ui_name: str, path: str):
   file_path = core.config.resolve_path(ui_config.path) / "www" / path
   if not file_path.exists() or file_path.is_dir():
     raise HTTPException(status_code=404, detail="File not found")
-
-  response = FileResponse(file_path)
-  if not token:
-    response.set_cookie(key="access_token", value=core.auth.generate_access_token(), samesite="strict", httponly=True)
-  return response
+  
+  return FileResponse(file_path)
 
 @app.get("/sl/{path:path}")
 def redirect(path: str):
