@@ -8,7 +8,7 @@ const kuiConfig = {
   filePath: "home://.config/kui/config.json",
   // default config
   config: {
-    bg: defaultBackground, // only string, required
+    bg: defaultBackground // only string, required
   },
   async load() {
     const res = await client.fs.readFile(kuiConfig.filePath);
@@ -71,7 +71,7 @@ function setValidBackground(url, fallback = defaultBackground) {
 
 const updateKuiConfig = async (fth = true) => {
   await kuiConfig.load();
-  kuiConfig.parse()
+  kuiConfig.parse();
 };
 
 $(function () {

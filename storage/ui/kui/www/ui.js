@@ -452,6 +452,8 @@ const notifyApp = {
     notifyApp.incrementCount();
     // adding to queue
     notifyApp.enqueue(payload);
+
+    soundModule.notify();
   },
 
   _createNotifyDiv(payload) {
@@ -591,19 +593,17 @@ function updateToggleHighlight(option, element) {
     // mode ON — green highlight
     $el
       .removeClass("bg-transparent text-black")
-      .addClass("bg-gradient-to-r from-blue-400/60 to-purple-400/60 shadow-md");
+      .addClass("bg-white/60 shadow-md");
   } else {
     // mode OFF — normal look
     $el
-      .removeClass(
-        "bg-gradient-to-r from-blue-400/60 to-purple-400/60 shadow-md"
-      )
+      .removeClass("bg-white/60 shadow-md")
       .addClass("bg-transparent text-black");
   }
 }
 
 // toggle buttons in cc
-function toggleSilentMode(option) {
+function toggleNotifyMode(option) {
   // If option is explicitly passed, use it; otherwise toggle
   const silent = typeof option === "boolean" ? option : !notifyApp.silentMode;
 
@@ -611,10 +611,19 @@ function toggleSilentMode(option) {
   notifyApp.silentMode = silent;
 
   // Update the toggle button visually
-  updateToggleHighlight(silent, $("#silent-toggle-btn"));
+  updateToggleHighlight(!silent, $("#notify-toggle-btn"));
+}
+
+// toggle sound
+function toggleSoundMode(option) {
+  const silent = typeof option === "boolean" ? option : !soundModule.silent;
+  // Update the toggle button visually
+  soundModule.silent = silent;
+  updateToggleHighlight(!silent, $("#sound-toggle-btn"));
 }
 
 // initialize
 const updateControlPanel = userSettings => {
-  toggleSilentMode(userSettings.display.silent);
+  toggleNotifyMode(userSettings.sound.silent);
+  toggleSoundMode(userSettings.sound.silent);
 };
