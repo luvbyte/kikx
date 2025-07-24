@@ -56,62 +56,60 @@ def check_option(value, options):
 class Label(Element):
   def __init__(self, label, style="base", align="start", size="sm", theme=Theme()):
     super().__init__(label)
-    self.cls.add_class(f"p-1 text-{align} text-{size}", theme(style))
+    self.add_class(f"p-1 text-{align} text-{size}", theme(style))
 
 # === Base Components ===
 
 class Button(Element):
   def __init__(self, label, style="primary", theme=Theme()):
     super().__init__(label.upper(), tag="button")
-    self.cls.add_class("p-1 px-3 font-bold rounded-lg rounded-tl-none rounded-br-none active:scale-105 shadow-lg", theme(style))
+    self.add_class("p-1 px-3 font-bold rounded-lg rounded-tl-none rounded-br-none active:scale-105 shadow-lg", theme(style))
 
 class Row(Element):
   def __init__(self, elements, gap=0, wrap=True, theme=Theme()):
     super().__init__(*elements)
     wrap = "wrap" if wrap else "no-wrap"
-    self.cls.add_class(f"flex flex-{wrap} gap-{gap}")
-
-
+    self.add_class(f"flex flex-{wrap} gap-{gap}")
 
 class Column(Element):
   def __init__(self, elements, gap=0, wrap=True):
     super().__init__(*elements)
     wrap = "wrap" if wrap else "no-wrap"
-    self.cls.add_class(f"flex flex-col flex-{wrap} gap-{gap}")
+    self.add_class(f"flex flex-col flex-{wrap} gap-{gap}")
 
 class VCenter(Element):
   def __init__(self, element):
     super().__init__(element)
-    self.cls.add_class("flex justify-center")
+    self.add_class("flex justify-center")
 
 class Center(Element):
   def __init__(self, element):
     super().__init__(element)
-    self.cls.add_class("w-full h-full flex justify-center items-center")
+    self.add_class("w-full h-full flex justify-center items-center")
 
 # === Display Widgets ===
 class Divider(Element):
   def __init__(self):
     super().__init__()
-    self.cls.add_class("border-t my-2 border-gray-300")
+    self.add_class("border-t my-2 border-gray-300")
 
 class Badge(Element):
   def __init__(self, label, color="blue"):
     super().__init__(label.upper())
-    self.cls.add_class(f"inline-block text-xs font-semibold px-2 py-1 rounded-full bg-{color}-100 text-{color}-800")
+    self.add_class(f"inline-block text-xs font-semibold px-2 py-1 rounded-full bg-{color}-100 text-{color}-800")
 
 class Card(Element):
   def __init__(self, *elements, style="primary", width, height, theme=Theme()):
     super().__init__(*elements)
-    self.cls.add_class(f"p-4 rounded-lg shadow-md w-[{width}] h-[{height}]", theme(style))
+    self.add_class(f"p-4 rounded-lg shadow-md w-[{width}] h-[{height}]", theme(style))
 
 class Box(Element):
   def __init__(self, *elements, width=None, height=None, theme=Theme()):
     super().__init__(*elements)
     if width:
-      self.cls.add_class(f"w-[{width}]")
+      self.add_class(f"w-[{width}]")
     if height:
-      self.cls.add_class(f"h-[{height}]")
+      self.add_class(f"h-[{height}]")
 
 class Image(Element):
   def __init__(self, src):
@@ -126,18 +124,18 @@ class ToggleSwitch(Element):
     label = "ON" if is_on else "OFF"
     super().__init__(label)
     bg = "bg-green-500" if is_on else "bg-gray-300"
-    self.cls.add_class(f"inline-block w-12 h-6 rounded-full cursor-pointer text-white text-xs flex items-center justify-center {bg}")
+    self.add_class(f"inline-block w-12 h-6 rounded-full cursor-pointer text-white text-xs flex items-center justify-center {bg}")
 
 class IconButton(Element):
   def __init__(self, icon, size=5, theme=Theme()):
     super().__init__(icon)
-    self.cls.add_class(f"w-{size} h-{size} flex items-center justify-center rounded-full hover:bg-gray-100", theme("primary"))
+    self.add_class(f"w-{size} h-{size} flex items-center justify-center rounded-full hover:bg-gray-100", theme("primary"))
 
 # === Layout Utilities ===
 class Grid(Element):
   def __init__(self, *elements, cols=2, gap=4):
     super().__init__(*elements)
-    self.cls.add_class(f"grid grid-cols-{cols} gap-{gap}")
+    self.add_class(f"grid grid-cols-{cols} gap-{gap}")
 
 class List(Element):
   def __init__(self, elements):
@@ -147,7 +145,7 @@ class FullScreen(Element):
   def __init__(self, *elements):
     super().__init__(*elements)
     
-    self.cls.add_class("h-full w-full")
+    self.add_class("h-full w-full")
 
 # === Modifiers ===
 
@@ -155,52 +153,52 @@ class Animate(Template):
   def __init__(self, child, effect="fadeIn"):
     super().__init__(child)
 
-    self.cls.add_class(f"animate__animated animate__{effect}")
+    self.add_class(f"animate__animated animate__{effect}")
 
 class Border(Template):
   def __init__(self, element, size=1, color="base"):
     super().__init__(element)
     
-    self.cls.add_class(f"border border-{size} border-{color}-500")
+    self.add_class(f"border border-{size} border-{color}-500")
 
 class FlexGrow(Template):
   def __init__(self, element, grow=1):
     super().__init__(element)
     
-    self.cls.add_class(f"flex-{grow}")
+    self.add_class(f"flex-{grow}")
 
 class PadX(Element):
   def __init__(self, element, value=2):
     super().__init__(element)
-    self.cls.add_class(f"px-{value}")
+    self.add_class(f"px-{value}")
 
 class PadY(Element):
   def __init__(self, element, value=1):
     super().__init__(element)
-    self.cls.add_class(f"py-{value}")
+    self.add_class(f"py-{value}")
 
 class Padding(Element):
   def __init__(self, element, value=1):
     super().__init__(element)
-    self.cls.add_class(f"p-{value}")
+    self.add_class(f"p-{value}")
 
 class Scroll(Template):
   def __init__(self, element, scroll="auto"):
     super().__init__(element)
 
-    self.cls.add_class(f'overflow-{check_option(scroll, ["scroll", "hidden", "auto"])}')
+    self.add_class(f'overflow-{check_option(scroll, ["scroll", "hidden", "auto"])}')
 
 class ScrollX(Template):
   def __init__(self, element, scroll="auto"):
     super().__init__(element)
 
-    self.cls.add_class(f'overflow-x-{check_option(scroll, ["scroll", "hidden", "auto"])}')
+    self.add_class(f'overflow-x-{check_option(scroll, ["scroll", "hidden", "auto"])}')
 
 class ScrollY(Template):
   def __init__(self, element, scroll="auto"):
     super().__init__(element)
 
-    self.cls.add_class(f'overflow-y-{check_option(scroll, ["scroll", "hidden", "auto"])}')
+    self.add_class(f'overflow-y-{check_option(scroll, ["scroll", "hidden", "auto"])}')
 
 # === Input Fields === under developmemt
 
@@ -211,7 +209,7 @@ class TextInput(Element):
     self.set_property("placeholder", placeholder)
     self.set_property("value", value)
   
-    self.cls.add_class(f"w-full px-2 p-1 rounded-lg rounded-tl-none rounded-br-none text-{size} border focus:outline-none bg-transparent")
+    self.add_class(f"w-full px-2 p-1 rounded-lg rounded-tl-none rounded-br-none text-{size} border focus:outline-none bg-transparent")
 
 class PasswordInput(Element):
   def __init__(self, placeholder="", value="", size="base", theme=Theme()):
@@ -219,7 +217,7 @@ class PasswordInput(Element):
     self.attrs["type"] = "password"
     self.attrs["placeholder"] = placeholder
     self.attrs["value"] = value
-    self.cls.add_class(f"px-3 py-2 rounded-md text-{size} border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500", theme("input"))
+    self.add_class(f"px-3 py-2 rounded-md text-{size} border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500", theme("input"))
 
 class TextArea(Element):
   def __init__(self, placeholder="", rows=4, value="", theme=Theme()):
@@ -227,7 +225,7 @@ class TextArea(Element):
     self.attrs["placeholder"] = placeholder
     self.attrs["rows"] = rows
     self.attrs["value"] = value
-    self.cls.add_class("w-full px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500", theme("input"))
+    self.add_class("w-full px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500", theme("input"))
 
 class Select(Element):
   def __init__(self, options, selected=None, theme=Theme()):
@@ -238,7 +236,7 @@ class Select(Element):
       if option == selected:
         opt.attrs["selected"] = "selected"
       self.append(opt)
-    self.cls.add_class("px-3 py-2 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500", theme("input"))
+    self.add_class("px-3 py-2 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500", theme("input"))
 
 class Checkbox(Element):
   def __init__(self, label, checked=False):
@@ -246,11 +244,11 @@ class Checkbox(Element):
     input_elem.attrs["type"] = "checkbox"
     if checked:
       input_elem.attrs["checked"] = "checked"
-    input_elem.cls.add_class("mr-2")
+    input_elem.add_class("mr-2")
 
     label_elem = Element(label, tag="label")
     label_elem.append(input_elem)
-    label_elem.cls.add_class("inline-flex items-center text-sm space-x-2")
+    label_elem.add_class("inline-flex items-center text-sm space-x-2")
 
     super().__init__(label_elem)
 
@@ -262,10 +260,10 @@ class RadioButton(Element):
     input_elem.attrs["value"] = value
     if checked:
       input_elem.attrs["checked"] = "checked"
-    input_elem.cls.add_class("mr-2")
+    input_elem.add_class("mr-2")
 
     label_elem = Element(label, tag="label")
     label_elem.append(input_elem)
-    label_elem.cls.add_class("inline-flex items-center text-sm")
+    label_elem.add_class("inline-flex items-center text-sm")
 
     super().__init__(label_elem)

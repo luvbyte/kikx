@@ -12,7 +12,7 @@ B1 = Animate(Pre(Text(r"""
       _/ \_                _/ \_
 /````````````````````````````````````\
 """)))
-B1.cls.add_class("w-full h-full flex items-end justify-center")
+B1.add_class("w-full h-full flex items-end justify-center")
 
 B2 = Animate(Pre(Text(r"""
   /)/) E            K (\(\
@@ -20,14 +20,14 @@ B2 = Animate(Pre(Text(r"""
 N/| |                  | |\O
  _/ \_                _/ \_
 """)), "slideInUp")
-B2.cls.add_class("w-full h-full flex items-end justify-center")
+B2.add_class("w-full h-full flex items-end justify-center")
 
 B3 = Animate(Pre(Text(r"""
 (`“ •.  (`“•.¸🌼¸.•“´)  ¸. •“´)
     🌸«•🍃   NEKO  🍃•“»🌸
 (¸. • “´(¸.•“´🌼 `“•)` “° •.¸)
 """)), "rubberBand")
-B3.cls.add_class("w-full h-full flex items-center justify-center")
+B3.add_class("w-full h-full flex items-center justify-center")
 
 
 BANNERS = [B1, B2, B3]
