@@ -97,12 +97,15 @@ class Core:
     """Handle data received from the app (placeholder)."""
     pass
 
+  async def on_client_data(self, client: Client, app: object, data: dict) -> None:
+    """Handle data received from the client (placeholder)."""
+    pass
+
   async def on_app_disconnect(self, client: Client, app: object) -> None:
     """Handle app disconnect event (placeholder)."""
     pass
-
+  
   # --------------------------- Client
-
   async def on_client_disconnect(self, client: Client) -> None:
     """Handle client disconnection and clean up resources."""
     for app_id in list(client.running_apps.keys()):

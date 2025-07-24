@@ -75,22 +75,22 @@ const updateKuiConfig = async (fth = true) => {
 };
 
 $(function () {
-  // for this ui cant auto reconnect
-  client.on("ws:onclose", () => {
-    $("#top-panel").hide();
-    $("#top-refresh-panel").show();
-    Swal.fire({
-      icon: "error",
-      title: "Client Error",
-      text: "Client disconnected press refresh to connect"
-    });
+  // for this ui cant auto reconnec
+  client.on("ws:onclose", e => {
+    if (e.code === 1008) {
+      // unauthorized reload or show login screen
+      location.reload();
+    }
+    $("#loading-message").text("RE-CONNECTING");
+    $("#loading-screen").show();
   });
+  client.on("reconnected", () => $("#loading-screen").fadeOut(600));
   // notify event
   client.on("app:notify", payload => {
     if (payload.name === currentApp && !payload.displayEvenActive) return;
     notifyApp.notify(payload);
   });
-  // closing app
+  // closing app by app itself
   client.on("app:close", app => {
     try {
       if (appFrames[app.name].id === app.id) closeApp(app.name);
@@ -105,7 +105,7 @@ $(function () {
     if (userRes.data) updateUserData(userRes.data);
 
     loadApps(payload);
-    $("#loading-screen").fadeOut(600, () => $(this).remove());
+    $("#loading-screen").fadeOut(600);
   });
 
   initTouchGestures("#apps", {

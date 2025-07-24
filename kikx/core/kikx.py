@@ -2,6 +2,7 @@
 # Imports
 # -------------------------------------
 import logging
+import asyncio
 from fastapi import (
   FastAPI, WebSocket, WebSocketDisconnect, APIRouter,
   Request, Response, Depends, Cookie, HTTPException
@@ -12,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 
 from pydantic import BaseModel
+from typing import Optional
 
 from lib.utils import dynamic_import, is_websocket_connected
 from lib.plugins import KikxPlugin
@@ -216,15 +218,26 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
   await websocket.accept()
   client, app = core.get_client_app_by_id(app_id)
 
-  if not client or not app:
-    await websocket.close(reason="Unauthorized")
+  try:
+    event_name: str = "reconnected"
+    
+    if not client or not app:
+      raise PermissionError("Unauthorized")
+    # new connection
+    if app.connection.websocket is None:
+      event_name = "connected"
+    await app.connect_websocket(websocket)
+    await app.send_event(event_name, {
+      "config": app.config.model_dump(),
+      "settings": client.user.settings()
+    })
+  except PermissionError as e:
+    await websocket.close(code=1008, reason=str(e))
     return
-
-  app.connect_websocket(websocket)
-  await app.send_event("connected", {
-    "config": app.config.model_dump(),
-    "settings": client.user.settings()
-  })
+  except Exception as e:
+    logger.info(f"WebSocket App Connect Error: {str(e)}")
+    await websocket.close(reason=str(e))
+    return
 
   logger.info(f"WebSocket: App connected {app.id} (Client: {client.id})")
 
@@ -235,42 +248,53 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
       await core.on_app_data(client, app, data)
   except WebSocketDisconnect:
     logger.info(f"WebSocket: App disconnected {app.id}")
-    await core.on_app_disconnect(client, app)
   except Exception as e:
     logger.exception(f"WebSocket Error (App {app.id}): {e}")
-    if not is_websocket_connected(websocket):
-      return
 
 @app.websocket("/client")
-async def websocket_client_endpoint(websocket: WebSocket, access_token: str = Cookie(None)):
+async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[str] = None, access_token: str = Cookie(None)):
   await websocket.accept()
-  try:
-    user_config = core.auth.get_user(access_token)
-    if user_config.username != core.user.username:
-      raise Exception("Invalid user")
 
-    client = Client(core.user, core.config.resolve_path, websocket)
-    core.clients[client.id] = client
-  except Exception:
-    await websocket.close(reason="Unauthorized")
+  try:
+    event_name = "reconnected"
+    # if client found then no need for access_token
+    client = core.clients.get(client_id)
+    if not client:
+      # move this above to check even client reconnect
+      if not core.auth.check_token(access_token):
+        raise PermissionError("Unauthorized")
+
+      client = Client(core.user, core.config.resolve_path)
+      core.clients[client.id] = client
+      client_id = client.id
+      event_name = "connected"
+    
+    await client.connect_websocket(websocket)
+    await client.send_event(event_name, {
+      "client_id": client.id,
+      "settings": client.user.settings()
+    })
+  except PermissionError as e:
+    await websocket.close(code=1008, reason=str(e))
+    return
+  except Exception as e:
+    logger.info(f"WebSocket Client Connect Error: {str(e)}")
+    await websocket.close(reason=str(e))
     return
 
   logger.info(f"WebSocket: Client connected {client.id}")
-  await client.send_event("connected", {
-    "client_id": client.id,
-    "settings": client.user.settings()
-  })
-  
+
   try:
     while True:
-      await websocket.receive_json()
+      await core.on_client_data(await websocket.receive_json())
   except WebSocketDisconnect:
-    logger.info("WebSocket: Client disconnected")
-    await core.on_client_disconnect(client)
+    logger.info(f"WebSocket: Client {client.id} disconnected")
+    # set timer to 15 seconds if no apps - connected
+    timeout = 15 if len(client.running_apps) <= 0 else None
+    await client.connection._on_disconnect(lambda: core.on_client_disconnect(client), timeout)
+    
   except Exception as e:
     logger.exception(f"WebSocket client error: {e}")
-    if not is_websocket_connected(websocket):
-      return
 
 # -------------------------------------
 # Final plugin hook

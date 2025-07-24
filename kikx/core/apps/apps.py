@@ -6,10 +6,10 @@ from typing import Dict, Optional, List
 
 from fastapi import WebSocket
 
-from lib.utils import is_websocket_connected, ensure_dir, dynamic_import, send_event
+from lib.utils import ensure_dir, dynamic_import
 from core.models.app_models import AppModel
 from core.func import FuncX, funcx, funcx_handler
-
+from core.connection import Connection
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class App(FuncX):
     self.title: str = config.title
     self.user = user  # Custom user object
 
-    self.websocket: Optional[WebSocket] = None
+    self.connection = Connection()
     self.__modules: List[Dict[str, object]] = []
 
     self.load_modules()
@@ -33,7 +33,7 @@ class App(FuncX):
   @property
   def connected(self) -> bool:
     """Check if WebSocket is still connected."""
-    return is_websocket_connected(self.websocket)
+    return self.connection.is_connected
 
   def load_modules(self) -> None:
     """Dynamically load app modules from config."""
@@ -78,14 +78,14 @@ class App(FuncX):
     """Return or create the app's data directory."""
     return ensure_dir(self.user.data_path / "data" / self.name)
 
-  def connect_websocket(self, websocket: WebSocket) -> None:
+  async def connect_websocket(self, websocket: WebSocket) -> None:
     """Bind a WebSocket connection to the app."""
-    self.websocket = websocket if isinstance(websocket, WebSocket) else None
+    await self.connection.connect(websocket)
     logger.info(f"WebSocket connected for app: {self.name}")
 
   async def send_event(self, event: str, payload: object) -> None:
     """Send event to frontend."""
-    await send_event(self.websocket, event, payload)
+    await self.connection.send_event(event, payload)
 
   async def on_close(self) -> None:
     """Clean up all modules on app close."""

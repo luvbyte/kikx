@@ -183,72 +183,157 @@ class SystemService extends Service {
 class Client {
   constructor() {
     this.userSettings = {};
-    this.clientID = clientID;
+    this.clientID = clientID; // assuming this is defined globally
     this.eventCallbacks = {};
     this.system = new SystemService();
     this.fs = new FileSystemService();
     this.ws = null;
 
-    // updating settings on event
+    // Auto-reconnect settings
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 3;
+    this.reconnectDelay = 1000; // ms
+    this._reconnectTimer = null;
+
     this.on("signal", signalData => {
       if (signalData.signal === "update_user_settings") {
         Object.assign(this.userSettings, signalData.data);
       }
     });
+
+    document.addEventListener("visibilitychange", () => {
+      if (
+        document.visibilityState === "visible" &&
+        (!this.ws || this.ws.readyState >= WebSocket.CLOSING) &&
+        !this._reconnectTimer &&
+        this.reconnectAttempts < this.maxReconnectAttempts
+      ) {
+        console.log("Tab focused again. Attempting to reconnect...");
+        this._connect(); // Let _connect() handle all logic
+      }
+    });
   }
-  run(callback) {
-    if (this.ws) {
-      console.warn("WebSocket already connected");
+
+  _connect() {
+    if (this.ws && this.ws.readyState < WebSocket.CLOSING) {
+      console.warn(
+        "WebSocket already connected or connecting. State:",
+        this.ws.readyState
+      );
       return;
     }
-    // adding event
-    if (typeof callback === "function") {
-      this.on("connected", callback);
-    }
 
-    // this.access_token = getCookie("access_token");
     const protocol = location.protocol === "https:" ? "wss" : "ws";
-    this.ws = new WebSocket(`${protocol}://${location.host}/client`);
+    const url = `${protocol}://${location.host}/client?client_id=${this.clientID}`;
+    console.log("Connecting to WebSocket:", url);
+
+    this.ws = new WebSocket(url);
 
     this.ws.onopen = e => {
-      if (this.eventCallbacks["ws:onopen"]) {
-        this.eventCallbacks["ws:onopen"].forEach(func => func(e));
-      }
+      console.log("WebSocket connection opened.");
+      this._clearReconnectTimer();
+      // this.reconnectAttempts = 0;
+      this._callEvent("ws:onopen", e);
     };
+
     this.ws.onmessage = e => {
       try {
         const message = JSON.parse(e.data);
-        // setting client_id
+
         if (message.event === "connected") {
           clientID = message.payload.client_id;
+          this.clientID = message.payload.client_id;
           this.userSettings = message.payload.settings;
+        } else if (message.event === "reconnected") {
+          this.reconnectAttempts = 0;
         }
-        // emiting event callbacks
-        if (message.event && this.eventCallbacks[message.event]) {
-          this.eventCallbacks[message.event].forEach(func =>
-            func(message.payload)
-          );
+        if (message.event) {
+          this._callEvent(message.event, message.payload);
         }
       } catch (error) {
-        console.error(" Error parsing message:", error);
+        console.error("WebSocket message parse error:", error);
       }
     };
-    this.ws.onclose = e => {
+
+    this.ws.onclose = (e) => {
+      console.warn("WebSocket closed.");
       this.ws = null;
-      if (this.eventCallbacks["ws:onclose"]) {
-        this.eventCallbacks["ws:onclose"].forEach(func => func(e));
+      this._callEvent("ws:onclose", e);
+      this._scheduleReconnect();
+    };
+
+    this.ws.onerror = e => {
+      console.error("WebSocket error:", e);
+      this._callEvent("ws:onerror", e);
+      if (this.ws) {
+        this.ws.close(); // Will trigger onclose
+        this.ws = null;
       }
     };
   }
+
+  _scheduleReconnect() {
+    console.log(
+      "In _scheduleReconnect. Current attempts:",
+      this.reconnectAttempts
+    );
+
+    if (this._reconnectTimer) {
+      console.log("Reconnect timer already set. Skipping.");
+      return;
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn(
+        `Max reconnect attempts (${this.maxReconnectAttempts}) reached.`
+      );
+      this._callEvent("ws:reconnect_failed");
+      return;
+    }
+
+    this.reconnectAttempts = this.reconnectAttempts + 1;
+    console.log(
+      `Scheduling reconnect attempt ${this.reconnectAttempts} in ${this.reconnectDelay}ms...`
+    );
+
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      this._connect();
+    }, this.reconnectDelay);
+  }
+
+  _clearReconnectTimer() {
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+  }
+
+  run(callback) {
+    if (this.ws && this.ws.readyState < WebSocket.CLOSING) return;
+    if (typeof callback === "function") {
+      this.on("connected", callback);
+    }
+    this._connect();
+  }
+
   addEvent(event, callback) {
     if (!this.eventCallbacks[event]) {
       this.eventCallbacks[event] = [];
     }
     this.eventCallbacks[event].push(callback);
   }
+
   on(event, callback) {
     this.addEvent(event, callback);
   }
+
+  _callEvent(event, data = null) {
+    if (this.eventCallbacks[event]) {
+      this.eventCallbacks[event].forEach(func => func(data));
+    }
+  }
+
   func = (name, ...args) => {
     const parsed = parseArgsAndKwargs(...args);
     return this.system.clientFunc(name, {

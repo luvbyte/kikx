@@ -1,4 +1,3 @@
-
 // --------------------------------------
 // UUID Utilities
 // --------------------------------------
@@ -189,7 +188,10 @@ class FileSystemService extends Service {
   createDirectory = dirname =>
     this.request("create_directory", "POST", { dirname });
   deleteDirectory = dirname =>
-    this.request(`delete_directory?dirname=${encodeURIComponent(dirname)}`, "DELETE");
+    this.request(
+      `delete_directory?dirname=${encodeURIComponent(dirname)}`,
+      "DELETE"
+    );
   copy = (source, destination) =>
     this.request("copy", "POST", { source, destination });
   move = (source, destination) =>
@@ -223,7 +225,8 @@ class ProxyService extends Service {
   }
 
   get = (url, headers = {}) => this.fetch(url, "GET", headers);
-  post = (url, body = null, headers = {}) => this.fetch(url, "POST", headers, body);
+  post = (url, body = null, headers = {}) =>
+    this.fetch(url, "POST", headers, body);
 }
 
 // --------------------------------------
@@ -232,74 +235,186 @@ class ProxyService extends Service {
 
 class KikxApp {
   constructor() {
-    this.id = appID;
+    this.id = appID; // Assumes appID is defined globally
     this.system = new SystemService();
     this.fs = new FileSystemService();
     this.proxy = new ProxyService();
 
     this.ws = null;
     this.eventCallbacks = {};
-    this.reconnectDelay = 1000;
+
+    this.reconnectDelay = 1000; // ms
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 3;
+    this._reconnectTimer = null;
 
     this.userSettings = {};
     this.appConfig = {};
 
+    // Event: App-specific handler
     this.on("handler-data", payload => {
       appEventHandlers
         .get(payload.id)
-        ?._ondata_callbacks.forEach(f => f(payload.data));
+        ?._ondata_callbacks.forEach(fn => fn(payload.data));
     });
 
-    this.on("signal", signalData => {
-      if (signalData.signal === "update_user_settings") {
-        Object.assign(this.userSettings, signalData.data);
+    // Event: Update user settings
+    this.on("signal", signal => {
+      if (signal.signal === "update_user_settings") {
+        Object.assign(this.userSettings, signal.data);
+      }
+    });
+
+    // Event: Reconnect on tab focus
+    document.addEventListener("visibilitychange", () => {
+      if (
+        document.visibilityState === "visible" &&
+        (!this.ws || this.ws.readyState >= WebSocket.CLOSING) &&
+        !this._reconnectTimer &&
+        this.reconnectAttempts < this.maxReconnectAttempts
+      ) {
+        console.log("Tab became visible. Attempting to reconnect...");
+        this._connect();
       }
     });
   }
 
-  run(callback = null) {
-    if (this.ws) return;
-    if (typeof callback === "function") this.on("connected", callback);
+  _connect() {
+    if (this.ws && this.ws.readyState < WebSocket.CLOSING) {
+      console.warn(
+        "WebSocket is already connected or connecting. State:",
+        this.ws.readyState
+      );
+      return;
+    }
 
-    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${
-      location.host
-    }/app/${appID}`;
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    const url = `${protocol}://${location.host}/app/${this.id}`;
+    console.log("Connecting to WebSocket:", url);
 
     this.ws = new WebSocket(url);
 
-    this.ws.onopen = e => this._callEvent("ws:onopen", e);
+    this.ws.onopen = e => {
+      console.log("WebSocket connection opened.");
+      this._clearReconnectTimer();
+      this._callEvent("ws:onopen", e);
+    };
+
     this.ws.onmessage = e => {
       try {
         const message = JSON.parse(e.data);
         if (message.event === "connected") {
-          this.appConfig = message.payload.config;
-          this.userSettings = message.payload.settings;
+          this.reconnectAttempts = 0;
+
+          // Update ID if server sends new one
+          if (message.payload.app_id) {
+            appID = message.payload.app_id;
+            this.id = message.payload.app_id;
+          }
+
+          this.userSettings = message.payload.settings || {};
+          this.appConfig = message.payload.config || {};
         }
-        message.event && this._callEvent(message.event, message.payload);
-      } catch (error) {
-        console.error("WebSocket error:", error);
+
+        if (message.event) {
+          this._callEvent(message.event, message.payload);
+        }
+      } catch (err) {
+        console.error("WebSocket message parse error:", err);
       }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (e) => {
+      console.warn("WebSocket connection closed.");
       this.ws = null;
-      this._callEvent("ws:onclose");
+      this._callEvent("ws:onclose", e);
+      this._scheduleReconnect();
     };
 
-    this.ws.onerror = e => this._callEvent("ws:onerror", e);
+    this.ws.onerror = e => {
+      console.error("WebSocket error:", e);
+      this._callEvent("ws:onerror", e);
+      if (this.ws) {
+        this.ws.close(); // Will trigger onclose
+        this.ws = null;
+      }
+    };
   }
 
-  _callEvent(event, data = null) {
-    this.eventCallbacks[event]?.forEach(func => func(data));
+  _scheduleReconnect() {
+    console.log("Scheduling reconnect... Attempt:", this.reconnectAttempts);
+
+    if (this._reconnectTimer) {
+      console.log("Reconnect timer already set. Skipping.");
+      return;
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn(
+        `Max reconnect attempts (${this.maxReconnectAttempts}) reached.`
+      );
+      this._callEvent("ws:reconnect_failed");
+      return;
+    }
+
+    this.reconnectAttempts += 1;
+    console.log(
+      `Reconnect attempt ${this.reconnectAttempts} in ${this.reconnectDelay}ms...`
+    );
+
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      this._connect();
+    }, this.reconnectDelay);
+  }
+
+  _clearReconnectTimer() {
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+  }
+
+  run(callback = null) {
+    if (this.ws && this.ws.readyState < WebSocket.CLOSING) return;
+    if (typeof callback === "function") {
+      this.on("connected", callback);
+    }
+    this._connect();
   }
 
   on(event, callback) {
-    (this.eventCallbacks[event] ||= []).push(callback);
+    this.addEvent(event, callback);
   }
 
-  send = data => this.ws?.send(JSON.stringify(data));
-  func = (name, options) => this.system.appFunc(name, options);
-  createNeuron = name => new NeuronService(name);
+  addEvent(event, callback) {
+    if (!this.eventCallbacks[event]) {
+      this.eventCallbacks[event] = [];
+    }
+    this.eventCallbacks[event].push(callback);
+  }
+
+  _callEvent(event, data = null) {
+    if (this.eventCallbacks[event]) {
+      this.eventCallbacks[event].forEach(fn => fn(data));
+    }
+  }
+
+  send = data => {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(data));
+    } else {
+      console.warn("Cannot send message. WebSocket not open.");
+    }
+  };
+
+  func = (name, options) => {
+    return this.system.appFunc(name, options);
+  };
+
+  createNeuron = name => {
+    return new NeuronService(name);
+  };
 }
 
 const kikxApp = new KikxApp();
