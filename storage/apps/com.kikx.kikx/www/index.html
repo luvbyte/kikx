@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KIKX</title>
+
+    <script src="/share/cdn/tailwind-3.js"></script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class"
+      };
+    </script>
+  </head>
+  <body>
+    <!-- Fullscreen Loading Screen -->
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-black/40 flex flex-col justify-center items-center font-bold"
+    >
+      <div
+        class="border-white border-b w-6 h-6 animate-spin rounded-full"
+      ></div>
+    </div>
+
+    <!-- main -->
+    <div class="h-screen w-full p-2 flex">
+      <div class="flex-1 border rounded">
+        <!-- Navbar -->
+        <div class="border-b p-3 text-center bg-blue-400/40">
+          KIKX DASHBOARD
+        </div>
+        <!-- sessions -->
+        <div class="flex flex-col border-b h-64">
+          <div class="p-2 border-b bg-pink-400/40">SESSIONS</div>
+          <div id="sessions" class="flex-1">
+            <!-- session -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/share/cdn/jquery.min.js"></script>
+    <script src="/share/static/app.js"></script>
+
+    <script defer src="script.js"></script>
+  </body>
+</html>

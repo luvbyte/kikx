@@ -1,0 +1,4 @@
+*.png linguist-vendored
+*.jpg linguist-vendored
+*.svg linguist-vendored
+*.mp4 linguist-vendored

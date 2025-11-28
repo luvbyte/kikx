@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scrollable Anime Videos</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        background: black;
+        overflow: hidden;
+      }
+
+      .scroll-container {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .video-wrapper {
+        height: 100vh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: black;
+      }
+
+      video {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+        background: black;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scroll-container" id="videoContainer"></div>
+
+    <script>
+      const videos = [];
+
+      const container = document.getElementById("videoContainer");
+
+      // Create video elements dynamically
+      videos.forEach((src, index) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "video-wrapper";
+
+        const video = document.createElement("video");
+        video.src = src;
+        video.autoplay = index === 0;
+        // video.muted = true; // allow autoplay
+        video.loop = true;
+        video.playsInline = true;
+        video.poster = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8+B8AAr8B9wSvVrQAAAAASUVORK5CYII=";
+
+        video.preload = index < 2 ? "auto" : "metadata"; // preload first 2
+
+        // Show first frame as poster
+        video.addEventListener("loadeddata", () => {
+          if (video.readyState >= 2) {
+            video.currentTime = 0.1; // small seek to force first frame
+          }
+        });
+
+        wrapper.appendChild(video);
+        container.appendChild(wrapper);
+      });
+
+      const wrappers = document.querySelectorAll(".video-wrapper");
+      const allVideos = document.querySelectorAll("video");
+      let activeIndex = 0;
+      const total = wrappers.length;
+
+      // Ensure the correct video is visible
+      function scrollToIndex(index) {
+        if (index < 0 || index >= total) return;
+        activeIndex = index;
+        wrappers[activeIndex].scrollIntoView({ behavior: "smooth" });
+        preloadNextVideos(activeIndex);
+      }
+
+      // Preload next 2 videos
+      function preloadNextVideos(currentIndex) {
+        for (let i = 1; i <= 2; i++) {
+          const next = allVideos[currentIndex + i];
+          if (next) {
+            next.preload = "auto";
+          }
+        }
+      }
+
+      // Auto play/pause visible video
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.play();
+            } else {
+              entry.target.pause();
+            }
+          });
+        },
+        { threshold: 0.7 }
+      );
+      allVideos.forEach((video) => observer.observe(video));
+
+      // -------- Desktop scroll (wheel) --------
+      let wheelTimeout;
+      window.addEventListener("wheel", (e) => {
+        if (wheelTimeout) return;
+        if (e.deltaY > 0) {
+          scrollToIndex(activeIndex + 1);
+        } else if (e.deltaY < 0) {
+          scrollToIndex(activeIndex - 1);
+        }
+        wheelTimeout = setTimeout(() => (wheelTimeout = null), 600);
+      });
+
+      // -------- Mobile swipe (touch) --------
+      let startY = 0;
+      window.addEventListener("touchstart", (e) => {
+        startY = e.touches[0].clientY;
+      });
+
+      window.addEventListener("touchend", (e) => {
+        const endY = e.changedTouches[0].clientY;
+        const deltaY = startY - endY;
+        if (Math.abs(deltaY) > 50) {
+          if (deltaY > 0) {
+            scrollToIndex(activeIndex + 1);
+          } else {
+            scrollToIndex(activeIndex - 1);
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "installed": {
+    "fs": {
+      "title": "File System"
+    },
+    "system": {
+      "title": "System"
+    },
+    "proxy": {
+      "title": "Proxy"
+    },
+    "vi": {
+      "title": "Vi"
+    }
+  },
+  "enabled": ["system", "fs", "proxy", "vi"]
+}

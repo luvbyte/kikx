@@ -1,0 +1,16 @@
+{
+  "settings": {},
+  "plugins": {
+    "greet": {
+      "path": "storage://plugins/greet"
+    }
+  },
+  "ui": {
+    "kui": {
+      "path": "storage://ui/kui"
+    },
+    "aui": {
+      "path": "storage://ui/aui"
+    }
+  }
+}

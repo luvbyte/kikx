@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VI - Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/share/cdn/tailwind-3.js"></script>
+    <script src="/share/cdn/jquery.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="loading-screen"
+      class="fixed inset-0 w-full h-full bg-black/60 flex flex-col justify-center items-center font-bold"
+    >
+      <div
+        class="border-white border-b w-6 h-6 animate-spin rounded-full"
+      ></div>
+    </div>
+
+    <div id="main" class="h-screen"></div>
+
+    <script src="/share/static/app.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

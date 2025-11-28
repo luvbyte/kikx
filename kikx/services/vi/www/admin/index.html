@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VI - Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/share/cdn/tailwind-3.js"></script>
+  </head>
+  <body class="bg-black/80 text-white text-xs">
+    <!-- login -->
+    <div id="main" class="h-screen">
+      <!-- Devices List -->
+      <div
+        id="devices-list-panel"
+        class="w-full h-full flex flex-col gap-2 p-2"
+      >
+      
+        <div id="active-list" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Device frames -->
+      <div
+        id="device-frame"
+        style="display: none"
+        class="w-full h-full flex flex-col gap-1 p-1"
+      >
+        <div
+          class="p-1 border border-pink-400 rounded flex gap-2 items-center"
+          onclick="showActiveList()"
+        >
+          <div class="w-16">
+            <img id="device-icon" class="w-16" />
+          </div>
+          <div class="h-16 w-full gap-1 flex flex-col justify-center gap-1">
+            <p id="device-name"></p>
+            <p id="device-meta"></p>
+            <p id="device-cid"></p>
+          </div>
+        </div>
+
+        <div
+          id="console"
+          class="flex-1 flex flex-col w-full border rounded overflow-y-auto"
+        ></div>
+        <div
+          id="toolbar"
+          class="p-1 h-8 border flex gap-1 items-center border-green-400"
+        >
+          <!-- toolbar / input -->
+          <div
+            id="input-box"
+            class="w-full h-full flex items-center justify-between gap-1"
+          >
+            <input
+              id="input-el"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              placeholder="Type command .. ૮(˶ᵔᵕᵔ˶)ა."
+              class="w-full h-full bg-transparent focus:outline-none px-1"
+            />
+            <div id="input-send-btn">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="26"
+                height="26"
+                viewBox="0 0 16 16"
+              >
+                <g fill="currentColor">
+                  <path
+                    d="M2.78 2L2 2.41v12l.78.42l9-6V8zM3 13.48V3.35l7.6 5.07z"
+                  />
+                  <path
+                    fill-rule="evenodd"
+                    d="m6 14.683l8.78-5.853V8L6 2.147V3.35l7.6 5.07L6 13.48z"
+                    clip-rule="evenodd"
+                  />
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div id="dock" class="border h-2/6 flex flex-col overflow-y-hidden">
+          <div
+            class="p-1 min-h-[2rem] max-h-[2rem] px-2 bg-gradient-to-r border border-white/80 from-pink-400/80 to-blue-400/80 text-white flex justify-between items-center"
+          >
+            <div>Scripts</div>
+            <div class="flex gap-1 items-center">
+              <div id="scripts-path"></div>
+              <div id="back-btn">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    fill="currentColor"
+                    d="m4 10l-.707.707L2.586 10l.707-.707zm17 8a1 1 0 1 1-2 0zM8.293 15.707l-5-5l1.414-1.414l5 5zm-5-6.414l5-5l1.414 1.414l-5 5zM4 9h10v2H4zm17 7v2h-2v-2zm-7-7a7 7 0 0 1 7 7h-2a5 5 0 0 0-5-5z"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div
+            id="scripts-list"
+            class="flex-1 flex flex-col overflow-y-auto"
+          ></div>
+        </div>
+      </div>
+    </div>
+    <!-- Script -->
+    <script src="/share/cdn/jquery.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
