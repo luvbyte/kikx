@@ -151,7 +151,6 @@ class SystemService extends Service {
 
 class Client {
   constructor() {
-    this.userSettings = {};
     this.clientID = clientID; // global
     this.eventCallbacks = {};
     this.system = new SystemService();
@@ -168,11 +167,9 @@ class Client {
     // this.heartbeatDelay = 3000; // 3 seconds
     // this._heartbeatTimer = null;
 
-    // Listen for user settings update
+    // Listen for signals
     this.on("signal", signalData => {
-      if (signalData.signal === "update_user_settings") {
-        Object.assign(this.userSettings, signalData.data);
-      }
+      //
     });
 
     this.on("reconnected", () => {
@@ -226,7 +223,6 @@ class Client {
         if (message.event === "connected") {
           this.clientID = message.payload.client_id;
           clientID = message.payload.client_id;
-          this.userSettings = message.payload.settings || {};
         }
         if (message.event) this._callEvent(message.event, message.payload);
       } catch (err) {

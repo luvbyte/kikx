@@ -130,9 +130,4 @@ const loadFiles = async () => {
 
 $(async () => {
   loadFiles();
-  kikxApp.system.getUserSettings("display.dark").then(res => {
-    if (res.data) {
-      $("html").toggleClass("dark", res.data.setting);
-    }
-  });
 });

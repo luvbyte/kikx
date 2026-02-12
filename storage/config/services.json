@@ -8,10 +8,7 @@
     },
     "proxy": {
       "title": "Proxy"
-    },
-    "vi": {
-      "title": "Vi"
     }
   },
-  "enabled": ["system", "fs", "proxy", "vi"]
+  "enabled": ["system", "fs", "proxy"]
 }

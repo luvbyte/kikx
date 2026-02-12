@@ -133,7 +133,6 @@ $(function () {
   client.run(async payload => {
     await updateKuiConfig();
     startEmojis();
-    updateControlPanel(client.userSettings);
 
     const userRes = await client.func("user_data");
     if (userRes.data) updateUserData(userRes.data);
@@ -303,22 +302,19 @@ const createSwipeBubble = selector => {
   // ---- Touch Gestures ----
   initTouchGestures(selector, {
     swipeDown: () => {
-      if (typeof showHome === "function") {
-        closeCurrentApp();
-        forceClose();
-      }
+      // Soft Close App show home
+      showHome();
+      forceClose();
     },
     swipeUp: () => {
-      if (typeof toggleRecentApps === "function") {
-        toggleRecentApps();
-        forceClose();
-      }
+      // Toggle active apps
+      toggleRecentApps();
+      forceClose();
     },
     swipeLeft: () => {
-      if (typeof closeCurrentApp === "function") {
-        showHome();
-        forceClose();
-      }
+      // close app
+      closeCurrentApp();
+      forceClose();
     },
     swipeRight: () => {
       $centerControlPanel.fadeIn(400);

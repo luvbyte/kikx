@@ -1,0 +1,47 @@
+
+  <div class="max-w-3xl mx-auto p-2">
+    
+    <div class="mb-8">
+      <div id="adb-something" class=" font-bold text-white">ADB - Android Debug Bridge</div>
+    </div>
+
+    <div class="mb-6">
+      <div>
+        <div class="mb-2 font-semibold text-red-400">What is ADB?</div>
+        <div>
+          ADB (Android Debug Bridge) is a versatile command-line tool that allows communication with a device. It is part of the Android SDK (Software Development Kit) and provides developers with the ability to install and debug apps, access device logs, and issue various commands to Android devices.
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <div>
+        <div class="mb-2 font-semibold text-red-400">Key Features:</div>
+        <div class="space-y-2">
+          <div>• Send shell commands to an Android device.</div>
+          <div>• Push and pull files to and from the device.</div>
+          <div>• Install and uninstall APKs.</div>
+          <div>• Access system logs via <code class="bg-green-300/60 px-1 rounded">logcat</code>.</div>
+          <div>• Connect to both physical and virtual devices.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <div>
+        <div class="mb-2 font-semibold text-white">Common Commands:</div>
+        <div class="space-y-2 font-mono p-4 rounded border">
+          <div><code>adb devices</code> – List connected devices</div>
+          <div><code>adb install app.apk</code> – Install an app</div>
+          <div><code>adb logcat</code> – View system logs</div>
+          <div><code>adb shell</code> – Start a remote shell</div>
+          <div><code>adb push local remote</code> – Copy files to device</div>
+          <div><code>adb pull remote local</code> – Copy files from device</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-10 text-green-500">
+      <div>Note: Ensure USB debugging is enabled on your Android device and proper drivers are installed.</div>
+    </div>
+  </div>

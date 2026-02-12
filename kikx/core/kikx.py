@@ -256,8 +256,7 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
       event_name = "connected"
     await app.connect_websocket(websocket)
     await app.send_event(event_name, {
-      "config": app.config.model_dump(),
-      "settings": client.user.settings()
+      "config": app.config.model_dump()
     })
   except PermissionError as e:
     await websocket.close(code=1008, reason=str(e))
@@ -302,8 +301,7 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
     # This is reconnect attempt
     await client.connect_websocket(websocket)
     await client.send_event(event_name, {
-      "client_id": client.id,
-      "settings": client.user.settings()
+      "client_id": client.id
     })
   except PermissionError as e:
     await websocket.close(code=1008, reason=str(e))

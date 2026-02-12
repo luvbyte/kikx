@@ -630,8 +630,5 @@ function toggleSoundMode(option) {
   updateToggleHighlight(!silent, $("#sound-toggle-btn"));
 }
 
-// initialize
-const updateControlPanel = userSettings => {
-  toggleNotifyMode(userSettings.sound.silent);
-  toggleSoundMode(userSettings.sound.silent);
-};
+toggleNotifyMode(false);
+toggleSoundMode(false);

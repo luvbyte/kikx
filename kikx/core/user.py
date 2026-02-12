@@ -12,32 +12,6 @@ from core.models.setting_models import UserSettingsModel
 logger = logging.getLogger(__name__)
 
 
-class UserSettings:
-  """Handles user's editable settings with persistent storage."""
-
-  def __init__(self, settings_path: Path):
-    self.settings_path: Path = settings_path
-    self._settings: UserSettingsModel = UserSettingsModel.load(self.settings_path)
-    logger.info(f"Loaded user settings from {self.settings_path}")
-
-  def save(self) -> None:
-    self._settings.save(self.settings_path)
-    logger.debug(f"User settings saved to {self.settings_path}")
-
-  def update(self, settings: dict[str, Any]) -> None:
-    """Update and save settings. Raises error if validation fails."""
-    self._settings = self._settings.update(settings)
-    logger.info("User settings updated")
-    self.save()
-
-  def __call__(self) -> dict[str, Any]:
-    return self._settings.model_dump()
-
-  def on_close(self) -> None:
-    """Persist any in-memory changes on shutdown."""
-    self.save()
-
-
 class User:
   """Represents a single user's profile and configuration."""
 
@@ -58,7 +32,6 @@ class User:
     self.user_data: UserDataModel = parse_config(
       self.data_path / "config/user_data.json", UserDataModel
     )
-    self.settings: UserSettings = UserSettings(self.data_path / "config/settings.json")
 
     logger.info(f"User loaded: {self.username}")
 
@@ -79,11 +52,6 @@ class User:
     logger.debug(f"Installed apps: {apps}")
     return apps
 
-  def update_setting(self, name: str, value: Any) -> None:
-    """Update a single setting (function stub)."""
-    logger.warning(f"update_setting('{name}', ...) not implemented")
-
   def on_close(self) -> None:
     """Trigger user-level shutdown handlers (e.g., save settings)."""
-    self.settings.on_close()
     logger.info(f"User {self.username} session closed")

@@ -249,7 +249,6 @@ class KikxApp {
     this.maxReconnectAttempts = 5;
     this._reconnectTimer = null;
 
-    this.userSettings = {};
     this.appConfig = {};
 
     // Event: App-specific handler
@@ -259,11 +258,9 @@ class KikxApp {
         ?._ondata_callbacks.forEach(fn => fn(payload.data));
     });
 
-    // Event: Update user settings
+    // Signals
     this.on("signal", signal => {
-      if (signal.signal === "update_user_settings") {
-        Object.assign(this.userSettings, signal.data);
-      }
+      //
     });
 
     this.on("reconnected", () => {
@@ -308,7 +305,6 @@ class KikxApp {
       try {
         const message = JSON.parse(e.data);
         if (message.event === "connected") {
-          this.userSettings = message.payload.settings || {};
           this.appConfig = message.payload.config || {};
         }
         if (message.event) {

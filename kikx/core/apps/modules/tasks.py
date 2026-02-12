@@ -67,7 +67,7 @@ class Task:
       await handler.error("Can't re-run task that's already running")
       raise_error("Can't re-run task that's already running")
 
-    if True:
+    if self.shell:
       self.process = await asyncio.create_subprocess_shell(
         self.cmd,
         env=self.env,
