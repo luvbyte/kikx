@@ -214,7 +214,7 @@ class Neko(JApp):
 
   def create_end_buttons(self) -> None:
     panel.append(Animate(Div("""
-      <div class="absolute flex z-[800] bottom-2 right-2 p-3 rounded space-x-1">
+      <div class="fixed flex z-[800] bottom-2 right-2 p-3 rounded space-x-1">
         <!-- Run Button -->
         <div onclick="sendInput('$rerun')" class="bg-green-400/80 p-2 rounded cursor-pointer transition">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 16 16"><g fill="currentColor"><path d="M2.78 2L2 2.41v12l.78.42l9-6V8zM3 13.48V3.35l7.6 5.07z"/><path fill-rule="evenodd" d="m6 14.683l8.78-5.853V8L6 2.147V3.35l7.6 5.07L6 13.48z" clip-rule="evenodd"/></g></svg>
