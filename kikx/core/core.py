@@ -75,7 +75,7 @@ class Core:
     return (client, app) if app else (None, None)
 
   # --------------------------- Apps
-  async def open_app(self, client_id: str, name: str, manifest) -> object:
+  async def open_app(self, client_id: str, name: str, manifest, sudo) -> object:
     """
     Open an app for a given client.
     Raises an error if the client does not exist.
@@ -84,7 +84,7 @@ class Core:
     if client is None:
       raise_error("client not found")
 
-    app = client.open_app(name, manifest)
+    app = client.open_app(name, manifest, sudo)
     self.app_index[app.id] = client.id
     
     return app

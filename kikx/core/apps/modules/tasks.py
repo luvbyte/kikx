@@ -1,5 +1,6 @@
 import os
 import sys
+import pwd
 import shlex
 import signal
 import asyncio
@@ -32,7 +33,7 @@ class TasksConfigModel(BaseModel):
   main: str = Field('python3 -u $KIKX_APP_PATH/tasks/{name}.py {args}', description="Prefix for all tasks")
 
 class Task:
-  def __init__(self, cmd: str, env: Dict[str, str], shell: bool, cwd: str):
+  def __init__(self, cmd: str, env: Dict[str, str], shell: bool, cwd: str, sudo: bool):
     self.cmd: str = cmd
     self.cwd = cwd
     self.shell = shell
@@ -43,6 +44,9 @@ class Task:
     self.stdout_timeout: int = 30
     self.waiting: bool = False
     self.task_input: List[str] = []
+    
+    # root / nobody - user
+    self.sudo = sudo
 
     self.stdout = asyncio.subprocess.PIPE
     self.stdin = asyncio.subprocess.PIPE
@@ -52,6 +56,16 @@ class Task:
     self.pgid: Optional[int] = None
     
     self._cleaned = False
+  
+  def get_user(self):
+    return "root" if self.sudo else "nobody"
+
+  def demote(self, user_name):
+    def result():
+      pw = pwd.getpwnam(user_name)
+      os.setgid(pw.pw_gid)
+      os.setuid(pw.pw_uid)
+    return result
 
   async def send(self, data: str) -> None:
     """Send input to the subprocess."""
@@ -66,6 +80,11 @@ class Task:
     if self.started or self.process:
       await handler.error("Can't re-run task that's already running")
       raise_error("Can't re-run task that's already running")
+    
+    if self.sudo:
+      preexec = None  # stay root
+    else:
+      preexec = self.demote(self.get_user())
 
     if self.shell:
       self.process = await asyncio.create_subprocess_shell(
@@ -75,7 +94,8 @@ class Task:
         stdin=self.stdin,
         stderr=self.stderr,
         cwd=self.cwd,
-        start_new_session=True
+        start_new_session=True,
+        preexec_fn=preexec
       )
     else:
       self.process = await asyncio.create_subprocess_exec(
@@ -85,7 +105,8 @@ class Task:
         stdin=self.stdin,
         stderr=self.stderr,
         cwd=self.cwd,
-        start_new_session=True
+        start_new_session=True,
+        preexec_fn=preexec
       )
     self.started = True
     self.sid = os.getsid(self.process.pid)
@@ -153,7 +174,7 @@ class Task:
       logger.warning(f"Task {self.id} (SID {self.sid}) forcefully killed")
     except Exception as e:
       logger.error(f"Force kill failed for {self.id}: {e}")
-  
+
   # sending sigint + sigkill
   async def _force_gracefully_clean(self):
     if not self.process or self.process.returncode is not None:
@@ -222,6 +243,9 @@ class Tasks:
       # 1. app/bin | 2. storage/bin | 3. kikx path
       "PATH": f'{str(self.app_path / "bin")}:{app.user.get_path_env()}:{str(Path(sys.executable).parent)}:{self.task_env.get("PATH", "")}'
     })
+    
+    # Sudo
+    self.sudo = app.sudo #
 
     self.task_template: str = self.config.main
     self.send_event = app.send_event
@@ -263,7 +287,7 @@ class Tasks:
       "args": " ".join(split_cmd[1:])
     })
 
-    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd)
+    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, self.sudo)
 
     self.running_tasks[task.id] = task
     ctask = asyncio.create_task(self._run_task(task, Handler(handler_id, self.send_event)), name=task.id)
@@ -283,7 +307,7 @@ class Tasks:
       "args": " ".join(split_cmd[1:])
     })
 
-    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd)
+    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, self.sudo)
 
     async def _runner():
       try:

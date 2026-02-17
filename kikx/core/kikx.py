@@ -160,7 +160,7 @@ async def close_app(app_model: CloseAppModel):
 @kikx_app.post("/open-app")
 async def open_app(app_model: OpenAppModel):
   try:
-    app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(app_model.name))
+    app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(app_model.name), app_model.sudo)
     return {
       "id": app.id,
       "url": f"/app/{app.id}/index.html?starting=true",

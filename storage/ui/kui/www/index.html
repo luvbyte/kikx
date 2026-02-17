@@ -181,9 +181,7 @@
         </div>
 
         <div class="flex items-center gap-1">
-          <div class="font-bold uppercase text-xs text-black">
-            notifications
-          </div>
+          <h1 class="font-bold uppercase text-xs text-black">notifications</h1>
 
           <div class="py-[0.5px] bg-black/60 flex-1"></div>
 
@@ -213,7 +211,10 @@
           id="header"
           class="relative min-h-10 px-2 bg-gradient-to-b to-pink-500/80 from-white *:text-black text-lg flex justify-between items-center"
         >
-          <div id="kikx-title" class="font-bold flex items-center gap-1">
+          <div
+            id="kikx-title"
+            class="font-bold flex items-center gap-1 font-mono"
+          >
             <div class="flex items-center">
               K<span class="text-blue-600">I</span>K<span
                 class="text-purple-600"
@@ -223,11 +224,13 @@
             <div style="display: none" id="emoji" class="inline"></div>
           </div>
           <div class="flex items-center gap-1 justify-center">
+            <div style="display: none" id="header-sudo-icon">ᥫ᭡</div>
             <div
               id="header-app-icon"
               class="w-6 h-6 flex items-center justify-center rounded-md overflow-hidden"
             ></div>
-            <div id="header-app-name"></div>
+            
+            <h1 id="header-app-name" class="hidden"></h1>
             <div onclick="toggleNotificationsPanel()">
               <svg
                 xmlns="http://www.w3.org/2000/svg"

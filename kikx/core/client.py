@@ -51,7 +51,7 @@ class Client(FuncX):
     logger.info(f"Sending event to client: {event}")
     await self.connection.send_event(event, payload)
 
-  def open_app(self, name: str, manifest) -> App:
+  def open_app(self, name: str, manifest, sudo) -> App:
     """
     Opens an app for the client by name.
     Loads its configuration and creates the App instance.
@@ -69,7 +69,7 @@ class Client(FuncX):
       logger.error(f"Error parsing config for app '{name}': {e}")
       raise_error("Error parsing app config file")
 
-    app = App(self.id, name, app_path, app_config, self.user, manifest)
+    app = App(self.id, name, app_path, app_config, self.user, manifest, sudo)
     self.running_apps[app.id] = app
     logger.info(f"App opened: {app.name} (ID: {app.id})")
     return app

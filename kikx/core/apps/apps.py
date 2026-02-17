@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class App(FuncX):
-  def __init__(self, client_id: str, name: str, app_path: Path, config: AppModel, user: object, manifest):
+  def __init__(self, client_id: str, name: str, app_path: Path, config: AppModel, user: object, manifest, sudo=False):
     super().__init__()
     self.name: str = name
     self.id: str = uuid4().hex
@@ -25,6 +25,8 @@ class App(FuncX):
     self.manifest = manifest
     self.title: str = config.title
     self.user = user  # Custom user object
+    
+    self.sudo = sudo  # Sudo App
 
     self.connection = Connection()
     self.__modules: List[Dict[str, object]] = []

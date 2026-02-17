@@ -26,14 +26,16 @@ let uiSettings = {};
 const closeAppsPanel = () => $appsPanel.fadeOut(300);
 
 // Open an app in an iframe and create a tab
-async function openApp(name, icon, title) {
+async function openApp(name, icon, title, sudo = false) {
+  $appsMenu.fadeOut(300);
+
   if (appFrames[name]) return switchApp(name); // Switch if already open
 
   try {
     const res = await fetch("/open-app", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_id: clientID, name })
+      body: JSON.stringify({ client_id: clientID, name, sudo })
     });
 
     const resData = await res.json();
@@ -67,7 +69,8 @@ async function openApp(name, icon, title) {
       iframe: $iframe[0],
       title,
       icon,
-      id
+      id,
+      sudo
     };
     openApps.push(name);
 
@@ -83,7 +86,7 @@ async function openApp(name, icon, title) {
              alt="${escapeHTML(title)} icon" />
     
         <!-- App Title -->
-        <span class="text-sm font-semibold text-center truncate w-full text-white">
+        <span class="text-sm font-semibold text-center truncate w-full text-white font-heading">
           ${escapeHTML(title)}
         </span>
     
@@ -204,6 +207,7 @@ async function closeApp(name) {
     console.error(`Failed to close app ${name}:`, error);
   }
 }
+
 // Switch to a specific app
 function switchApp(name) {
   $(".app-frame").addClass("hidden"); // Hide all iframes
@@ -229,9 +233,13 @@ function switchApp(name) {
       class: "w-full h-full"
     });
     $("#header-app-icon").html(iconDiv);
+    if (appFrame.sudo) {
+      $("#header-sudo-icon").show();
+    }
   } else {
     $("#header-app-icon").empty();
     $("#header-app-name").empty();
+    $("#header-sudo-icon").hide();
   }
 }
 
@@ -241,16 +249,39 @@ function renderLauncherGrid(appList) {
 
   appList.forEach(({ name, icon, title }) => {
     const $button = $(`
-      <button class="flex flex-col gap-1 items-center transition">
+      <button class="flex flex-col gap-1 items-center transition relative">
         <div class="w-14 h-14 flex justify-center items-center rounded-lg overflow-hidden shadow-lg">
           <img src="${escapeHTML(icon)}" class="w-full h-full" />
         </div>
-        <span class="text-sm truncate text-white w-18">${escapeHTML(
-          title
-        )}</span>
+        <span class="text-sm truncate text-white w-18">
+          ${escapeHTML(title)}
+        </span>
       </button>
     `);
-    $button.on("click", () => openApp(name, icon, title));
+
+    let pressTimer;
+    let isLongPress = false;
+
+    // Detect long press (500ms)
+    $button.on("mousedown touchstart", function (e) {
+      isLongPress = false;
+      pressTimer = setTimeout(() => {
+        isLongPress = true;
+        openApp(name, icon, title, true);
+      }, 600);
+    });
+
+    $button.on("mouseup mouseleave touchend", function () {
+      clearTimeout(pressTimer);
+    });
+
+    // Normal click (only if not long press)
+    $button.on("click", function () {
+      if (!isLongPress) {
+        openApp(name, icon, title);
+      }
+    });
+
     $grid.append($button);
   });
 }

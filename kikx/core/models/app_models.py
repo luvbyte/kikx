@@ -13,6 +13,7 @@ class CloseAppModel(BaseModel):
 class OpenAppModel(BaseModel):
   name: str
   client_id: str
+  sudo: bool = False
   
 class AppsListModel(BaseModel):
   client_id: str
