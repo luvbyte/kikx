@@ -25,6 +25,11 @@ let uiSettings = {};
 
 const closeAppsPanel = () => $appsPanel.fadeOut(300);
 
+// No context menu
+$(document).on("contextmenu", function (e) {
+  e.preventDefault();
+});
+
 // Open an app in an iframe and create a tab
 async function openApp(name, icon, title, sudo = false) {
   $appsMenu.fadeOut(300);
@@ -251,7 +256,7 @@ function renderLauncherGrid(appList) {
     const $button = $(`
       <button class="flex flex-col gap-1 items-center transition relative">
         <div class="w-14 h-14 flex justify-center items-center rounded-lg overflow-hidden shadow-lg">
-          <img src="${escapeHTML(icon)}" class="w-full h-full" />
+          <img src="${escapeHTML(icon)}" class="w-full h-full" draggable="false" />
         </div>
         <span class="text-sm truncate text-white w-18">
           ${escapeHTML(title)}

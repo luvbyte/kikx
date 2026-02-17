@@ -22,6 +22,8 @@ PORT = 8080
 async def lifespan(app: FastAPI):
   console.print("Server Running", padding=1, center=True, bg="purple-400/40")
   console.wg.copy_box(f"http://{HOST}:{PORT}", f"http://{HOST}:{PORT}")
+  
+  console.print(f"Serving: {SHARED_DIR}", padding=1, bg="blue-400/40")
 
   yield
 
@@ -139,4 +141,4 @@ async def download_file(path: str):
 def start():
   import uvicorn
 
-  uvicorn.run(app, host=HOST, port=PORT, reload=False, log_level="critical", access_log=False)
+  uvicorn.run(app, host=HOST, port=PORT, reload=False, log_level="info", access_log=False)

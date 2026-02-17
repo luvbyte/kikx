@@ -158,33 +158,13 @@ command = build_nmap_command(payload)
 console.clear()
 
 def run_nmap_smart(command: str, console) -> str:
-    # 1. Try without sudo
-    try:
-        result = subprocess.run(
-            command.split(),
-            capture_output=True,
-            text=True
-        )
-        # Check for permission issues
-        if "requires root" in result.stderr or "Permission denied" in result.stderr:
-            raise PermissionError(result.stderr)
+  result = subprocess.run(
+    command.split(),
+    capture_output=True,
+    text=True
+  )
 
-        return result.stdout + result.stderr
-
-    except PermissionError:
-        # 2. Ask for sudo password if needed
-        password = console.input("🔒 Sudo required for this scan. Enter password: ")
-
-        sudo_command = ["sudo", "-S"] + command.split()
-        proc = subprocess.Popen(
-            sudo_command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        stdout, stderr = proc.communicate(input=password + "\n")
-        return stdout + stderr
+  return result.stdout + result.stderr
 
 def generate_nmap_result_ui(result: str, target: str = "Unknown") -> str:
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
