@@ -4,6 +4,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/share/cdn/animate.min.css" />
 
+    <link rel="stylesheet" href="style.css" />
+
     <script src="/share/cdn/tailwind-3.js"></script>
     <script src="/share/cdn/jquery.min.js"></script>
 
@@ -159,7 +161,7 @@
       <!-- main panel -->
       <div
         id="panel"
-        class="flex-1 relative flex flex-col bg-black/40 w-full border border-white text-white text-sm overflow-auto rounded-lg rounded-tl-none rounded-br-none"
+        class="flex-1 relative flex flex-col bg-black/40 w-full border border-white text-white text-xs overflow-auto rounded-lg rounded-tl-none rounded-br-none"
       ></div>
 
       <div
@@ -173,7 +175,7 @@
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
-          class="w-full bg-transparent focus:outline-none"
+          class="w-full bg-transparent focus:outline-none text-xs "
         />
         <button onclick="_sendUserInput()">
           <svg

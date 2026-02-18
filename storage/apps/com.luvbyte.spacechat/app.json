@@ -1,5 +1,6 @@
 {
-  "title": "KittyChef",
+  "name": "com.luvbyte.spacechat",
+  "title": "SpaceChat",
 
   "iframe": {
     "allowfullscreen": true,

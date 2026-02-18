@@ -16,7 +16,7 @@ from neko import js, panel
 from neko.console import Console
 from neko.banners import BANNERS
 from neko.ui import Div, Pre, Center, Animate, Text, Padding, Element
-from neko.lib.utils import clean
+from neko.lib.utils import clean, sanitize_html
 from neko.lib.process import sh
 from neko.app import JApp
 
@@ -47,6 +47,12 @@ SCRIPT_ICONS = {
 DIR_ICONS = {
   "docs": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="#cad3f5" d="m1.875 8l.686-2.743a1 1 0 0 1 .97-.757h10.938a1 1 0 0 1 .97 1.243l-.315 1.26M6 13.5H2.004A1.5 1.5 0 0 1 .5 12V3.5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1" stroke-width="1"/><path stroke="#8aadf4" d="M8.5 14.5v-5a1 1 0 0 1 1-1h6v6m-6-1h6v2h-6a1 1 0 1 1 0-2" stroke-width="1"/></g></svg>'
 }
+
+def read_text(path: Path, sanitize=True):
+  if sanitize:
+    return sanitize_html(path.read_text(encoding="utf-8"))
+  else:
+    return path.read_text(encoding="utf-8")
 
 class Utils:
   @staticmethod
@@ -119,7 +125,7 @@ def get_file_icon(script: Path) -> str:
   if script.is_dir():
     icon_path = script / "neko-icon.svg"
     if icon_path.exists():
-      return icon_path.read_text(encoding="utf-8")
+      return read_text(icon_path, False)
     return DIR_ICONS.get(script.name, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path fill="currentColor" fill-opacity="0" stroke-dasharray="64" stroke-dashoffset="64" d="M12 7h8c0.55 0 1 0.45 1 1v10c0 0.55 -0.45 1 -1 1h-16c-0.55 0 -1 -0.45 -1 -1v-11Z"><animate fill="freeze" attributeName="fill-opacity" begin="0.8s" dur="0.15s" values="0;0.3"/><animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="64;0"/></path><path d="M12 7h-9v0c0 0 0.45 0 1 0h6z" opacity="0"><animate fill="freeze" attributeName="d" begin="0.6s" dur="0.2s" values="M12 7h-9v0c0 0 0.45 0 1 0h6z;M12 7h-9v-1c0 -0.55 0.45 -1 1 -1h6z"/><set fill="freeze" attributeName="opacity" begin="0.6s" to="1"/></path></g></svg>')
   else:
     return SCRIPT_ICONS.get(script.suffix, "<div>🤔</div>")
@@ -163,7 +169,7 @@ class Neko(JApp):
       <div class='h-9 p-1 py-3 bg-gradient-to-r border-2 border-white/80 from-pink-400/80 to-blue-400/80 text-black flex gap-2 justify-between items-center'>
         <div class="flex items-center gap-1" onclick="sendInput('$next')">
           <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M14.293 2.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L16.586 8H5a1 1 0 0 1 0-2h11.586l-2.293-2.293a1 1 0 0 1 0-1.414m-4.586 10a1 1 0 0 1 0 1.414L7.414 16H19a1 1 0 1 1 0 2H7.414l2.293 2.293a1 1 0 0 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0"/></svg>
-          <div class="font-bold text-md">{clean(SCRIPTS_DIR_NAME)}</div>
+          <h1 class="font-bold text-md">{clean(SCRIPTS_DIR_NAME)}</h1>
         </div>
         <div class="flex items-center gap-1 overflow-y-auto">
           {right_text}
@@ -257,9 +263,9 @@ class Neko(JApp):
     help_file_path = path.parent / f"_{path.name}.txt"
   
     if help_file_path.exists() and not help_file_path.is_dir():
-      banner_text = Div(help_file_path.read_text(encoding="utf-8"))
+      banner_text = Div(read_text(help_file_path))
       banner_text.add_class("w-full h-full")
-          
+
       self.top_box.replace(Animate(banner_text))
     else:
       banner_text = Div(f"""No help found for '{path.with_suffix("").name}'""")
@@ -275,7 +281,7 @@ class Neko(JApp):
       self.display_scripts(script_path, str(rel_path))
     elif script_path.exists():
       if script_path.suffix == ".txt":
-        self.top_box.replace(Animate(Text(script_path.read_text(encoding="utf-8"))))
+        self.top_box.replace(Animate(Text(read_text(script_path))))
         self.top_box.scroll_to_top()
       else:
         self.run_script(script_path)

@@ -288,6 +288,11 @@ function runFlorixTask(cmd) {
         break;
     }
   });
+  
+  // Remove once ended
+  task.handler.onended = () => {
+    removeHandler(task.handler.handlerID);
+  };
 
   task.run();
 }

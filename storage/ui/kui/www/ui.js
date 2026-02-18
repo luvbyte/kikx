@@ -53,7 +53,7 @@ async function openApp(name, icon, title, sudo = false) {
       });
     }
 
-    const { id, url, iframe } = resData;
+    const { id, url, iframe, isSudo } = resData;
 
     // Create and configure iframe
     const $iframe = $("<iframe>", {
@@ -75,7 +75,7 @@ async function openApp(name, icon, title, sudo = false) {
       title,
       icon,
       id,
-      sudo
+      isSudo
     };
     openApps.push(name);
 
@@ -238,7 +238,7 @@ function switchApp(name) {
       class: "w-full h-full"
     });
     $("#header-app-icon").html(iconDiv);
-    if (appFrame.sudo) {
+    if (appFrame.isSudo) {
       $("#header-sudo-icon").show();
     }
   } else {

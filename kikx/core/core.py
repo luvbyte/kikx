@@ -103,13 +103,13 @@ class Core:
     """Handle data received from the app (placeholder)."""
     event = data.get("event")
     if event == "ping":
-      await app.send_event("pong", data.get("payload", {}))
+      await app.connection.send_event("pong", data.get("payload", {}))
 
   async def on_client_data(self, client: object, data: dict) -> None:
     """Handle data received from the client (placeholder)."""
     event = data.get("event")
     if event == "ping":
-      await client.send_event("pong", data.get("payload", {}))
+      await client.connection.send_event("pong", {})
 
   async def on_app_disconnect(self, client: Client, app: object) -> None:
     """Handle app disconnect event (placeholder)."""
@@ -158,9 +158,8 @@ class Core:
     if not client:
       raise Exception("Session not found")
 
+    # close all apps and remove client
     await self.on_client_disconnect(client)
-    # Triggering websocket disconnect if active 
-    if client.connection.is_connected:
-      await client.connection.websocket.close()
-    return { "res": "ok" }
+
+    return True
 

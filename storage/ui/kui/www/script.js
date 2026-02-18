@@ -108,7 +108,7 @@ const startEmojis = () => {
 };
 
 $(function () {
-  // for this ui cant auto reconnec
+  // for this ui cant auto reconnect
   client.on("ws:onclose", e => {
     if (e.code === 1008) {
       // unauthorized reload or show login screen

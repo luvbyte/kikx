@@ -75,12 +75,8 @@ async def send_event(websocket: WebSocket, event: str, payload: Union[dict, Call
         "event": event,
         "payload": payload() if callable(payload) else payload
       })
-    except Exception as e:
-      await websocket.send_json({
-        "event": "kikx:error",
-        "payload": {"detail": str(e)}
-      })
-
+    except Exception:
+      pass
 
 def convert_to_base64(data: bytes) -> str:
   """

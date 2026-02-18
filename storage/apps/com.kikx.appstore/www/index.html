@@ -3,31 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BGita</title>
+    <title>AppStore</title>
 
     <script src="/share/cdn/tailwind-3.js"></script>
+    <script src="/share/cdn/jquery.min.js"></script>
   </head>
   <body>
     <!-- Fullscreen Loading Screen -->
     <div
       id="loading-screen"
-      class="fixed inset-0 w-full h-full bg-black/60 flex flex-col justify-center items-center font-bold"
+      class="fixed inset-0 w-full h-full bg-black/40 flex flex-col justify-center items-center font-bold"
     >
       <div
         class="border-white border-b w-6 h-6 animate-spin rounded-full"
       ></div>
     </div>
 
-    <div class="h-screen">
-      <iframe
-        id="frame"
-        class="w-full h-full"
-        allowfullscreen="true"
-        allow="fullscreen"
-        src="https://divine-gita.vercel.app/"
-      ></iframe>
-    </div>
+    <!-- main -->
+    <div
+      id="main"
+      class="h-screen flex justify-center items-center text-white"
+    ></div>
 
-    <script src="script.js"></script>
+    <script defer src="script.js"></script>
   </body>
 </html>

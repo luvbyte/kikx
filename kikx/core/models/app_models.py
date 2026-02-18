@@ -14,15 +14,10 @@ class OpenAppModel(BaseModel):
   name: str
   client_id: str
   sudo: bool = False
-  
+
 class AppsListModel(BaseModel):
   client_id: str
   
-# used for /apps/list apps
-class AppManifestModel(BaseModel):
-  title: str
-  icon: str = "icon.png"
-  category: str | None = None
 
 # ---------+++--------
 class AppStoragePermissionsModel(BaseModel):
@@ -72,8 +67,9 @@ class AppIframeModel(BaseModel):
 
 # app: {}
 class AppModel(BaseModel):
-  # find why i need title 
+  name: str = Field(..., description="App name")
   title: str = Field(..., description="App title")
+
   iframe: AppIframeModel = Field(..., description="Iframe permissons")
   modules: Dict[str, Dict] = Field({}, description="App modules to use")
 
@@ -82,3 +78,11 @@ class AppModel(BaseModel):
 
   # implement in all services
   services: List[str] = Field([], description="Services that can be used by app")
+  
+  # Always start in sudo mode
+  sudo: bool = False
+
+# used for /apps/list apps
+class AppManifestModel(AppModel):
+  icon: str = "icon.png"
+  category: str | None = None

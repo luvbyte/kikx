@@ -1,11 +1,38 @@
 import html
+import bleach
+
 from bleach import clean
+
+def sanitize_html(html_content: str) -> str:
+  # Allow most common HTML tags
+  allowed_tags = list(bleach.sanitizer.ALLOWED_TAGS) + [
+    "div", "span", "p", "br", "hr",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "img", "table", "thead", "tbody", "tr", "td", "th",
+    "ul", "ol", "li",
+    "section", "article", "header", "footer",
+    "strong", "em", "b", "i", "u", "pre"
+  ]
+
+  # Allow class and style on all tags
+  allowed_attributes = {
+    "*": ["class", "style", "id", "title", "href", "src", "alt"]
+  }
+
+  cleaned = bleach.clean(
+    html_content,
+    tags=allowed_tags,
+    attributes=allowed_attributes,
+    strip=True,  # strips disallowed tags like <script>
+  )
+
+  return cleaned
 
 def safe_code(html):
   if isinstance(html, list):
     return [safe_code(code) for code in html]
   elif isinstance(html, str):
-    return clean(html)
+    return bleach.clean(html)
   else:
     raise Exception("Unknown type")
 

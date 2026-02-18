@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request
 
-
 class ServiceRouter(APIRouter):
   def __init__(self):
     super().__init__(self)
@@ -33,6 +32,7 @@ async def close_session(request: Request, session_id: str):
   srv.get_client_or_app(request)
   core = router.srv.get_core()
   try:
-    await core.close_client(session_id)
+    result = await core.close_client(session_id)
+    return { "res": result }
   except Exception as e:
     router.srv.exception(detail=str(e))

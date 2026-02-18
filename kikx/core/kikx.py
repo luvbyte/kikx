@@ -74,7 +74,7 @@ kikx_app.mount("/files", StaticFiles(directory=core.config.files_path), name="fi
 
 api = APIRouter()
 
-
+# App manifest like name, title, icon
 def load_app_manifest(name: str):
   manifest_path = (core.config.apps_path / name / "app.json").resolve()
   if not manifest_path.exists():
@@ -161,12 +161,14 @@ async def close_app(app_model: CloseAppModel):
 async def open_app(app_model: OpenAppModel):
   try:
     app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(app_model.name), app_model.sudo)
+
     return {
       "id": app.id,
       "url": f"/app/{app.id}/index.html?starting=true",
       "iframe": app.config.iframe,
 
-      "manifest": app.manifest
+      "manifest": app.manifest,
+      "isSudo": app.sudo
     }
   except Exception as e:
     raise HTTPException(status_code=401, detail=str(e))
@@ -275,8 +277,6 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
       await core.on_app_data(client, app, data)
   except WebSocketDisconnect:
     logger.info(f"WebSocket: App disconnected {app.id}")
-  except Exception as e:
-    logger.exception(f"WebSocket Error (App {app.id}): {e}")
 
 @kikx_app.websocket("/client")
 async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[str] = None, access_token: str = Cookie(None)):
@@ -290,7 +290,7 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
     # if no client found then created one based on access_token
     if not client:
       # If access token already exists then disconnect previous client based on that
-      # -----
+      # ----- no need access token for already connected session
       if core.auth.pop_access_token(access_token) is None:
         raise PermissionError("Unauthorized")
       # move this above to check even client reconnect
@@ -315,7 +315,8 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
 
   try:
     while True:
-      await core.on_client_data(client, await websocket.receive_json())
+      data = await websocket.receive_json()
+      await core.on_client_data(client, data)
   except WebSocketDisconnect:
     logger.info(f"WebSocket: Client {client.id} disconnected ACTIVE: {core.clients}")
   except Exception as e:

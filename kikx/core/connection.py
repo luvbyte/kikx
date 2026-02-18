@@ -54,3 +54,11 @@ class Connection:
       self.tracking.append(message)
     else:
       await self._send_message(message)
+  
+  async def close(self, code=1000, reason=None):
+    if not self.is_connected:
+      return
+    try:
+      await self.websocket.close(code=code, reason=reason)
+    except Exception:
+      pass

@@ -13,60 +13,90 @@ from neko.lib.utils import clean, escape, get_item
 from neko.widgets.fs import FSWrapper
 from neko.widgets.dialogue import AlertWrapper
 
-# basic console for simple scripts
-class Console:
-  def __init__(self):
+
+
+# super Console with more features
+# Themes: default, neon, matrix, scifi, solarized
+class SConsole:
+  def __init__(self, font_size: int = 12, theme: str = "default"):
     panel.clear()
-    self._panel = Div()
-    self._panel.add_class(
-      "w-full h-full bg-gray-600/40 text-white text-sm overflow-auto relative"
-    )
-    panel.inject(self._panel)
+    self.font_size = font_size
+
+    self._box = Div()
+    self._history = []
+    self.set_theme(theme)
+    panel.inject(self.box)
+
+  def init(self):
+    pass
 
   @property
-  def panel(self) -> Div:
-    return self._panel
+  def box(self):
+    return self._box
+  
+  def set_theme(self, theme_name: str):
+    """
+    Apply a theme by name using the ConsoleThemes registry.
+    """
+    theme = ConsoleThemes.THEMES.get(theme_name)
+    if not theme:
+      raise Exception(f"Unknown theme: '{theme_name}'")
+  
+    self.box.cls.clear()
+  
+    # Build all theme-related classes at once
+    base_classes = [
+      "relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden",
+      theme['bg'],
+      theme['text'],
+      theme['scrollbar'],
+      theme.get('font', 'font-sans'),
+      theme.get('extras', ''),
+      f"text-[{self.font_size}px]"
+    ]
 
-  def append(self, code) -> 'Console':
-    self.panel.append(code)
-
-    return self
-
-  def clear(self) -> 'Console':
-    self.panel.empty()
-    
-    return self
-
-  def print(
-    self, 
-    text: str, 
-    center: bool = False, 
-    effect: str = None, 
-    color: str = "white", 
-    bg: str = "transparent", 
-    size: str = "[1rem]"
-  ) -> Text:
-    el = Text(text, size=size)
-    class_list = [f"text-{color}", f"bg-{bg}", f"text-[{size}]"]
-    if center:
-      class_list.append("text-center")
-    if effect:
-      el = Animate(el, effect=effect)
-    el.add_class(*class_list)
-    self.append(el)
+    # Add them in one call
+    self.box.add_class(*filter(None, base_classes))
+    self.active_theme = theme
+  
+  def set_theme_class(self, text):
+    self.box.cls.clear()
+    self.box.add_class(text)
+  
+  def append(self, el, auto_scroll=True):
+    self.box.append(el)
     self.scroll_to_bottom()
+  
+  def replace(self, el):
+    self.box.replace(el)
 
-    return el
+  def _parse_markup(self, text):
+    def replacer(match):
+      color = match.group(1).lower()
+      content = match.group(2)
+      return f'<span class="text-{color}-400">{content}</span>'
+  
+    pattern = re.compile(r'\[([a-zA-Z]+)\](.*?)\[/\1\]', re.DOTALL)
+    return pattern.sub(replacer, text)
 
-  def pre(
-    self, 
-    text: str, 
-    height: str = "auto", 
-    justify: str = "start", 
-    align: str = "start", 
-    text_align: str = "start", 
-    effect: str = None
-  ) -> Pre:
+  def print(self, *lines, size=None, center=False, padding=None, dom_purify=True, bg=None, fg=None, class_list=""):
+    self.append(
+      Div(*[
+        self._parse_markup(clean(str(line))) if dom_purify else self._parse_markup(line)
+        for line in lines
+      ]).add_class(
+        ClassBuilder()
+        .add_if(f"p-{padding}", padding)
+        .add_if(f"text-[{size}px]", size)
+        .add_if("text-center", center)
+        .add_if(f"bg-{bg}", bg)
+        .add_if(f"text-{fg}", fg)
+        .add_multiple(class_list.split())
+        .done()
+      )
+    )
+  
+  def pre(self, text: str, height: str = "auto", justify: str = "start", align: str = "start", text_align: str = "start", effect: str = None) -> Pre:
     el = Pre(text)
     el.add_style("height", height)
     el.add_class(
@@ -78,52 +108,73 @@ class Console:
     
     return el
 
-  def pre_center(
-    self, 
-    text: str, 
-    text_align: str = "start", 
-    effect: str = None, 
-    wait: int = 1
-  ) -> Pre:
+  def pre_center(self, text: str, text_align: str = "start", effect: str = None, wait: int = 1) -> Pre:
     self.clear()
     el = self.pre(
       text, height="100%", justify="center", align="center", text_align=text_align, effect=effect
     )
     sleep(wait)
     return el
-
-  def render_frames(self, frames: str) -> None:
-    collector = []
-    for line in frames.split("\n"):
-      split_line = line.split()
-      if line.startswith("!-!"):
-        self.pre_center(
-          "\n".join(collector), 
-          effect=get_item(split_line, 2, "fadeIn"),
-          wait=int(get_item(split_line, 1, 1))
-        )
-        collector.clear()
-      else:
-        collector.append(line)
-
-  def input(
-    self, 
-    label: str = "", 
-    autohide: bool = True, 
-    focus: bool = False, 
-    effect: str = "lightSpeedInLeft"
-  ) -> str:
+  
+  def input(self, label: str = "", autohide: bool = True, focus: bool = False, effect: str = "lightSpeedInLeft") -> str:
     js.set_config("block-user-input", False)
     result = js.ask_input(label, autohide=autohide, focus=focus, effect=effect)
     js.set_config("block-user-input", True)
     return result
 
-  def br(self) -> None:
-    self.append("<br>")
+  def log(self, message):
+    self.print(ConsoleLogger.format_log(message))
 
-  def scroll_to_bottom(self) -> None:
-    self.panel._js.scroll_to_bottom()
+  def print_error(self, message):
+    self.print(f"[red][ERROR][/red] {message}")
 
+  def print_success(self, message):
+    self.print(f"[green][OK][/green] {message}")
+
+  def print_json(self, obj):
+    self.print(ConsoleHelpers.format_json(obj), dom_purify=False)
+  
+  def wait(self, seconds):
+    sleep(seconds)
+
+  def hr(self):
+    self.box.append('<div class="w-full bg-white min-h-[1px]"></div>')
+    self.scroll_to_bottom()
+  
+  def br(self, times=1):
+    self.append(Div("<br>" * times))
+
+  def clear(self):
+    self.box.clear()
+
+  @property
+  def fs(self):
+    return FSWrapper()
+
+  @property
+  def alert(self):
+    return AlertWrapper()
+
+  def render(self):
+    panel.inject(self.box)
+  
+  def scroll_to_bottom(self):
+    self.box.scroll_to_bottom()
+
+  def history(self, limit=20):
+    return self._history[-limit:]
+  
+  def notify(self, message, type='info'):
+    data = json.dumps({
+      "type": type,
+      "msg": message,
+      "displayEvenActive": True
+    })
+    js.run_code(f"kikxApp.system.notify({data})")
+
+  @property
+  def wg(self):
+    return ConsoleWidgets(self)
 
 class ConsoleThemes:
   THEMES = {
@@ -360,86 +411,60 @@ class ConsoleWidgets:
     self.print(*html_lines, dom_purify=False)
   
 
-# super Console with more features
-class SConsole:
-  def __init__(self, font_size: int = 14, theme: str = "default"):
+# basic console for simple scripts
+class Console:
+  def __init__(self):
     panel.clear()
-    self.font_size = font_size
-
-    self._box = Div()
-    self._history = []
-    self.set_theme(theme)
-    panel.inject(self.box)
-
-  def init(self):
-    pass
+    self._panel = Div()
+    self._panel.add_class(
+      "w-full h-full bg-gray-600/40 text-white text-sm overflow-auto relative"
+    )
+    panel.inject(self._panel)
 
   @property
-  def box(self):
-    return self._box
-  
-  def set_theme(self, theme_name: str):
-    """
-    Apply a theme by name using the ConsoleThemes registry.
-    """
-    theme = ConsoleThemes.THEMES.get(theme_name)
-    if not theme:
-      raise Exception(f"Unknown theme: '{theme_name}'")
-  
-    self.box.cls.clear()
-  
-    # Build all theme-related classes at once
-    base_classes = [
-      "relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden",
-      theme['bg'],
-      theme['text'],
-      theme['scrollbar'],
-      theme.get('font', 'font-sans'),
-      theme.get('extras', ''),
-      f"text-[{self.font_size}px]"
-    ]
+  def panel(self) -> Div:
+    return self._panel
 
-    # Add them in one call
-    self.box.add_class(*filter(None, base_classes))
-    self.active_theme = theme
-  
-  def set_theme_class(self, text):
-    self.box.cls.clear()
-    self.box.add_class(text)
-  
-  def append(self, el, auto_scroll=True):
-    self.box.append(el)
+  def append(self, code) -> 'Console':
+    self.panel.append(code)
+
+    return self
+
+  def clear(self) -> 'Console':
+    self.panel.empty()
+    
+    return self
+
+  def print(
+    self, 
+    text: str, 
+    center: bool = False, 
+    effect: str = None, 
+    color: str = "white", 
+    bg: str = "transparent", 
+    size: str = "[1rem]"
+  ) -> Text:
+    el = Text(text, size=size)
+    class_list = [f"text-{color}", f"bg-{bg}", f"text-[{size}]"]
+    if center:
+      class_list.append("text-center")
+    if effect:
+      el = Animate(el, effect=effect)
+    el.add_class(*class_list)
+    self.append(el)
     self.scroll_to_bottom()
-  
-  def replace(self, el):
-    self.box.replace(el)
 
-  def _parse_markup(self, text):
-    def replacer(match):
-      color = match.group(1).lower()
-      content = match.group(2)
-      return f'<span class="text-{color}-400">{content}</span>'
-  
-    pattern = re.compile(r'\[([a-zA-Z]+)\](.*?)\[/\1\]', re.DOTALL)
-    return pattern.sub(replacer, text)
+    return el
 
-  def print(self, *lines, size=None, center=False, padding=None, dom_purify=True, bg=None, fg=None):
-    self.append(
-      Div(*[
-        self._parse_markup(clean(str(line))) if dom_purify else self._parse_markup(line)
-        for line in lines
-      ]).add_class(
-        ClassBuilder()
-        .add_if(f"p-{padding}", padding)
-        .add_if(f"text-[{size}px]", size)
-        .add_if("text-center", center)
-        .add_if(f"bg-{bg}", bg)
-        .add_if(f"text-{fg}", fg)
-        .done()
-      )
-    )
-  
-  def pre(self, text: str, height: str = "auto", justify: str = "start", align: str = "start", text_align: str = "start", effect: str = None) -> Pre:
+  def pre(
+    self, 
+    text: str, 
+    height: str = "auto", 
+    justify: str = "start", 
+    align: str = "start", 
+    text_align: str = "start", 
+    effect: str = None
+  ) -> Pre:
     el = Pre(text)
     el.add_style("height", height)
     el.add_class(
@@ -451,70 +476,48 @@ class SConsole:
     
     return el
 
-  def pre_center(self, text: str, text_align: str = "start", effect: str = None, wait: int = 1) -> Pre:
+  def pre_center(
+    self, 
+    text: str, 
+    text_align: str = "start", 
+    effect: str = None, 
+    wait: int = 1
+  ) -> Pre:
     self.clear()
     el = self.pre(
       text, height="100%", justify="center", align="center", text_align=text_align, effect=effect
     )
     sleep(wait)
     return el
-  
-  def input(self, label: str = "", autohide: bool = True, focus: bool = False, effect: str = "lightSpeedInLeft") -> str:
+
+  def render_frames(self, frames: str) -> None:
+    collector = []
+    for line in frames.split("\n"):
+      split_line = line.split()
+      if line.startswith("!-!"):
+        self.pre_center(
+          "\n".join(collector), 
+          effect=get_item(split_line, 2, "fadeIn"),
+          wait=int(get_item(split_line, 1, 1))
+        )
+        collector.clear()
+      else:
+        collector.append(line)
+
+  def input(
+    self, 
+    label: str = "", 
+    autohide: bool = True, 
+    focus: bool = False, 
+    effect: str = "lightSpeedInLeft"
+  ) -> str:
     js.set_config("block-user-input", False)
     result = js.ask_input(label, autohide=autohide, focus=focus, effect=effect)
     js.set_config("block-user-input", True)
     return result
 
-  def log(self, message):
-    self.print(ConsoleLogger.format_log(message))
+  def br(self) -> None:
+    self.append("<br>")
 
-  def print_error(self, message):
-    self.print(f"[red][ERROR][/red] {message}")
-
-  def print_success(self, message):
-    self.print(f"[green][OK][/green] {message}")
-
-  def print_json(self, obj):
-    self.print(ConsoleHelpers.format_json(obj), dom_purify=False)
-  
-  def wait(self, seconds):
-    sleep(seconds)
-
-  def hr(self):
-    self.box.append('<div class="w-full bg-white min-h-[1px]"></div>')
-    self.scroll_to_bottom()
-  
-  def br(self, times=1):
-    self.append(Div("<br>" * times))
-
-  def clear(self):
-    self.box.clear()
-
-  @property
-  def fs(self):
-    return FSWrapper()
-
-  @property
-  def alert(self):
-    return AlertWrapper()
-
-  def render(self):
-    panel.inject(self.box)
-  
-  def scroll_to_bottom(self):
-    self.box.scroll_to_bottom()
-
-  def history(self, limit=20):
-    return self._history[-limit:]
-  
-  def notify(self, message, type='info'):
-    data = json.dumps({
-      "type": type,
-      "msg": message,
-      "displayEvenActive": True
-    })
-    js.run_code(f"kikxApp.system.notify({data})")
-
-  @property
-  def wg(self):
-    return ConsoleWidgets(self)
+  def scroll_to_bottom(self) -> None:
+    self.panel._js.scroll_to_bottom()

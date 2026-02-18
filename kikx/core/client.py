@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from uuid import uuid4
 from typing import Dict, Optional
@@ -96,7 +97,7 @@ class Client(FuncX):
       logger.info(f"Shutting down app: {app.name} (ID: {app.id})")
       await app.on_close()
 
-    del self.running_apps
+    self.running_apps.clear()
     logger.info(f"All apps shut down for client {self.id}")
 
   def __str__(self) -> str:

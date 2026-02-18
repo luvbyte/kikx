@@ -4,6 +4,7 @@ const closeSession = async sessionID => {
     "info/session/close/" + sessionID,
     "POST"
   );
+
   if (!res.error) $(`#${sessionID}`).remove();
 };
 
@@ -43,7 +44,6 @@ const renderInfo = data => {
     `);
   });
 };
-
 
 $("#loading-screen").hide();
 //

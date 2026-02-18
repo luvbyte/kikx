@@ -24,13 +24,17 @@ logger = logging.getLogger(__name__)
 class TasksConfigModel(BaseModel):
   shell: bool = False
   # KIKX_ env variables
-  kikx: bool = True
+  kikx_env: bool = True
   # If this is False then uses program env
   sandbox: bool = False
   # env variables in key/values
   env: Dict[str, str] = {}
   # Main program to run while running tasks
-  main: str = Field('python3 -u $KIKX_APP_PATH/tasks/{name}.py {args}', description="Prefix for all tasks")
+  main: str = Field('python3 -u {app_path}/tasks/{name}.py {args}', description="Prefix for all tasks")
+
+class SafeDict(dict):
+  def __missing__(self, key):
+    return '{' + key + '}'
 
 class Task:
   def __init__(self, cmd: str, env: Dict[str, str], shell: bool, cwd: str, sudo: bool):
@@ -217,23 +221,34 @@ class Task:
 
 class Tasks:
   def __init__(self, app, config):
-     # tasks config {}
-    self.config = TasksConfigModel(**config) 
+    # tasks config {}
+    self.config = TasksConfigModel(**config)
     self.app_path = app.app_path
     self.task_cwd = str(app.get_app_data_path())
-    
+
     # If not sandbox then copies program env
     self.task_env = {} if self.config.sandbox else os.environ.copy()
 
-    if self.config.kikx:
+    # Include kikx_env variables must shell True
+    if self.config.kikx_env and self.config.shell:
       self.task_env.update({
         "KIKX_APP_ID": app.id,
         "KIKX_APP_NAME": app.name,
         "KIKX_STORAGE_PATH": str(app.user.storage_path),
         "KIKX_APP_PATH": str(app.get_app_path()),
         "KIKX_APP_DATA_PATH": str(app.get_app_data_path()),
-        "KIKX_HOME_PATH": str(app.get_home_path()),
+        "KIKX_HOME_PATH": str(app.get_home_path())
       })
+
+    # Format paths for task template
+    # Task template
+    self.task_template = self.config.main.format_map(SafeDict({
+      "app_name": app.name,
+      "app_path": str(app.get_app_path()),
+      "storage_path": str(app.user.storage_path),
+      "data_path": str(app.get_app_data_path()),
+      "home_path": str(app.get_home_path())
+    }))
 
     # Updating env with user env values
     self.task_env.update(self.config.env)
@@ -247,7 +262,6 @@ class Tasks:
     # Sudo
     self.sudo = app.sudo #
 
-    self.task_template: str = self.config.main
     self.send_event = app.send_event
     
     self.running_tasks: Dict[str, Task] = {}
@@ -282,10 +296,10 @@ class Tasks:
     if not split_cmd:
       raise_error("Command not found")
 
-    task_cmd = self.task_template.format_map({
+    task_cmd = self.task_template.format_map(SafeDict({
       "name": split_cmd[0],
       "args": " ".join(split_cmd[1:])
-    })
+    }))
 
     task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, self.sudo)
 
@@ -302,10 +316,10 @@ class Tasks:
     if not split_cmd:
       raise_error("Command not found")
 
-    task_cmd = self.task_template.format_map({
+    task_cmd = self.task_template.format_map(SafeDict({
       "name": split_cmd[0],
       "args": " ".join(split_cmd[1:])
-    })
+    }))
 
     task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, self.sudo)
 

@@ -184,7 +184,7 @@ class Client {
     // Browser tab focus
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
-        //this._forceReconnect("Tab became visible");
+        // this._forceReconnect("Tab became visible");
         // this._startHeartbeat();
         try {
           this.send({ event: "ping", payload: {} });
@@ -230,7 +230,7 @@ class Client {
       }
     };
     this.ws.onclose = e => {
-      console.warn("WebSocket closed.");
+      console.warn("WebSocket closed.", e);
       this.ws = null;
       this._callEvent("ws:onclose", e);
       this._scheduleReconnect();

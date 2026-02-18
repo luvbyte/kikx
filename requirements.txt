@@ -12,3 +12,4 @@ lupa
 pyyaml
 tomli
 requests
+-e kikxlib

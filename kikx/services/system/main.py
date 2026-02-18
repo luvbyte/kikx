@@ -7,7 +7,7 @@ from core.func.func import FuncXModel
 from lib.service import create_service
 import asyncio
 
-from .routes import info
+from .routes import info, app
 
 srv = create_service(__file__)
 
@@ -69,4 +69,7 @@ async def notify(request: Request, payload: NotifyModel) -> None:
 
 # ------ SYSTEM / SESSIONS
 srv.include(info.router, prefix="/info")
+
+# ------ App Manage
+srv.include(app.router, prefix="/app")
 

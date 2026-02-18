@@ -34,8 +34,8 @@ const decodeBytes = (data, enc = "utf-8", fatal = true) =>
 // App Info Helpers
 // --------------------------------------
 
-const getAppID = () => location.pathname.split("/")[2];
-const appID = getAppID();
+// const getAppID = () => location.pathname.split("/")[2];
+const appID = location.pathname.split("/")[2];
 
 // --------------------------------------
 // Argument Parser
@@ -236,7 +236,7 @@ class ProxyService extends Service {
 // --------------------------------------
 class KikxApp {
   constructor() {
-    this.id = appID; // Assumes appID is defined globally
+    this.id = appID;
     this.system = new SystemService();
     this.fs = new FileSystemService();
     this.proxy = new ProxyService();
@@ -267,7 +267,7 @@ class KikxApp {
       this.reconnectAttempts = 0;
     });
 
-    // ✅ Handle tab focus in browsers
+    // Handle tab focus in browsers
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         try {
@@ -411,18 +411,32 @@ const kikxApp = new KikxApp();
 // --------------------------------------
 
 class AppTask {
-  constructor(name) {
+  constructor(name, once = true) {
     this.name = name;
     this.handler = createHandler();
     this.task_result = null;
     this.running = false;
 
+    this.once = once;
+    this.completed = false;
+
+    this.handler.onended = () => {
+      if (this.once) {
+        removeHandler(this.handler.handlerID);
+      }
+    };
+
     this.handler.onData(data => {
-      if (data.status === "ended") this.running = false;
+      if (data.status === "ended") {
+        this.running = false;
+        this.completed = true;
+      }
     });
   }
 
   async __run(args = "") {
+    if (this.once && this.completed) throw Error("Task already completed");
+
     this.task_result = await kikxApp.func("tasks.run_task", {
       args: [`${this.name} ${args}`.trim()],
       options: { handler_id: this.handler.handlerID }
@@ -464,17 +478,21 @@ class AppTask {
 // Task Utility Shortcuts
 // --------------------------------------
 
-const createTask = name => new AppTask(name);
+const createTask = (name, once = true) => new AppTask(name, once);
 
+// Run task with callback
 const runTask = async (name, callback) => {
-  const task = new AppTask(name);
+  const task = createTask(name);
   task.on(callback);
-  task.handler.onended = () => {
-    removeHandler(task.handler.handlerID);
-  };
+  // Not required since once removes automatically
+  // task.handler.onended = () => {
+  // removeHandler(task.handler.handlerID);
+  // };
   return await task.__run();
 };
 
+// Run task sync - Gathers stdout untill complete
+// not safe for output required tasks
 const runTaskSync = async name => {
   const fullData = [];
   let flag = false;
@@ -501,11 +519,12 @@ const runTaskSync = async name => {
   });
 };
 
-const quickTask = async (name, ...args) => {
+// Quick run and return resonse of task - no realtime output
+const quickTask = async (name, ...input) => {
   return await kikxApp.func("tasks.run_once", {
     args: [name],
     options: {
-      task_input: args.join("\n")
+      task_input: input.join("\n")
     }
   });
 };

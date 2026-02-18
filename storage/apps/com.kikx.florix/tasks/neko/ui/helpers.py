@@ -28,8 +28,9 @@ class ClassBuilder:
   def __init__(self, initial: Optional[Iterable[str]] = None) -> None:
     self.cls_set: set[str] = set(initial) if initial else set()
 
-  def add(self, name: str) -> "ClassBuilder":
-    self.cls_set.add(name)
+  def add(self, *names) -> "ClassBuilder":
+    for name in names:
+      self.cls_set.add(name)
     return self
 
   def add_multiple(self, names: Iterable[str]) -> "ClassBuilder":

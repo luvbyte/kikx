@@ -1,10 +1,15 @@
 {
-  "name": "com.kikx.kittychef",
-  "title": "KittyChef",
+  "name": "com.kikx.appstore",
+  "title": "AppStore",
 
   "iframe": {
-    "allowfullscreen": true,
-    "allow": "accelerometer; gyroscope; fullscreen",
     "sandbox": "allow-same-origin allow-scripts allow-modals allow-forms allow-orientation-lock allow-pointer-lock allow-presentation allow-downloads allow-storage-access-by-user-activation"
-  }
+  },
+  "services": ["system"],
+
+  "modules": {
+    "tasks": {}
+  },
+
+  "sudo": true
 }

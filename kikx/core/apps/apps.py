@@ -26,7 +26,7 @@ class App(FuncX):
     self.title: str = config.title
     self.user = user  # Custom user object
     
-    self.sudo = sudo  # Sudo App
+    self.sudo = True if self.config.sudo else sudo  # Sudo App
 
     self.connection = Connection()
     self.__modules: List[Dict[str, object]] = []
