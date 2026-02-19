@@ -17,8 +17,8 @@ const renderInfo = data => {
       <div
         id="${sessionData.id}"
         class="flex items-center justify-between gap-3 p-3 mb-2
-               rounded-lg bg-white/30 backdrop-blur
-               shadow-sm hover:shadow-md transition
+               rounded-lg bg-white/30 
+               shadow-sm
                border border-white/20"
       >
         <div class="flex flex-col">
@@ -33,9 +33,7 @@ const renderInfo = data => {
         <button
           onclick="closeSession('${sessionData.id}')"
           class="w-7 h-7 flex items-center justify-center
-                 rounded-full bg-red-500/80 text-white
-                 hover:bg-red-600 active:scale-95
-                 transition font-bold"
+                 rounded-full bg-red-500/80 text-white font-bold"
           title="Close session"
         >
           ✕

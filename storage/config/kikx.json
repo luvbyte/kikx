@@ -9,8 +9,8 @@
     "kui": {
       "path": "storage://ui/kui"
     },
-    "aui": {
-      "path": "storage://ui/aui"
+    "mui": {
+      "path": "storage://ui/mui"
     }
   }
 }
