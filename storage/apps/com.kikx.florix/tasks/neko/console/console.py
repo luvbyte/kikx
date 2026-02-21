@@ -18,7 +18,7 @@ from neko.widgets.dialogue import AlertWrapper
 # super Console with more features
 # Themes: default, neon, matrix, scifi, solarized
 class SConsole:
-  def __init__(self, font_size: int = 12, theme: str = "default"):
+  def __init__(self, font_size: int = 14, theme: str = "default"):
     panel.clear()
     self.font_size = font_size
 

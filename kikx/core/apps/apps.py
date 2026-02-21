@@ -6,6 +6,8 @@ from typing import Dict, Optional, List
 
 from fastapi import WebSocket
 
+from lib.utils import get_timestamp
+
 from lib.utils import ensure_dir, dynamic_import
 from core.models.app_models import AppModel
 from core.func import FuncX, funcx, funcx_handler
@@ -27,11 +29,25 @@ class App(FuncX):
     self.user = user  # Custom user object
     
     self.sudo = True if self.config.sudo else sudo  # Sudo App
+    
+    self.created_at = get_timestamp()
 
     self.connection = Connection()
     self.__modules: List[Dict[str, object]] = []
 
     self.load_modules()
+  
+  def info(self):
+    return {
+      "id": self.id,
+      "name": self.name,
+      "title": self.title,
+      
+      "sudo": self.sudo,
+      "created_at": self.created_at,
+
+      "connection": self.connection.info()
+    }
 
   @property
   def connected(self) -> bool:

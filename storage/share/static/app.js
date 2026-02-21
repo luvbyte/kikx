@@ -202,6 +202,7 @@ class SystemService extends Service {
 
   info = payload => this.request("info");
   notify = payload => this.request("notify", "POST", payload);
+  alert = payload => this.request("alert", "POST", payload);
   sendSignal = signal => this.request(`signal?signal=${signal}`);
   getUserSettings = (setting = null) =>
     this.request(`user-settings?setting=${setting}`);

@@ -24,6 +24,11 @@ class Connection:
   @property
   def is_connected(self) -> bool:
     return is_websocket_connected(self.websocket)
+  
+  def info(self):
+    return {
+      "connected": self.is_connected
+    }
 
   async def connect(self, websocket: WebSocket) -> None:
     if not isinstance(websocket, WebSocket):

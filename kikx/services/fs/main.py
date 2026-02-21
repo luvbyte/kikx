@@ -174,11 +174,11 @@ def create_directory(request: Request, dir_request: DirectoryCreateRequest) -> d
   dir_path = resolve_path(request, dir_request.dirname)
 
   if os.path.exists(dir_path):
-    raise HTTPException(status_code=400, detail="Directory already exists")
+    return { "message": "Directory already exists" }
 
   os.makedirs(dir_path)
   logger.info(f"Created directory {dir_path}")
-  return {"message": "Directory created successfully"}
+  return { "message": "Directory created successfully" }
 
 
 @srv.router.delete("/delete_directory")

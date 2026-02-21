@@ -1,8 +1,11 @@
-import base64
 import sys
-from importlib import import_module
-from importlib import util as importlib_util
+import base64
+
 from pathlib import Path
+from importlib import import_module
+from datetime import datetime, timezone
+from importlib import util as importlib_util
+
 from typing import Any, Callable, Union
 
 from fastapi import WebSocket, HTTPException
@@ -10,6 +13,11 @@ from fastapi.responses import FileResponse
 
 from starlette.websockets import WebSocketState
 
+
+
+
+def get_timestamp():
+  return datetime.now(timezone.utc).isoformat()
 
 def import_relative_module(path: str, name: str) -> Any:
   """
@@ -120,3 +128,4 @@ def file_response(base: str | Path, *paths: str | Path) -> Path:
     raise HTTPException(status_code=404, detail="File not found")
 
   return FileResponse(full_path)
+

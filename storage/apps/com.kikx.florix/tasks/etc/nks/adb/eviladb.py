@@ -190,7 +190,7 @@ device = display_devices()
 console.clear()
 
 console.pre("""
-<div class="bg-purple-400/10 shadow-2xl">
+<div class="bg-purple-400/10 shadow-2xl w-full flex items-center justify-center">
 ▄███▄╶╶╶╶╶╶▄╶╶╶▄█╶█╶╶╶╶╶██╶╶╶██▄╶╶╶███╶╶╶ 
 █▀╶╶╶▀╶╶╶╶╶╶█╶╶██╶█╶╶╶╶╶█╶█╶╶█╶╶█╶╶█╶╶█╶╶ 
 ██▄▄╶╶╶█╶╶╶╶╶█╶██╶█╶╶╶╶╶█▄▄█╶█╶╶╶█╶█╶▀╶▄╶ 

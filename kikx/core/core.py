@@ -73,7 +73,7 @@ class Core:
 
     app = client.running_apps.get(app_id)
     return (client, app) if app else (None, None)
-
+  
   # --------------------------- Apps
   async def open_app(self, client_id: str, name: str, manifest, sudo) -> object:
     """

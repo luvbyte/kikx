@@ -7,6 +7,8 @@
 
     <script src="/share/cdn/tailwind-3.js"></script>
     <script src="/share/cdn/jquery.min.js"></script>
+
+    <script src="/share/static/app.js"></script>
   </head>
   <body>
     <!-- Fullscreen Loading Screen -->
@@ -22,8 +24,28 @@
     <!-- main -->
     <div
       id="main"
-      class="h-screen flex justify-center items-center text-white"
-    ></div>
+      class="h-screen flex gap-2 flex-col justify-center items-center text-white"
+    >
+      <button id="toast" class="p-1 rounded bg-white text-black">Toast</button>
+      <button
+        id="toast-success"
+        class="p-1 rounded btn btn-sm bg-green-400 text-white"
+      >
+        Success
+      </button>
+      <button
+        id="toast-warning"
+        class="p-1 rounded btn btn-sm bg-yellow-400 text-white"
+      >
+        Warning
+      </button>
+      <button
+        id="toast-error"
+        class="p-1 rounded btn btn-sm bg-red-400 text-white"
+      >
+        Error
+      </button>
+    </div>
 
     <script defer src="script.js"></script>
   </body>

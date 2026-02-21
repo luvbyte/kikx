@@ -11,6 +11,8 @@ from core.func.handlers import Handler
 from core.models.app_models import AppModel
 from lib.parser import parse_config
 
+from lib.utils import get_timestamp
+
 from fastapi import WebSocket
 
 logging.basicConfig(level=logging.INFO, format="\n%(asctime)s - %(levelname)s - %(message)s")
@@ -28,6 +30,8 @@ class Client(FuncX):
     self.access_token = access_token
 
     self.connection = Connection()
+    
+    self.created_at = get_timestamp()
 
     self.apps_path = resolve_path("apps://")
     self.running_apps: Dict[str, App] = {}
@@ -42,10 +46,24 @@ class Client(FuncX):
     """Returns user's data."""
     return self.user.user_data
 
-  @funcx
+  @funcx # not required
   async def user_settings(self) -> dict:
     """Returns user's settings."""
     return self.user.settings
+  
+  @funcx
+  async def info(self):
+    return {
+      "id": self.id,
+      "user": self.user.user_data,
+      "created_at": self.created_at,
+      
+      "access_token": self.access_token,
+
+      "connection": self.connection.info(),
+
+      "apps": [app.info() for app in self.running_apps.values()]
+    }
 
   async def send_event(self, event: str, payload: dict) -> None:
     """Sends an event to the client's websocket."""

@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Dict
+from typing import Literal, Optional, Dict, Union, List
 from pydantic import BaseModel
 
 
@@ -9,6 +9,13 @@ class NotifyModel(BaseModel):
   delay: int = 0
   extra: dict = {}
   displayEvenActive: bool = False
+
+class AlertModel(BaseModel):
+  type: Literal['info', 'warning', 'success', 'error'] = "info"
+  msg: Union[str, List[str]]
+  delay: int = 0
+  extra: dict = {}
+  priority: Literal['less', 'high', 'normal'] = 'normal'
 
 class UserSettingsModel(BaseModel):
   settings: dict

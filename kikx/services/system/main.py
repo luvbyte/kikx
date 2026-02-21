@@ -2,10 +2,14 @@ from typing import Literal, Optional
 
 from fastapi import Request, HTTPException
 from functools import reduce
-from .models import NotifyModel, UserSettingsModel
+from .models import NotifyModel, UserSettingsModel, AlertModel
 from core.func.func import FuncXModel
 from lib.service import create_service
 import asyncio
+
+from lib.utils import get_timestamp
+
+from uuid import uuid4
 
 from .routes import info, app
 
@@ -18,8 +22,8 @@ async def broadcast_signal(signal: str, data: dict) -> None:
 
   for client in core.clients.values():
     await client.send_event("signal", payload)
-    for app in client.running_apps.values():
-      await app.send_event("signal", payload)
+    for a in client.running_apps.values():
+      await a.send_event("signal", payload)
 
 
 @srv.router.post("/app/func")
@@ -65,6 +69,28 @@ async def notify(request: Request, payload: NotifyModel) -> None:
     "extra": payload.extra,
     "delay": payload.delay,
     "displayEvenActive": payload.displayEvenActive
+  })
+
+@srv.router.post("/alert")
+async def alert(request: Request, payload: AlertModel) -> None:
+  client, app = srv.get_client_app(request)
+
+  await client.send_event("app:alert", {
+    "id": app.id,
+    "uid": uuid4().hex, # new
+    "name": app.name,
+    "title": app.title,
+    
+    "icon": app.manifest["icon"],
+
+    "msg": payload.msg,
+    "type": payload.type,
+    "extra": payload.extra,
+    "delay": payload.delay,
+    "priority": payload.priority,
+    
+    # Add timestamp (ISO 8601, UTC)
+    "createdAt": get_timestamp() #  datetime.now(timezone.utc).isoformat()
   })
 
 # ------ SYSTEM / SESSIONS
