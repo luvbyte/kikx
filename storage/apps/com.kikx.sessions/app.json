@@ -15,5 +15,7 @@
     "tasks": {
       "sandbox": false
     }
-  }
+  },
+  
+  "theme": "transparent"
 }

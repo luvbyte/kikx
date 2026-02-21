@@ -86,3 +86,6 @@ class AppModel(BaseModel):
 class AppManifestModel(AppModel):
   icon: str = "icon.png"
   category: str | None = None
+
+  # theme
+  theme: str = "dark"

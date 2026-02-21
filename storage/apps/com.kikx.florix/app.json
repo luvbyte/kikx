@@ -12,5 +12,7 @@
     "tasks": {
       "shell": true
     }
-  }
+  },
+  
+  "theme": "transparent"
 }

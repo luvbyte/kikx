@@ -90,7 +90,9 @@ def load_app_manifest(name: str):
   return {
     "name": name,
     "title": manifest.title,
-    "icon": f"/public/app/{name}/{manifest.icon}"
+    "icon": f"/public/app/{name}/{manifest.icon}",
+    
+    "theme": manifest.theme
   }
 
 @api.post("/apps/list")
@@ -106,6 +108,13 @@ def get_apps_list(data: AppsListModel):
       return None
   
   return [res for name in client.user.get_installed_apps() if (res := safe_load(name)) is not None]
+
+@api.get("/ui-list")
+def get_ui_list():
+  return {
+    "ui": list(core.auth.user_config.ui),
+    "default": core.auth.user_config.default_ui
+  }
 
 # Include API routes
 kikx_app.include_router(api, prefix="/api", tags=["Api"])

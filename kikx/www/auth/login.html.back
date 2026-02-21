@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KIKX Login</title>
-
     <style>
       * {
         margin: 0;
@@ -36,8 +35,7 @@
         margin-bottom: 20px;
       }
 
-      input[type="password"],
-      select {
+      input[type="password"] {
         width: 100%;
         padding: 14px 16px;
         border-radius: 8px;
@@ -46,21 +44,17 @@
         color: #ffffff;
         font-size: 1rem;
         outline: none;
+        margin-bottom: 20px;
         transition:
           border-color 0.3s,
           box-shadow 0.3s;
       }
 
-      input[type="password"] {
-        margin-bottom: 15px;
+      input[type="password"]::placeholder {
+        color: #888;
       }
 
-      select {
-        margin-bottom: 15px;
-      }
-
-      input[type="password"]:focus,
-      select:focus {
+      input[type="password"]:focus {
         border-color: #ff6f00;
         box-shadow: 0 0 5px rgba(255, 111, 0, 0.5);
       }
@@ -75,11 +69,16 @@
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
+        transition:
+          background-color 0.2s,
+          box-shadow 0.2s,
+          color 0.2s;
       }
 
       button:active {
         background-color: #ff6f00;
         color: #1e1e1e;
+        box-shadow: 0 5px 15px rgba(255, 111, 0, 0.3);
       }
 
       button:disabled {
@@ -91,23 +90,45 @@
         color: #ff6f00;
         font-size: 0.9rem;
         margin-top: 10px;
-        min-height: 1.2rem;
+        min-height: 1.2rem; /* reserve space */
       }
 
+      /* full overlay */
       #black {
         display: none;
         position: fixed;
-        inset: 0;
-        background-color: #000;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000; /* bg-stone-800 */
         z-index: 9999;
+        overflow: hidden;
+      }
+      #black.fade-out {
+        opacity: 0;
+        transition: opacity 1s ease;
+        pointer-events: none; /* so nothing is clickable */
+      }
+
+      @media (max-width: 400px) {
+        .container {
+          padding: 30px 20px;
+        }
+        h1 {
+          font-size: 1.5rem;
+        }
+        input[type="password"],
+        button {
+          padding: 12px 14px;
+          font-size: 0.95rem;
+        }
       }
     </style>
   </head>
-
   <body>
     <div class="container">
       <h1>KIKX - LOGIN</h1>
-
       <form id="loginForm">
         <input
           name="access"
@@ -115,16 +136,12 @@
           placeholder="Access Key"
           required
         />
-        <select name="ui" id="uiSelect" disabled>
-          <option>Loading...</option>
-        </select>
-
-        <button type="submit" id="submitBtn" disabled>ENTER</button>
+        <button type="submit" id="submitBtn">ENTER</button>
       </form>
-
       <div class="error-message" id="errorMsg"></div>
     </div>
 
+    <!-- full-screen overlay -->
     <div id="black"></div>
 
     <script>
@@ -132,71 +149,12 @@
       const submitBtn = document.getElementById("submitBtn");
       const errorMsg = document.getElementById("errorMsg");
       const overlay = document.getElementById("black");
-      const uiSelect = document.getElementById("uiSelect");
 
       let processing = false;
-      let uiList = [];
-      let defaultUI = null;
-      let uiLoaded = false;
-
-      async function loadUIList() {
-        try {
-          const response = await fetch("/api/ui-list");
-
-          if (!response.ok) {
-            throw new Error("Failed to fetch UI list");
-          }
-
-          const data = await response.json();
-
-          uiList = Array.isArray(data.ui) ? data.ui : [];
-          defaultUI = data.default || uiList[0] || null;
-
-          if (!uiList.length) {
-            throw new Error("Empty UI list");
-          }
-
-          uiSelect.innerHTML = "";
-
-          uiList.forEach(ui => {
-            const option = document.createElement("option");
-            option.value = ui;
-            option.textContent = ui.toUpperCase();
-            uiSelect.appendChild(option);
-          });
-
-          if (defaultUI && uiList.includes(defaultUI)) {
-            uiSelect.value = defaultUI;
-          }
-
-          uiSelect.disabled = false;
-          submitBtn.disabled = false;
-          uiLoaded = true;
-        } catch (err) {
-          console.error("UI load failed:", err);
-
-          // Safe fallback
-          uiList = ["kui"];
-          defaultUI = "kui";
-
-          uiSelect.innerHTML = "";
-          const option = document.createElement("option");
-          option.value = "kui";
-          option.textContent = "KUI";
-          uiSelect.appendChild(option);
-
-          uiSelect.disabled = false;
-          submitBtn.disabled = false;
-          uiLoaded = true;
-        }
-      }
-
-      loadUIList();
 
       form.addEventListener("submit", async e => {
         e.preventDefault();
-        if (processing || !uiLoaded) return;
-
+        if (processing) return; // prevent duplicate submits
         processing = true;
         submitBtn.disabled = true;
         errorMsg.textContent = "";
@@ -214,32 +172,41 @@
           });
 
           if (response.ok) {
+            // blur input so keyboard closes (only on success)
             if (form.access && typeof form.access.blur === "function") {
               form.access.blur();
             }
-
             overlay.style.display = "block";
 
-            const selectedUI = uiList.includes(uiSelect.value)
-              ? uiSelect.value
-              : defaultUI;
+            // check ui if found then go /ui/<ui>
+            const params = new URLSearchParams(window.location.search);
 
-            window.location.href = "/ui/" + selectedUI;
+            if (params.has("ui")) {
+              window.location.href = "/ui/" + params.get("ui");
+            } else {
+              window.location.href = "/"
+            }
           } else {
             let msg = "Login failed";
-
             try {
               const data = await response.json();
               msg = data.detail || msg;
-            } catch (_) {}
-
+            } catch (err) {}
             errorMsg.textContent = msg;
-            if (form.access) form.access.value = "";
+
+            // clear the input on failure
+            if (form.access) {
+              form.access.value = "";
+            }
           }
         } catch (err) {
           console.error(err);
           errorMsg.textContent = "Network error, please try again";
-          if (form.access) form.access.value = "";
+
+          // also clear the input on network error
+          if (form.access) {
+            form.access.value = "";
+          }
         } finally {
           processing = false;
           submitBtn.disabled = false;

@@ -12,5 +12,7 @@
     }
   },
 
-  "sudo": true
+  "sudo": true,
+  
+  "theme": "transparent"
 }

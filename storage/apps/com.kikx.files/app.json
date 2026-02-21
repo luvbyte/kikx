@@ -8,5 +8,7 @@
   "services": ["system", "fs"],
   "storage": {
     "home": "*"
-  }
+  },
+  
+  "theme": "dark"
 }
