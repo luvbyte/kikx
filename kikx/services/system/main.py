@@ -56,6 +56,15 @@ async def close_app(request: Request) -> None:
     "name": app.name
   })
 
+@srv.router.post("/client-logout")
+async def client_logout(request: Request) -> None:
+  client = srv.get_client(request)
+
+  await srv.get_core().close_client(client.id)
+
+  return { "res": "ok" }
+
+
 @srv.router.post("/notify")
 async def notify(request: Request, payload: NotifyModel) -> None:
   client, app = srv.get_client_app(request)

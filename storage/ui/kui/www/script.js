@@ -194,6 +194,14 @@ $(function () {
       $(this).fadeOut();
     }
   });
+
+  $("#logout-btn").on("click", function () {
+    client.ws.close();
+    client._closed = true;
+    client.system.request("client-logout", "POST").then(res => {
+      location.reload();
+    });
+  });
 });
 
 const createSwipeBubble = selector => {

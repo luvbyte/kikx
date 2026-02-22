@@ -163,6 +163,8 @@ class Client {
     this.reconnectDelay = 1000; // ms
     this._reconnectTimer = null;
 
+    this._closed = false;
+
     // Heartbeat
     // this.heartbeatDelay = 3000; // 3 seconds
     // this._heartbeatTimer = null;
@@ -203,7 +205,7 @@ class Client {
   }
 
   _connect() {
-    if (this.ws) return;
+    if (this.ws || this._closed) return;
 
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const url = `${protocol}://${location.host}/client?client_id=${this.clientID}`;
