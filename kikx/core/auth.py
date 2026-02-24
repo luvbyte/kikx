@@ -5,6 +5,7 @@ from typing import Optional, Dict
 from lib.parser import parse_config
 from core.models.user_models import UserAuthModel
 
+from fastapi import HTTPException
 
 # -------------------------------------
 # Auth Class
@@ -26,12 +27,16 @@ class Auth:
     except ValueError:
       return None
 
-  def generate_access_token(self, access: str) -> Optional[str]:
+  def generate_access_token(self, access: str, ui: str) -> Optional[str]:
     if access != self.user_config.access:
-      return None
-    uid = uuid4().hex
+      raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if ui not in self.user_config.ui:
+      raise HTTPException(status_code=404, detail="UI not found")
+
+    uid = f"{uuid4()}_{ui}"
     self.access_tokens.append(uid)
-  
+
     return uid
   
   def check_access_token(self, token: str) -> Optional[str]:

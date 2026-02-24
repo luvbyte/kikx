@@ -18,9 +18,10 @@ from neko.widgets.dialogue import AlertWrapper
 # super Console with more features
 # Themes: default, neon, matrix, scifi, solarized
 class SConsole:
-  def __init__(self, font_size: int = 14, theme: str = "default"):
+  def __init__(self, font_size: int = 14, theme: str = "default", padding=None):
     panel.clear()
     self.font_size = font_size
+    self.padding = padding
 
     self._box = Div()
     self._history = []
@@ -50,9 +51,10 @@ class SConsole:
       theme['bg'],
       theme['text'],
       theme['scrollbar'],
-      theme.get('font', 'font-sans'),
+      theme.get('font', 'font-body'),
       theme.get('extras', ''),
-      f"text-[{self.font_size}px]"
+      f"text-[{self.font_size}px]",
+      ClassBuilder().add_if(f"p-{self.padding}", self.padding).done()
     ]
 
     # Add them in one call
@@ -164,13 +166,13 @@ class SConsole:
   def history(self, limit=20):
     return self._history[-limit:]
   
-  def notify(self, message, type='info'):
+  def notify(self, message, type='info', priority = "normal"):
     data = json.dumps({
       "type": type,
       "msg": message,
-      "displayEvenActive": True
+      "priority": priority
     })
-    js.run_code(f"kikxApp.system.notify({data})")
+    js.run_code(f"kikxApp.system.alert({data})")
 
   @property
   def wg(self):
@@ -183,7 +185,6 @@ class ConsoleThemes:
       'bg': 'bg-slate-800/60',
       'text': 'text-white',
       'scrollbar': 'scrollbar-thin scrollbar-thumb-white/20',
-      'font': 'font-sans',
       'border': '',
       'extras': ''
     },
@@ -192,7 +193,6 @@ class ConsoleThemes:
       'bg': 'bg-black/60',
       'text': 'text-green-400',
       'scrollbar': 'scrollbar-thin scrollbar-thumb-green-500/20',
-      'font': 'font-mono',
       'extras': ''
     },
     'matrix': {
@@ -200,7 +200,6 @@ class ConsoleThemes:
       'bg': 'bg-black/60',
       'text': 'text-green-300',
       'scrollbar': 'scrollbar-thin scrollbar-thumb-green-700/20',
-      'font': 'font-mono',
       'extras': 'tracking-wide'
     },
     'scifi': {
@@ -208,7 +207,6 @@ class ConsoleThemes:
       'bg': 'bg-gradient-to-br from-purple-900/60 via-black to-blue-900/60',
       'text': 'text-purple-200',
       'scrollbar': 'scrollbar-thin scrollbar-thumb-purple-500/30',
-      'font': 'font-sans',
       'extras': 'shadow-lg'
     },
     'solarized': {
@@ -216,7 +214,6 @@ class ConsoleThemes:
       'bg': 'bg-[#002b36]/60',
       'text': 'text-[#93a1a1]',
       'scrollbar': 'scrollbar-thin scrollbar-thumb-[#586e75]/30',
-      'font': 'font-mono',
       'extras': ''
     },
   }

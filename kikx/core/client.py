@@ -9,9 +9,14 @@ from core.func import FuncX, funcx
 from core.connection import Connection
 from core.func.handlers import Handler
 from core.models.app_models import AppModel
+
+from core.ui import ClientUI
+
 from lib.parser import parse_config
 
 from lib.utils import get_timestamp
+
+from pathlib import Path
 
 from fastapi import WebSocket
 
@@ -23,21 +28,32 @@ class Client(FuncX):
   """
   Represents a connected client that manages multiple apps and handles communication.
   """
-  def __init__(self, user: object, resolve_path: callable, access_token: str):
+  def __init__(self, user: object, resolve_path: callable, access_token: str, ui: ClientUI):
     super().__init__()
     self.id: str = uuid4().hex
     self.user: object = user
     self.access_token = access_token
-
-    self.connection = Connection()
     
-    self.created_at = get_timestamp()
+    self.ui: ClientUI = ui
 
-    self.apps_path = resolve_path("apps://")
+    self.connection: Connection = Connection()
+
+    self.created_at: str = get_timestamp()
+
+    self.apps_path: Path = resolve_path("apps://")
     self.running_apps: Dict[str, App] = {}
 
-    logger.info(f"Client initialized (ID: {self.id})")
+    logger.info(f"Client initialized (ID: {self.id}) with (UI: {self.ui.name})")
   
+  def get_app(self, app_id: str) -> App:
+    return self.running_apps[app_id]
+
+  def get_app_config(self, app: str | App) -> dict:
+    if isinstance(app, str):
+      app = self.get_app(app)
+
+    return { **app.config.model_dump(), "ui": self.ui.name  }
+
   async def connect_websocket(self, websocket):
     await self.connection.connect(websocket)
 

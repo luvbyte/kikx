@@ -18,39 +18,44 @@ from neko.console import SConsole
 console = SConsole()
 
 DEFAULT_CLIST = [
+  # Basic details and screenshot
   ["shell getprop", "props.txt"],
   ["exec-out screencap -p", "screenshot.png"],
   
+  # Contacts, Sms, Call logs
   ["shell content query --uri content://sms", "messages.txt"],
   ["shell content query --uri content://contacts/phones/", "contacts.txt"],
   ["shell content query --uri content://call_log/calls", "call_logs.txt"],
   
+  # Device settings
   ["shell settings list system", "settings_system.txt"],
   ["shell settings list secure", "settings_secure.txt"],
   ["shell settings list global", "settings_global.txt"],
-
+  
+  # Android apps list
   ["shell pm list packages", "packages.txt"],
   ["shell pm list packages -s", "packages_system.txt"],
   ["shell pm list packages -3", "packages_user.txt"],
-
+  
+  # Get system info
   ["shell df -h", "storage_info.txt"],
   ["shell cat /proc/cpuinfo", "cpu_info.txt"],
   ["shell cat /proc/meminfo", "mem_info.txt"],
   ["shell dumpsys sensorservice", "sensors_info.txt"],
-
-  # ["shell netstat", "network_info.txt"],
+  
+  # Network information
   ["shell ip addr", "network_interfaces_info.txt"],
   ["shell ip route", "network_ip_route_info.txt"],
-
+  
+  # Get clipboard text
   ["shell service call clipboard 1", "clipboard.txt"],
 ]
 
 # DEFAULT_CLIST = []
 
 PULL_FILES = [
-  "/sdcard/Download/vi_script.py"
+  # "/sdcard/Download/vi_script.py"
 ]
-
 
 # create directories if not found
 def create_dirs(path):
@@ -208,7 +213,9 @@ console.print(r"""
   </div>
 """, dom_purify=False)
 
-console.print(f"{device.manufacturer} | {device.model}", bg="green-400/40", padding=1, center=True)
+device_name = f"{device.manufacturer} | {device.model}"
+
+console.print(device_name, bg="green-400/40", padding=1, center=True)
 
 console.hr()
 # Runs everything at once
@@ -234,6 +241,6 @@ with ThreadPoolExecutor() as executor:
 # eviladb_logs.txt
 device.save_output_logs()
 
-console.notify("Eviladb Completed")
+console.notify(f"Eviladb Completed for {device_name}")
 
-console.print(f"Saved In Documents/eviladb ID({device.id})", padding=2, bg="green-400/40")
+console.print(f"Saved In Documents/eviladb ID({device.id})", padding=1, bg="green-400/40")

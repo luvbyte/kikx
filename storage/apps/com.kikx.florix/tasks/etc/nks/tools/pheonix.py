@@ -42,7 +42,7 @@ def intro() -> str:
 
   # Submit button
   button = Div("START").add_class(
-    "w-full font-bold p-2 rounded text-xs text-center bg-gradient-to-b from-purple-400/80 to-blue-400 active:bg-white"
+    "w-full font-bold p-2 rounded text-xs text-center bg-blue-400/80"
   )
 
   # UI layout
@@ -79,6 +79,9 @@ def intro() -> str:
     text = input()
     if text == "file-select":
       file_path = console.fs.ask_file("Select wordlist")
+      if file_path is None:
+        exit()
+      
       if len(file_path) > 0:
         wordlist_input._js.jfunc(f"val({json.dumps(str(file_path[0]))})")
     else:

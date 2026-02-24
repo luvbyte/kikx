@@ -13,14 +13,22 @@ import logging
 
 console = SConsole()
 
-SHARED_DIR = console.fs.ask_directory().pop()
+directory = console.fs.ask_directory()
+if not directory:
+  console.print("No directory selected")
+  console.print("Exiting :)")
+  exit()
+
+SHARED_DIR = directory.pop()
+
+
 HOST = "localhost"
 PORT = 8080
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-  console.print("Server Running", padding=1, center=True, bg="purple-400/40")
+  console.print("Server Running", padding=2, center=True, bg="purple-400/40")
   console.wg.copy_box(f"http://{HOST}:{PORT}", f"http://{HOST}:{PORT}")
   
   console.print(f"Serving: {SHARED_DIR}", padding=1, bg="blue-400/40")

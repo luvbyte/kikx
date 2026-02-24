@@ -19,3 +19,8 @@ class AlertModel(BaseModel):
 
 class UserSettingsModel(BaseModel):
   settings: dict
+
+class ClientAppEventModel(BaseModel):
+  app_id: str
+  event: str
+  payload: dict = {}

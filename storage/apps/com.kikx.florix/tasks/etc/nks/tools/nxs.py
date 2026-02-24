@@ -7,9 +7,9 @@ from datetime import datetime
 import subprocess
 
 code = r"""
-<div class="w-full h-full bg-base text-white flex flex-col">
+<div class="flex-1 text-white flex flex-col overflow-y-auto">
   <!-- Top Banner -->
-  <div class="h-[200px] bg-purple-800/20 border-b border-gray-700 p-1 overflow-auto">
+  <div class="h-[200px] bg-purple-800/20 border-b border-gray-700 p-1">
     <pre class="flex w-full h-full text-xs leading-tight whitespace-pre-wrap text-center justify-center items-center">
 _   __  __ ___ 
 | \ | \ \/ / __|
@@ -23,30 +23,30 @@ Created for florix/neko
   </div>
 
   <!-- Bottom Panel -->
-  <div class="flex-1 bg-slate-900/40 p-4 flex flex-col justify-between">
+  <div class="flex-1 p-4 flex flex-col justify-between">
     <!-- Options Section -->
-    <div class="space-y-3 text-sm overflow-y-auto">
+    <div class="space-y-3 text-sm">
 
       <div class="flex items-center justify-between">
         <label>Target IP / Host</label>
-        <input id="target" type="text" value="localhost" class="bg-gray-700 text-white text-xs px-2 py-1 rounded w-40 focus:outline-none" />
+        <input id="target" placeholder="Target host" type="text" value="localhost" class="border border-white/60 text-white text-xs px-2 py-1 rounded w-40 focus:outline-none bg-transparent" />
       </div>
 
       <div class="flex items-center justify-between">
         <label>Port Range</label>
-        <input id="ports" type="text" placeholder="ex: 1-1000" class="bg-gray-700 text-white text-xs px-2 py-1 rounded w-40 focus:outline-none" />
+        <input id="ports" type="text" placeholder="ex: 1-1000" class="text-white text-xs px-2 py-1 rounded w-40 focus:outline-none bg-transparent" />
       </div>
 
       <!-- Scan Types -->
       <div class="flex flex-col gap-2">
         <label class="mb-1">Scan Types</label>
         <div class="grid grid-cols-2 gap-2">
-          <label class="flex items-center gap-2"><input id="tcp-syn" type="checkbox" class="form-checkbox bg-gray-600" /> -sS SYN</label>
-          <label class="flex items-center gap-2"><input id="udp-scan" type="checkbox" class="form-checkbox bg-gray-600" /> -sU UDP</label>
-          <label class="flex items-center gap-2"><input id="os-detect" type="checkbox" class="form-checkbox bg-gray-600" /> -O OS</label>
-          <label class="flex items-center gap-2"><input id="service-version" type="checkbox" class="form-checkbox bg-gray-600" /> -sV Version</label>
-          <label class="flex items-center gap-2"><input id="aggressive" type="checkbox" class="form-checkbox bg-gray-600" /> -A Aggressive</label>
-          <label class="flex items-center gap-2"><input id="ping" type="checkbox" class="form-checkbox bg-gray-600" /> -Pn No Ping</label>
+          <label class="flex items-center gap-2"><input id="tcp-syn" type="checkbox" class="form-checkbox " /> -sS SYN</label>
+          <label class="flex items-center gap-2"><input id="udp-scan" type="checkbox" class="form-checkbox " /> -sU UDP</label>
+          <label class="flex items-center gap-2"><input id="os-detect" type="checkbox" class="form-checkbox " /> -O OS</label>
+          <label class="flex items-center gap-2"><input id="service-version" type="checkbox" class="form-checkbox " /> -sV Version</label>
+          <label class="flex items-center gap-2"><input id="aggressive" type="checkbox" class="form-checkbox " /> -A Aggressive</label>
+          <label class="flex items-center gap-2"><input id="ping" type="checkbox" class="form-checkbox " /> -Pn No Ping</label>
         </div>
       </div>
 
@@ -54,24 +54,24 @@ Created for florix/neko
       <div class="flex flex-col gap-2">
         <label class="mb-1">Performance & Verbosity</label>
         <div class="grid grid-cols-2 gap-2">
-          <label class="flex items-center gap-2"><input id="verbose" type="checkbox" class="form-checkbox bg-gray-600" /> -v Verbose</label>
-          <label class="flex items-center gap-2"><input id="debug" type="checkbox" class="form-checkbox bg-gray-600" /> -d Debug</label>
-          <label class="flex items-center gap-2"><input id="timing" type="checkbox" class="form-checkbox bg-gray-600" /> -T4 Timing</label>
-          <label class="flex items-center gap-2"><input id="only-open" type="checkbox" class="form-checkbox bg-gray-600" /> --open</label>
+          <label class="flex items-center gap-2"><input id="verbose" type="checkbox" class="form-checkbox " /> -v Verbose</label>
+          <label class="flex items-center gap-2"><input id="debug" type="checkbox" class="form-checkbox " /> -d Debug</label>
+          <label class="flex items-center gap-2"><input id="timing" type="checkbox" class="form-checkbox " /> -T4 Timing</label>
+          <label class="flex items-center gap-2"><input id="only-open" type="checkbox" class="form-checkbox " /> --open</label>
         </div>
       </div>
 
       <!-- Extra Arguments -->
       <div class="flex flex-col gap-3">
         <label>Extra Args</label>
-        <input id="extra" type="text" placeholder="e.g. --script=http-title" class="bg-gray-700 text-white text-xs px-2 py-1 rounded w-full focus:outline-none" />
+        <input id="extra" type="text" placeholder="e.g. --script=http-title" class="border border-white/60 text-white text-xs px-2 py-1 rounded w-full focus:outline-none bg-transparent" />
       </div>
 
       <!-- Start Button -->
       <div class="pt-4">
         <button
           onclick="tempObjects.nxs_triggerScan()"
-          class="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-2 rounded transition"
+          class="w-full bg-green-500 text-black font-bold py-2 rounded transition"
         >
           ▶ Start Scan
         </button>
@@ -170,12 +170,12 @@ def generate_nmap_result_ui(result: str, target: str = "Unknown") -> str:
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     
     return f"""
-      <div class="w-full h-full bg-black text-white font-mono flex flex-col text-xs">
+      <div class="w-full h-full text-white flex flex-col text-xs">
         <!-- Header -->
-        <div class="p-4 border-b border-gray-800 bg-gray-900">
+        <div class="p-2 border-b bg-purple-400/40">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-green-400 text-xl font-bold">📡 Nmap Scan Results</h1>
+              <h1 class="text-green-400 text-xl font-bold">Nmap Scan Results</h1>
               <p class="text-xs text-gray-400">Target: <span class="text-white">{target}</span></p>
               <p class="text-xs text-gray-400">Scanned at: <span class="text-white">{timestamp}</span></p>
             </div>
@@ -183,7 +183,7 @@ def generate_nmap_result_ui(result: str, target: str = "Unknown") -> str:
         </div>
       
         <!-- Scan Output -->
-        <div class="flex-1 overflow-y-auto p-4 bg-black text-sm leading-snug">
+        <div class="flex-1 p-2 text-sm leading-snug">
           <pre class="whitespace-pre-wrap text-green-300 text-xs">{result}</pre>
         </div>
       </div>

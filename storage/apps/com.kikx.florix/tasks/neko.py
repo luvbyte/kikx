@@ -234,7 +234,14 @@ class Neko(JApp):
     """)))
 
   def random_banner(self, banner=None) -> None:
-    self.current_banner = banner if banner else choice([i for i in BANNERS if i != self.current_banner])
+    # self.current_banner = banner if banner else choice([i for i in BANNERS if i != self.current_banner])
+    
+    if banner is not None:
+      self.current_banner = banner
+    else:
+      current_index = BANNERS.index(self.current_banner)
+      next_index = (current_index + 1) % len(BANNERS)
+      self.current_banner = BANNERS[next_index]
   
     banner_text = Div(self.current_banner)
     banner_text.add_class("w-full h-full")

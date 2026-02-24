@@ -31,7 +31,7 @@ class FileSystem(JApp):
       title_head += "File"
 
     self.frame = Div(f"""
-      <div class="p-2 bg-gradient-to-b from-purple-500 to-blue-400 flex justify-between items-center">
+      <div class="p-2 bg-blue-400/80 flex justify-between items-center">
         <div class="flex flex-col w-full">
           <div class="w-full flex justify-between items-center">
             <div class="text-lg">{title_head}</div>
@@ -82,7 +82,7 @@ class FileSystem(JApp):
 
     cls_list = "flex flex-col flex-1" if self.list_view else "grid grid-cols-4 gap-1 p-2"
     
-    select_button = f'<div {self.on("done")} class="p-2 bg-purple-800 text-center">SELECT</div>'
+    select_button = f'<div {self.on("done")} class="p-2 bg-blue-400/60 text-center">SELECT</div>'
 
     self.files_div.replace(f"""
       { select_button if self.directory or (len(self.selected) > 0 and self.multiple) else ''}

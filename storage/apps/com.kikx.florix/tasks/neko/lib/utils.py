@@ -3,6 +3,7 @@ import bleach
 
 from bleach import clean
 
+# 
 def sanitize_html(html_content: str) -> str:
   # Allow most common HTML tags
   allowed_tags = list(bleach.sanitizer.ALLOWED_TAGS) + [
@@ -28,16 +29,28 @@ def sanitize_html(html_content: str) -> str:
 
   return cleaned
 
-def safe_code(html):
+# some HTML, but remove dangerous 
+# parts like <script> tags or unsafe attributes.
+# example: safe_code('<b>Hello</b> <script>alert(1)</script>')
+# Output: '<b>Hello</b> alert(1)'
+def safe_code(html, *args, **kwargs):
   if isinstance(html, list):
     return [safe_code(code) for code in html]
   elif isinstance(html, str):
-    return bleach.clean(html)
+    return bleach.clean(html, *args, **kwargs)
   else:
     raise Exception("Unknown type")
 
+# convert all HTML characters into safe text, 
+# so the browser shows them literally instead of interpreting them.
+# example: html.escape("<b>Hello</b>")
+# Output: "&lt;b&gt;Hello&lt;/b&gt;"
 def escape(text: str):
   return html.escape(text)
+
+# Html to text
+def html_to_text(text: str) -> str:
+  return escape(text)
 
 def sanitize_js_string(value: str) -> str:
   return (

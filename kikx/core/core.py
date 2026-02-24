@@ -58,6 +58,12 @@ class Core:
     """Return a client by ID."""
     return self.clients.get(client_id)
 
+  def get_ui_config(self, name: str):
+    try:
+      return self.config.kikx.ui[name]
+    except ValueError:
+      raise ValueError(f"UI '{name}' not found in kikx config")
+
   def get_client_app_by_id(self, app_id: str) -> Tuple[Optional[Client], Optional[object]]:
     """
     Return the (client, app) tuple given an app ID.

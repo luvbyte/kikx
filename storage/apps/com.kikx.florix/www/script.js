@@ -1,3 +1,6 @@
+const kikxApp = new kikxSdk.KikxAppClient();
+const appTasks = new kikxSdk.AppTasks(kikxApp);
+
 let mainTask = "neko";
 
 function _deepCleanObject(obj) {
@@ -126,11 +129,6 @@ function askInput(placeholder = "", focus = false, effect = null) {
     return sendError("Input blocked: blockUserInput is true");
   }
 
-  kikxApp.system.notify({
-    msg: `Require input - ${placeholder}`,
-    type: "info"
-  });
-
   effect && $taskInputPanel.addClass(`animate__animated animate__${effect}`);
 
   $taskInputPanel.show();
@@ -229,7 +227,7 @@ function runFlorixTask(cmd) {
   if (currentTask || !cmd) return;
 
   runningScript = cmd;
-  const task = createTask(cmd);
+  const task = appTasks.createTask(cmd);
 
   $panel.html(`
     <div class="w-full h-full bg-gray-800/40 flex flex-col justify-center items-center font-bold ">
@@ -288,12 +286,6 @@ function runFlorixTask(cmd) {
         break;
     }
   });
-  
-  // Remove once ended
-  task.handler.onended = () => {
-    removeHandler(task.handler.handlerID);
-  };
-
   task.run();
 }
 
@@ -385,6 +377,13 @@ $(() => {
 });
 
 // ========== APP INITIALIZATION ==========
+kikxApp.on("reconnected", () => {
+  $("#loading-screen").fadeOut();
+});
+
+kikxApp.on("ws:onclose", () => {
+  $("#loading-screen").show();
+});
 
 kikxApp.run(() => {
   runFlorixTask(mainTask);

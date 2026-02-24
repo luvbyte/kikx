@@ -1,6 +1,7 @@
 # -------------------------------------
 # Imports
 # -------------------------------------
+import os
 import logging
 import asyncio
 from fastapi import (
@@ -16,13 +17,16 @@ from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional
 
-from lib.utils import dynamic_import, is_websocket_connected
+from lib.utils import dynamic_import, is_websocket_connected, import_relative_module
 from lib.plugins import KikxPlugin
 from lib.parser import parse_config
 
 from core.core import Core
 from core.client import Client
+from core.ui import ClientUI
 from core.models.app_models import CloseAppModel, OpenAppModel, AppsListModel, AppManifestModel
+
+from core.utils import load_app_manifest
 
 from lib.utils import file_response
 
@@ -49,6 +53,7 @@ async def lifespan(_: FastAPI):
   logger.info("<=== [ KIKX CLOSED ] ===>")
 
 kikx_app = FastAPI(lifespan=lifespan)
+kikx_app.state.core = core
 
 # Load plugins
 core.plugins.load(core)
@@ -69,55 +74,17 @@ kikx_app.mount("/share", StaticFiles(directory=core.config.share_path), name="sh
 kikx_app.mount("/files", StaticFiles(directory=core.config.files_path), name="files")
 
 # -------------------------------------
-# API Router
+# Dynamically loading routes
 # -------------------------------------
+# Dynamically loading routes
+for file in os.listdir("core/routes"):
+  if file.endswith(".py") and file not in ("__init__.py",):
+    module_name = file[:-3]  # remove .py
+    module = import_relative_module(f"core.routes.{module_name}", module_name)
 
-api = APIRouter()
-
-# App manifest like name, title, icon
-def load_app_manifest(name: str):
-  manifest_path = (core.config.apps_path / name / "app.json").resolve()
-  if not manifest_path.exists():
-    raise HTTPException(status_code=404, detail="File not found")
-
-  # checking relative paths
-  if not manifest_path.is_relative_to(core.config.apps_path):
-    raise HTTPException(status_code=403, detail="Forbidden path")
-
-  # Parsing file
-  manifest = parse_config(manifest_path, AppManifestModel)
-
-  return {
-    "name": name,
-    "title": manifest.title,
-    "icon": f"/public/app/{name}/{manifest.icon}",
-    
-    "theme": manifest.theme
-  }
-
-@api.post("/apps/list")
-def get_apps_list(data: AppsListModel):
-  client = core.clients.get(data.client_id)
-  if client is None:
-    raise HTTPException(status_code=401, detail="Client not found")
-  
-  def safe_load(name):
-    try:
-      return load_app_manifest(name)
-    except Exception:
-      return None
-  
-  return [res for name in client.user.get_installed_apps() if (res := safe_load(name)) is not None]
-
-@api.get("/ui-list")
-def get_ui_list():
-  return {
-    "ui": list(core.auth.user_config.ui),
-    "default": core.auth.user_config.default_ui
-  }
-
-# Include API routes
-kikx_app.include_router(api, prefix="/api", tags=["Api"])
+    # attach router if exists
+    if hasattr(module, "router"):
+      kikx_app.include_router(getattr(module, "router"), prefix=f"/{module_name}", tags=[module_name.capitalize()])
 
 # -------------------------------------
 # Auth Routes
@@ -127,10 +94,9 @@ def login_page(file: Optional[str] = None, ui: Optional[str] = None):
   return file_response("www/auth", "login.html")
 
 @kikx_app.post("/login", tags=["Auth"])
-async def login(access: str = Form(...)):
-  access_token = core.auth.generate_access_token(access)
-  if not access_token:
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+async def login(access: str = Form(...), ui: str = Form(...)):
+  access_token = core.auth.generate_access_token(access, ui)
+
   response = JSONResponse(content={"message": "Login successful"})
   response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
   #max_age=None,   # No explicit max age
@@ -144,8 +110,8 @@ def logout():
   return response
 
 @kikx_app.get("/generate", tags=["Auth"])
-def generate(key: str):
-  access_token = core.auth.generate_access_token(key)
+def generate(key: str, ui: str):
+  access_token = core.auth.generate_access_token(key, ui)
   return {
     "access_token": access_token
   }
@@ -169,7 +135,7 @@ async def close_app(app_model: CloseAppModel):
 @kikx_app.post("/open-app")
 async def open_app(app_model: OpenAppModel):
   try:
-    app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(app_model.name), app_model.sudo)
+    app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(core, app_model.name), app_model.sudo)
 
     return {
       "id": app.id,
@@ -232,13 +198,11 @@ def redirect(path: str):
     return RedirectResponse(core.shortlink.resolve(path))
   except Exception as e:
     raise HTTPException(status_code=404, detail=str(e))
-  
 
 @kikx_app.get("/lazy-login")
-def lazy_login(key: str):
-  access_token = core.auth.generate_access_token(key)
-  if not access_token:
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+def lazy_login(key: str, ui: str):
+  access_token = core.auth.generate_access_token(key, ui)
+
   response = RedirectResponse("/")
   response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
   
@@ -267,7 +231,8 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
       event_name = "connected"
     await app.connect_websocket(websocket)
     await app.send_event(event_name, {
-      "config": app.config.model_dump()
+      "config": client.get_app_config(app)
+      # "config": { **app.config.model_dump(), "ui": client.ui.name }
     })
   except PermissionError as e:
     await websocket.close(code=1008, reason=str(e))
@@ -302,8 +267,10 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
       # ----- no need access token for already connected session
       if core.auth.pop_access_token(access_token) is None:
         raise PermissionError("Unauthorized")
+  
+      ui = access_token.split("_")[1]
       # move this above to check even client reconnect
-      client = Client(core.user, core.config.resolve_path, access_token)
+      client = Client(core.user, core.config.resolve_path, access_token, ClientUI(ui, core.get_ui_config(ui)))
       core.clients[client.id] = client
       event_name = "connected"
 

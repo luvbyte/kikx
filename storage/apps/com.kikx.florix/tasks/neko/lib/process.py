@@ -13,6 +13,9 @@ class Process:
   
   def error(self):
     return self._process.stderr.read().decode('utf-8').strip()
+  
+  def text(self):
+    return f"{self.output()}{self.error()}"
 
   @property
   def returncode(self):

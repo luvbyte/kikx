@@ -123,6 +123,32 @@ $(function () {
     if (payload.name === currentApp && !payload.displayEvenActive) return;
     notifyApp.notify(payload);
   });
+
+  client.on("app:notify", payload => {
+    if (payload.name === currentApp && !payload.displayEvenActive) return;
+    notifyApp.notify(payload);
+  });
+
+  client.on("app:alert", payload => {
+    const isArrayMessage = Array.isArray(payload.msg);
+    const message = isArrayMessage ? payload.msg.join(" ") : payload.msg;
+
+    const notifyPayload = {
+      name: payload.name,
+      id: payload.id,
+      title: payload.title,
+      type: payload.type ?? "info",
+      msg: isArrayMessage ? message : payload.msg,
+      delay: payload.delay ?? 0,
+      displayEvenActive: true,
+      extra: {
+        frames: isArrayMessage ? payload.msg : []
+      }
+    };
+
+    notifyApp.notify(notifyPayload);
+  });
+
   // closing app by app itself
   client.on("app:close", app => {
     try {

@@ -250,7 +250,7 @@ class KikxApp {
     this.maxReconnectAttempts = 5;
     this._reconnectTimer = null;
 
-    this.appConfig = {};
+    this.config = {};
 
     // Event: App-specific handler
     this.on("handler-data", payload => {
@@ -306,7 +306,7 @@ class KikxApp {
       try {
         const message = JSON.parse(e.data);
         if (message.event === "connected") {
-          this.appConfig = message.payload.config || {};
+          this.config = message.payload.config || {};
         }
         if (message.event) {
           this._callEvent(message.event, message.payload);

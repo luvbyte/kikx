@@ -82,5 +82,5 @@ def _check_error(text):
     data = json.loads(text)
     if data.get("event") == "error":
       raise Exception(str(data.get("payload")))
-  except (KeyError, json.decoder.JSONDecodeError, TypeError):
+  except (KeyError, json.decoder.JSONDecodeError, TypeError, AttributeError):
     return str(text)

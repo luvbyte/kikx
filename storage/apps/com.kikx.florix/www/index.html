@@ -9,7 +9,7 @@
     <script src="/share/cdn/tailwind-3.js"></script>
     <script src="/share/cdn/jquery.min.js"></script>
 
-    <script src="/share/static/app.js"></script>
+    <script src="/share/sdk/kikx-sdk.umd.js"></script>
 
     <script>
       tailwind.config = {
@@ -18,7 +18,18 @@
     </script>
   </head>
   <body>
-    <div id="app" class="h-screen p-2 flex flex-col gap-2">
+    <!-- Fullscreen Loading Screen -->
+    <div
+      id="loading-screen"
+      style="display: none"
+      class="fixed inset-0 w-full h-full z-[99] flex flex-col justify-center items-center font-bold"
+    >
+      <div
+        class="border-white border-b w-6 h-6 animate-spin rounded-full"
+      ></div>
+    </div>
+
+    <div id="app" class="h-dvh p-2 flex flex-col gap-2">
       <!-- top bar -->
       <div class="flex gap-2 items-center animate__animated">
         <div class="text-white">
@@ -175,7 +186,7 @@
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
-          class="w-full bg-transparent focus:outline-none text-xs "
+          class="w-full bg-transparent focus:outline-none text-xs"
         />
         <button onclick="_sendUserInput()">
           <svg

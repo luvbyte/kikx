@@ -1,75 +1,132 @@
+"use strict";
+
 let pathProtocol = "home://";
 let currentPath = "";
-
 let currentFilePath = "";
+
+/* -------------------------- Utilities -------------------------- */
+
+const sanitizeText = text => {
+  if (typeof text !== "string") return "";
+  return text.replace(/[<>]/g, "");
+};
+
+const isValidPath = path => {
+  return typeof path === "string" && !path.includes("..");
+};
+
+const safeExt = ext => {
+  if (!ext) return "";
+  return ext.toLowerCase();
+};
+
+/* -------------------------- Viewers -------------------------- */
 
 const viewText = async (res, file) => {
   $("#text-editor").removeClass("hidden");
 
-  $("#text-filename").text(file.name);
+  $("#text-filename").text(sanitizeText(file.name));
   $("#text-panel").val(await blobToText(res.data));
 };
+
 const viewImage = async (res, file) => {
   $("#image-viewer").removeClass("hidden");
+
   const blobUrl = URL.createObjectURL(res.data);
 
+  $("#image-filename").text(sanitizeText(file.name));
   $("#image-frame").attr("src", blobUrl);
 };
-const playVideo = async (res, file) => {};
+
+const playVideo = async (res, file) => {
+  $("#video-viewer").removeClass("hidden");
+
+  const blobUrl = URL.createObjectURL(res.data);
+
+  $("#video-filename").text(sanitizeText(file.name));
+  $("#video-frame").attr("src", blobUrl);
+};
+
+/* -------------------------- File Actions -------------------------- */
 
 const openFile = async file => {
+  if (!file || !file.name) return;
+
   const path = file.path + file.name;
+
+  if (!isValidPath(path)) return;
+
   const res = await kikxApp.fs.readFile(path);
-
-  console.log(res);
-
-  // return on error
-  if (res.err) return;
+  if (!res || res.err) return;
 
   currentFilePath = path;
   $(".panel").addClass("hidden");
 
-  const ext = file.suffix.toLowerCase();
+  const ext = safeExt(file.suffix);
 
   const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
-  const videoExternsion = [".mp4"];
+  const videoExtensions = [".mp4"];
+
   if (imageExtensions.includes(ext)) {
     await viewImage(res, file);
-  } else if (videoExternsion.includes(ext)) await playVideo(res, file);
-  else {
+  } else if (videoExtensions.includes(ext)) {
+    await playVideo(res, file);
+  } else {
     await viewText(res, file);
   }
 };
 
-const closeFile = async () => {
+const closeFile = () => {
   $(".panel").addClass("hidden");
   $("#file-browser").removeClass("hidden");
 };
 
 const saveTextFile = async () => {
-  if (currentFilePath.length <= 0) return;
+  if (!currentFilePath) return;
 
-  const res = await kikxApp.fs.writeFile(
-    currentFilePath,
-    $("#text-panel").val()
-  );
-  if (res.dataa) {
-    alert("file saved");
+  const content = $("#text-panel").val();
+
+  const res = await kikxApp.fs.writeFile(currentFilePath, content);
+
+  if (res && !res.err) {
+    alert("File saved");
   }
+};
+
+/* -------------------------- Rendering -------------------------- */
+
+const getFileIconPath = ext => {
+  const iconsPath = "icons/";
+  const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
+
+  if (imageExtensions.includes(safeExt(ext))) {
+    return iconsPath + "picture.png";
+  }
+
+  return iconsPath + "file.png";
 };
 
 const renderFiles = files => {
   const container = $("#files-panel");
-  container.empty(); // Clear existing content
+  container.empty();
 
   files.forEach(file => {
-    const fileElement = $(`
-        <div class="w-14 h-14 flex flex-col items-center">
-          <img src="${file.icon}" alt="${file.name} icon" class="w-8 h-8" />
-          <div class="text-sm mt-1 truncate w-full text-center">${file.name}</div>
-        </div>
-      `);
-    fileElement.on("click", function () {
+    const wrapper = $("<div>")
+      .addClass("w-14 h-14 flex flex-col items-center");
+
+    const img = $("<img>")
+      .addClass("w-8 h-8")
+      .attr("alt", "file icon")
+      .attr("src", file.icon);
+
+    const nameDiv = $("<div>")
+      .addClass("text-sm mt-1 truncate w-full text-center")
+      .text(sanitizeText(file.name));
+
+    wrapper.append(img);
+    wrapper.append(nameDiv);
+
+    wrapper.on("click", () => {
       if (file.directory) {
         currentPath += file.name + "/";
         loadFiles();
@@ -77,28 +134,22 @@ const renderFiles = files => {
         openFile(file);
       }
     });
-    container.append(fileElement);
+
+    container.append(wrapper);
   });
 };
 
-const getFileIconPath = ext => {
-  const iconsPath = "icons/";
-
-  const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
-  if (imageExtensions.includes(ext)) {
-    return iconsPath + "picture.png";
-  } else {
-    return iconsPath + "file.png";
-  }
-};
+/* -------------------------- Path Handling -------------------------- */
 
 function transformList(items) {
   return items.map(item => ({
-    name: item.name,
+    name: sanitizeText(item.name),
     suffix: item.suffix,
     directory: item.directory,
     path: pathProtocol + currentPath,
-    icon: item.directory ? "icons/folder.png" : getFileIconPath(item.suffix)
+    icon: item.directory
+      ? "icons/folder.png"
+      : getFileIconPath(item.suffix)
   }));
 }
 
@@ -110,24 +161,32 @@ function goBackOnePath() {
 }
 
 function goHomePath() {
-  if (currentPath.length === 0) return;
+  if (!currentPath) return;
   currentPath = "";
   loadFiles();
 }
 
+/* -------------------------- Loader -------------------------- */
+
 const loadFiles = async () => {
-  path = pathProtocol + currentPath;
+  const path = pathProtocol + currentPath;
+
+  if (!isValidPath(path)) return;
 
   const res = await kikxApp.fs.listFiles(path);
-  if (res.data) {
+
+  if (res && res.data) {
     $("#file-path").val(path);
     renderFiles(transformList(res.data));
+
     $("#loading-screen").fadeOut(400, function () {
       $(this).remove();
     });
   }
 };
 
+/* -------------------------- Init -------------------------- */
+
 $(async () => {
-  loadFiles();
+  await loadFiles();
 });

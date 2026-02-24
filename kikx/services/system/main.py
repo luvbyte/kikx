@@ -2,7 +2,7 @@ from typing import Literal, Optional
 
 from fastapi import Request, HTTPException
 from functools import reduce
-from .models import NotifyModel, UserSettingsModel, AlertModel
+from .models import NotifyModel, UserSettingsModel, AlertModel, ClientAppEventModel
 from core.func.func import FuncXModel
 from lib.service import create_service
 import asyncio
@@ -64,7 +64,23 @@ async def client_logout(request: Request) -> None:
 
   return { "res": "ok" }
 
+# Client to app event 
+@srv.router.post("/client-app-event")
+async def client_app_event(request: Request, payload: ClientAppEventModel):
+  client = srv.get_client(request)
+  
+  app = client.get_app(payload.app_id)
+  if app is None:
+    raise HTTPException(status_code=404, detail="App not found")
 
+  # Sending client-app event
+  await app.send_event("client-app-event", {
+    "event": payload.event,
+    "payload": payload.payload
+  })
+
+
+# ------
 @srv.router.post("/notify")
 async def notify(request: Request, payload: NotifyModel) -> None:
   client, app = srv.get_client_app(request)
