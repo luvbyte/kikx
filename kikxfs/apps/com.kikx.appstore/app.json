@@ -1,0 +1,39 @@
+{
+  "name": "com.kikx.appstore",
+  "title": "AppStore",
+  "version": "0.0.1",
+  "kikx_version": "0.2.0",
+  "iframe": {
+    "allowfullscreen": false,
+    "sandbox": [
+      "allow-scripts"
+    ],
+    "allow": [],
+    "loading": "eager",
+    "referrerpolicy": "no-referrer"
+  },
+  "modules": {},
+  "proxy": false,
+  "system": {
+    "access": [
+      "kpm"
+    ]
+  },
+  "storage": {
+    "app": null,
+    "root": null,
+    "home": null
+  },
+  "sudo": false,
+  "icon": "icon.png",
+  "category": null,
+  "author": null,
+  "description": null,
+  "source": {
+    "url": "https://github.com/luvbyte/kikx-appstore-app",
+    "owner": "luvbyte",
+    "repo": "kikx-appstore-app",
+    "tag": "0.0.1"
+  },
+  "theme": "light"
+}

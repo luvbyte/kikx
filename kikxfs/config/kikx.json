@@ -1,0 +1,11 @@
+{
+  "settings": {},
+  "ui": {
+    "kui": {
+      "path": "storage://ui/kui"
+    },
+    "mui": {
+      "path": "storage://ui/mui"
+    }
+  }
+}

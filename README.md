@@ -72,7 +72,14 @@ Through this system, apps can:
 Make sure Python 3.8+ is installed and make.
 
 ```bash
-# Simply run
+# Default access key is 'kikx'
+
+# close repo
+git clone https://github.com/luvbyte/kikx.git
+
+cd kikx
+
+# run
 make
 
 # OR
@@ -85,6 +92,16 @@ make install
 
 # Start the server
 make run
+
+# OR Manually
+
+python3 -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+cd kikx && python3 main.py
+
 ```
 
 ---
@@ -101,15 +118,12 @@ Kikx is actively evolving. Below are planned features and improvements
 - Drag and drop support
 
 ### 📦 App Manager
-- Install / uninstall virtual apps
-- Enable / disable apps
 - Manage app permissions
-- App sandboxing support
-- Sudo permissions for app
+- Sudo permissions for app [ ✔️ ]
 
-### 🏬 App Store
+### 🏬 App Store [ ✔️ ]
 - App marketplace
-- Install apps with one click
+- Install / uninstall apps
 - Version management & updates
 - Community app publishing system
 

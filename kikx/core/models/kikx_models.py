@@ -1,43 +1,40 @@
-from pydantic import BaseModel, Field
 from typing import Dict, List, Literal, Optional
+from pydantic import BaseModel, Field, field_validator
 
-# -------------------------------------
-# Configuration Models
-# -------------------------------------
+
+
+# Optional Services
+DISABLE_SERVICES = Literal['proxy', 'fs', 'expose', 'kvx']
+
+
+# Server config model
 class ServerModel(BaseModel):
   host: str = Field("127.0.0.1", description="Host to bind the server")
-  port: int = Field(8000, ge=1000, le=65535, description="Port to bind the server")
-  #reload: bool = Field(True, description="Enable automatic reloading")
+  port: int = Field(1303, ge=1000, le=65535, description="Port to bind the server")
   log_level: Literal["critical", "error", "warning", "info", "debug"] = Field("critical", description="Logging level")
 
-class PluginModel(BaseModel):
-  path: str = Field(..., description="plugin path")
+# Services config model 
+class ServicesConfigModel(BaseModel):
+  disabled: List[DISABLE_SERVICES] = []
 
-class ServiceModel(BaseModel):
-  title: str = Field(..., description="service title")
-  # path: str = Field(..., description="service path")
-  main: str = Field("srv", description="Service module relative path")
-  type: Literal["k1", "k2"] = Field("k1", description="Service module Type")
-  # system: bool = Field(False, description="Checks every route if secure and will apply")
+  # Remove duplicates during validation
+  @field_validator("disabled")
+  @classmethod
+  def deduplicate(cls, value):
+    return list(dict.fromkeys(value))
 
-class ServicesModel(BaseModel):
-  installed: Dict[str, ServiceModel] = Field({}, description="Service")
-  enabled: List[str] = Field([], description="Enabled services")
-
+# UI config 
 class UIConfigModel(BaseModel):
   path: str = Field(..., description="Ui path")
 
+# ...
 class ConfigSettingsModel(BaseModel):
   pass
 
-# config/kikx.json
+# main kikx config in config/kikx.json
 class RootConfigModel(BaseModel):
-  settings: ConfigSettingsModel = Field(
-    default_factory=ConfigSettingsModel,
-    description="Settings of j4k"
-  )
+  settings: ConfigSettingsModel = Field(default_factory=ConfigSettingsModel, description="Settings of kikx")
   server: ServerModel = Field(default_factory=ServerModel, description="Server config")
-  plugins: Dict[str, PluginModel] = Field({}, description="Plugins")
 
   ui: Dict[str, UIConfigModel] = Field({}, description="UIs")
 

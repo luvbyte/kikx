@@ -2,14 +2,21 @@ import json
 import logging
 from pathlib import Path
 
-from core.errors import raise_error, Error
-from core.models.kikx_models import RootConfigModel
-from core.storage import Storage
-from lib.parser import parse_config
-from lib.utils import ensure_dir
 from utils import get_root_path
 
-logger = logging.getLogger(__name__)
+from core.models.kikx_models import RootConfigModel
+from core.storage import Storage
+
+from lib.utils import ensure_dir, joinpath
+from lib.parser import parse_config
+
+
+# Cant uninstall but can update
+ADMIN_APPS = { 
+  "com.kikx.appstore",
+  "com.kikx.sessions",
+  "com.kikx.files"
+}
 
 
 class Config:
@@ -20,20 +27,10 @@ class Config:
     self._kikx: RootConfigModel = parse_config(
       self.resolve_path("storage://config/kikx.json"), RootConfigModel
     )
-    logger.info("Config initialized")
 
   @property
-  def storage(self) -> Storage:
-    return self._storage
-
-  @property
-  def kikx(self) -> RootConfigModel:
-    """Returns the parsed kikx root config."""
-    return self._kikx
-
-  def get_apps_list(self) -> list[Path]:
-    """Returns a list of all app directories under apps path."""
-    return list(self.apps_path.glob("*/"))
+  def admin_apps(self):
+    return ADMIN_APPS
 
   def resolve_path(self, line: str) -> Path | str:
     """Resolves custom protocol paths to absolute storage paths."""
@@ -54,10 +51,22 @@ class Config:
       case "home":
         return self.storage.join("home", path)
       case "kikx":
-        return self.storage.join(get_root_path(), path)
+        return joinpath(get_root_path(), path)
       case _:
-        logger.warning(f"Unknown path protocol: {protocol}")
         return line
+
+  @property
+  def storage(self) -> Storage:
+    return self._storage
+
+  @property
+  def kikx(self) -> RootConfigModel:
+    """Returns the parsed kikx root config."""
+    return self._kikx
+
+  def get_apps_list(self) -> list[Path]:
+    """Returns a list of all app directories under apps path."""
+    return list(self.apps_path.glob("*/"))
 
   @property
   def share_path(self) -> Path:
@@ -78,4 +87,13 @@ class Config:
   def uis_path(self) -> Path:
     """Returns ui's path"""
     return ensure_dir(self.resolve_path("storage://ui"))
+  
+  @property
+  def data_path(self) -> Path:
+    """Returns data path"""
+    return ensure_dir(self.resolve_path("storage://data"))
 
+  @property
+  def apps_data_path(self) -> Path:
+    """Returns app data path"""
+    return ensure_dir(self.resolve_path("storage://data/app"))

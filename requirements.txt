@@ -5,11 +5,7 @@ passlib==1.7.4
 pyjwt
 python-jose
 python-multipart
-pytest
 httpx
 bleach
 lupa
-pyyaml
-tomli
 requests
--e kikxlib

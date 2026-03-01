@@ -4,7 +4,6 @@ import pwd
 import shlex
 import signal
 import asyncio
-import logging
 
 from uuid import uuid4
 from pathlib import Path
@@ -12,25 +11,19 @@ from pydantic import BaseModel, Field
 from typing import Dict, Optional, List, Union
 
 from core.func import funcx
-from core.errors import raise_error
+from core.logging import Logger
 from core.func.handlers import Handler
+
+from core.models.app_models import AppModuleTasksConfigModel
 
 from lib.parser import parse_config
 
 
-logger = logging.getLogger(__name__)
+
+logging = Logger("kikx_core", "kikx_core.log")
+logger = logging.get_logger()
 
 
-class TasksConfigModel(BaseModel):
-  shell: bool = False
-  # KIKX_ env variables
-  kikx_env: bool = True
-  # If this is False then uses program env
-  sandbox: bool = False
-  # env variables in key/values
-  env: Dict[str, str] = {}
-  # Main program to run while running tasks
-  main: str = Field('python3 -u {app_path}/tasks/{name}.py {args}', description="Prefix for all tasks")
 
 class SafeDict(dict):
   def __missing__(self, key):
@@ -74,7 +67,7 @@ class Task:
   async def send(self, data: str) -> None:
     """Send input to the subprocess."""
     if not self.process or self.process.returncode is not None:
-      raise_error("No active process")
+      raise Exception("No active process")
 
     self.process.stdin.write(data.encode() + b'\n')
     await self.process.stdin.drain()
@@ -83,7 +76,7 @@ class Task:
     """Start the subprocess and handle its output."""
     if self.started or self.process:
       await handler.error("Can't re-run task that's already running")
-      raise_error("Can't re-run task that's already running")
+      raise Exception("Can't re-run task that's already running")
     
     if self.sudo:
       preexec = None  # stay root
@@ -222,7 +215,9 @@ class Task:
 class Tasks:
   def __init__(self, app, config):
     # tasks config {}
-    self.config = TasksConfigModel(**config)
+    self.app_id = app.id
+    self.app_name = app.name
+    self.config = AppModuleTasksConfigModel(**config)
     self.app_path = app.app_path
     self.task_cwd = str(app.get_app_data_path())
 
@@ -270,7 +265,7 @@ class Tasks:
   def __on_ctask_complete(self, task: asyncio.Task) -> None:
     """Callback when a task is finished."""
     if task in self.ctasks:
-      logger.info(f"CTask completed: {task}")
+      logger.info(f"CTask completed: {task.get_name()}")
       self.ctasks.remove(task)
 
   async def _run_task(self, task: Task, handler: Handler):
@@ -294,7 +289,7 @@ class Tasks:
     """Public entry to start a task."""
     split_cmd = shlex.split(task_cmd)
     if not split_cmd:
-      raise_error("Command not found")
+      raise Exception("Command not found")
 
     task_cmd = self.task_template.format_map(SafeDict({
       "name": split_cmd[0],
@@ -314,7 +309,7 @@ class Tasks:
   async def run_once(self, task_cmd: str, task_input: Optional[str] = None):
     split_cmd = shlex.split(task_cmd)
     if not split_cmd:
-      raise_error("Command not found")
+      raise Exception("Command not found")
 
     task_cmd = self.task_template.format_map(SafeDict({
       "name": split_cmd[0],
@@ -359,7 +354,7 @@ class Tasks:
     """Send input to a running task."""
     task = self.running_tasks.get(task_id)
     if not task:
-      raise_error("Task not found")
+      raise Exception("Task not found")
     await task.send(input_text)
 
   async def on_close(self) -> None:
@@ -367,7 +362,7 @@ class Tasks:
     if not self.ctasks:
       return
 
-    logger.info("Shutting down all running tasks...")
+    logger.info(f"Shutting down all running tasks for (App: {self.app_name}) (ID: {self.app_id})...")
 
     # Cancel all asyncio tasks
     for t in list(self.ctasks):
@@ -383,5 +378,5 @@ class Tasks:
     for task in list(self.running_tasks.values()):
       await task.clean()
 
-    logger.info("All tasks closed cleanly.")
+    logger.info(f"All tasks closed cleanly for (App: {self.app_name}) (ID: {self.app_id}).")
 

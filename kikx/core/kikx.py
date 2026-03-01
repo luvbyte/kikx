@@ -1,64 +1,60 @@
-# -------------------------------------
-# Imports
-# -------------------------------------
 import os
-import logging
 import asyncio
 from fastapi import (
-  FastAPI, WebSocket, WebSocketDisconnect, APIRouter,
-  Request, Response, Depends, Cookie, HTTPException, Form
+  FastAPI, WebSocket, WebSocketDisconnect,
+  Request, Cookie, HTTPException, Form
 )
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from pathlib import Path
-
-from pydantic import BaseModel
 from typing import Optional
-
-from lib.utils import dynamic_import, is_websocket_connected, import_relative_module
-from lib.plugins import KikxPlugin
-from lib.parser import parse_config
+from pydantic import BaseModel, Field
 
 from core.core import Core
-from core.client import Client
 from core.ui import ClientUI
-from core.models.app_models import CloseAppModel, OpenAppModel, AppsListModel, AppManifestModel
-
+from core.client import Client
+from core.logging import Logger
+from core.console import Console
 from core.utils import load_app_manifest
 
-from lib.utils import file_response
+from lib.utils import file_response, import_relative_module
 
-from datetime import timedelta
+
+
 # -------------------------------------
 # Logging Configuration
 # -------------------------------------
 
-logging.basicConfig(level=logging.INFO, format="\n%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("kikx")
+logging = Logger("kikx", "kikx_server.log")
+logger = logging.get_logger()
+
+# storage
+STORAGE = os.environ.get("KIKXFS", "../kikxfs")
 
 # -------------------------------------
 # Core App Initialization
 # -------------------------------------
 
-core = Core()
+core = Core(STORAGE, dev_mode=True)
 
-async def lifespan(_: FastAPI):
-  await core.on_start()
-  logger.info("<=== [ KIKX STARTED ] ===>")
+
+# Fastapi lifespan
+async def lifespan(app: FastAPI):
+  await core.on_start(app)
+  core.scr.print_divider("KIKX STARTED")
+
+  if not core.is_dev_mode:
+    server_config = core.config.kikx.server
+    core.scr.print(f"http://{server_config.host}:{server_config.port}\n")
+
   yield
-  print("before lifespan yield")
   await core.on_close()
-  logger.info("<=== [ KIKX CLOSED ] ===>")
+  core.scr.print_divider("KIKX SHUTDOWN")
 
+# Fastapi
 kikx_app = FastAPI(lifespan=lifespan)
-kikx_app.state.core = core
-
-# Load plugins
-core.plugins.load(core)
-core.plugins.before_startup(KikxPlugin(core, kikx_app))
-core.services.load(core, kikx_app)
+kikx_app.state.core = core # setting core as state
 
 # CORS Middleware
 kikx_app.add_middleware(
@@ -87,34 +83,52 @@ for file in os.listdir("core/routes"):
       kikx_app.include_router(getattr(module, "router"), prefix=f"/{module_name}", tags=[module_name.capitalize()])
 
 # -------------------------------------
+# Models
+# -------------------------------------
+
+class CloseAppModel(BaseModel):
+  app_id: str = Field(..., description="App ID")
+  client_id: str = Field(..., description="Client ID")
+
+# Close app router model
+class OpenAppModel(BaseModel):
+  name: str = Field(..., description="App name")
+  client_id: str = Field(..., description="Client ID")
+  sudo: bool = Field(False, description="Does app always need sudo permission")
+
+# -------------------------------------
 # Auth Routes
 # -------------------------------------
 @kikx_app.get("/login", tags=["Auth"])
 def login_page(file: Optional[str] = None, ui: Optional[str] = None):
-  return file_response("www/auth", "login.html")
+  return file_response("web/auth", "login.html")
 
 @kikx_app.post("/login", tags=["Auth"])
 async def login(access: str = Form(...), ui: str = Form(...)):
-  access_token = core.auth.generate_access_token(access, ui)
-
-  response = JSONResponse(content={"message": "Login successful"})
-  response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
-  #max_age=None,   # No explicit max age
-  #expires=None    # No explicit expiry time
-  return response
+  try:
+    access_token = core.auth.generate_access_token(access, ui)
+  
+    response = JSONResponse(content={"message": "Login successful"})
+    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
+    #max_age=None,   # No explicit max age
+    #expires=None    # No explicit expiry time
+    return response
+  except Exception:
+    raise HTTPException(status_code=500, detail="Unknown error")
 
 @kikx_app.get("/logout", tags=["Auth"])
 def logout():
-  response = RedirectResponse("/")
+  response = RedirectResponse("/login")
   response.delete_cookie("access_token")
   return response
 
 @kikx_app.get("/generate", tags=["Auth"])
 def generate(key: str, ui: str):
-  access_token = core.auth.generate_access_token(key, ui)
-  return {
-    "access_token": access_token
-  }
+  try:
+    access_token = core.auth.generate_access_token(key, ui)
+    return {"access_token": access_token}
+  except Exception:
+    raise HTTPException(status_code=500, detail="Unknown error")
 
 # -------------------------------------
 # App Lifecycle
@@ -130,7 +144,7 @@ async def close_app(app_model: CloseAppModel):
     return { "res": "ok" }
   except Exception as e:
     logger.exception(f"Error closing app {e}")
-    raise HTTPException(status_code=500, detail=f"Can't close app - {e}")
+    raise HTTPException(status_code=403, detail=f"Can't close app - {e}")
 
 @kikx_app.post("/open-app")
 async def open_app(app_model: OpenAppModel):
@@ -140,7 +154,7 @@ async def open_app(app_model: OpenAppModel):
     return {
       "id": app.id,
       "url": f"/app/{app.id}/index.html?starting=true",
-      "iframe": app.config.iframe,
+      "iframe": app.config.iframe.get_dict(),
 
       "manifest": app.manifest,
       "isSudo": app.sudo
@@ -169,14 +183,6 @@ async def app_data(app_id: str, path: str, starting: bool = False):
 
   return file_response(app.get_app_data_path(), path)
 
-@kikx_app.get("/public/app/{name}/{path:path}")
-async def app_public(name: str, path: str):
-  return file_response(core.config.apps_path, name, "public", path)
-
-@kikx_app.get("/public/ui/{name}/{path:path}")
-async def ui_public(name: str, path: str):
-  return file_response(core.config.uis_path, name, "public", path)
-
 @kikx_app.get("/ui/{ui_name}/{path:path}")
 def home_page(request: Request, ui_name: str, path: str):
   path = "index.html" if not path.strip() else path
@@ -192,21 +198,17 @@ def home_page(request: Request, ui_name: str, path: str):
 
   return file_response(core.config.resolve_path(ui_config.path), "www", path)
 
-@kikx_app.get("/sl/{path:path}")
-def redirect(path: str):
-  try:
-    return RedirectResponse(core.shortlink.resolve(path))
-  except Exception as e:
-    raise HTTPException(status_code=404, detail=str(e))
-
 @kikx_app.get("/lazy-login")
 def lazy_login(key: str, ui: str):
-  access_token = core.auth.generate_access_token(key, ui)
-
-  response = RedirectResponse("/")
-  response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
+  try:
+    access_token = core.auth.generate_access_token(key, ui)
   
-  return response
+    response = RedirectResponse("/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
+    
+    return response
+  except Exception:
+    raise HTTPException(status_code=500, detail="Unknown error")
 
 @kikx_app.get("/")
 def root_page(request: Request):
@@ -257,7 +259,7 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
   await websocket.accept()
 
   try:
-    logger.info(f"Connect Aatempt: {websocket} ClientID: {client_id} Access: {access_token}")
+    logger.info(f"Cliend Connect Attempt (ID: {client_id}) (Access: {access_token})")
     event_name = "reconnected"
     # if client found then no need for access_token
     client = core.clients.get(client_id)
@@ -287,19 +289,13 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
     await websocket.close(reason=str(e))
     return
 
-  logger.info(f"WebSocket: Client connected {client.id}")
+  logger.info(f"WebSocket: Client connected (ID: {client.id})")
 
   try:
     while True:
       data = await websocket.receive_json()
       await core.on_client_data(client, data)
   except WebSocketDisconnect:
-    logger.info(f"WebSocket: Client {client.id} disconnected ACTIVE: {core.clients}")
+    logger.info(f"WebSocket: Client {client.id} disconnected ACTIVE: {len(core.clients)}")
   except Exception as e:
     logger.exception(f"WebSocket client error: {e}")
-
-# -------------------------------------
-# Final plugin hook
-# -------------------------------------
-
-core.plugins.after_startup(KikxPlugin(core, kikx_app))

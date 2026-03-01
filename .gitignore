@@ -84,7 +84,16 @@ docs/_build/
 
 # 
 output/
-backup
-storage/home/*
-storage/data/data/*
 private
+backup
+
+# kikxfs will be ignored in next version
+kikxfs/bin/*
+kikxfs/logs/*
+kikxfs/root/*
+
+kikxfs/home/*
+kikxfs/data/app/*
+kikxfs/data/data/*
+
+kikxlib/

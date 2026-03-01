@@ -8,8 +8,6 @@ from pydantic import BaseModel, Field
 
 from .handlers import Handler  # Placeholder for future use
 from .models import FuncXConfig, FuncXModel
-from core.errors import raise_error
-
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +80,10 @@ class FuncX:
       logger.warning(f"Funcx task timed out: {task.get_name()}")
     except asyncio.CancelledError:
       logger.info(f"Funcx task cancelled: {task.get_name()}")
-    except Exception as e:
+    except Exception:
       logger.exception("Unhandled exception in funcx task")
-      raise_error(str(e))
-  
+      raise
+
   # Entry point for running funcx task
   async def run_function(self, func_model: FuncXModel) -> Any:
     """Resolve and run a function via dot-path (e.g. module.sub.func)."""
@@ -95,14 +93,14 @@ class FuncX:
     for attr in attrs:
       obj = getattr(obj, attr, None)
       if obj is None:
-        raise_error(f"'{attr}' not found in '{'.'.join(attrs)}'")
+        raise Exception(f"'{attr}' not found in '{'.'.join(attrs)}'")
 
     func = getattr(obj, name, None)
 
     if isinstance(func, XFunction):
       return await self._run_func(func, func_model.config)
 
-    raise_error("Function not found")
+    raise Exception("Function not found")
 
   # When closing app / client
   async def on_close(self):

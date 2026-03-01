@@ -1,17 +1,18 @@
+import asyncio
+from uuid import uuid4
 from typing import Literal, Optional
 
 from fastapi import Request, HTTPException
-from functools import reduce
-from .models import NotifyModel, UserSettingsModel, AlertModel, ClientAppEventModel
+
 from core.func.func import FuncXModel
-from lib.service import create_service
-import asyncio
 
 from lib.utils import get_timestamp
-
-from uuid import uuid4
+from lib.service import create_service
 
 from .routes import info, app
+from .models import NotifyModel, UserSettingsModel, AlertModel, ClientAppEventModel
+
+
 
 srv = create_service(__file__)
 
@@ -25,30 +26,30 @@ async def broadcast_signal(signal: str, data: dict) -> None:
     for a in client.running_apps.values():
       await a.send_event("signal", payload)
 
-
+# ------ App FuncX 
 @srv.router.post("/app/func")
 async def app_func(request: Request, app_func_model: FuncXModel):
   client, app = srv.get_client_app(request)
+  if not app.config.system.check("funcx"):
+    raise HTTPException(status_code=403, detail="Permission denied")
+
   try:
     return await app.run_function(app_func_model)
   except Exception as e:
-    raise HTTPException(
-      status_code=500,
-      detail=str(e),
-    )
+    # raise # TODO: remove
+    raise HTTPException(status_code=500, detail=str(e))
 
+# ------ Client FuncX 
 @srv.router.post("/client/func")
 async def client_func(request: Request, client_func_model: FuncXModel):
   client = srv.get_client(request)
   try:
     return await client.run_function(client_func_model)
   except Exception as e:
-    raise HTTPException(
-      status_code=500,
-      detail=str(e),
-    )
+    raise HTTPException(status_code=500, detail=str(e),)
 
-@srv.router.post("/close-app")
+# ------ Sending app close event to client
+@srv.router.post("/close-app") # triggers app for closing itself
 async def close_app(request: Request) -> None:
   client, app = srv.get_client_app(request)
   await client.send_event("app:close", {
@@ -56,15 +57,17 @@ async def close_app(request: Request) -> None:
     "name": app.name
   })
 
+# ------ Client logout by itself
 @srv.router.post("/client-logout")
 async def client_logout(request: Request) -> None:
-  client = srv.get_client(request)
+  try:
+    client = srv.get_client(request)
+    await srv.get_core().close_client(client.id)
+    return { "res": "ok" }
+  except Exception:
+    raise HTTPException(status_code=500, detail="Unknown error")
 
-  await srv.get_core().close_client(client.id)
-
-  return { "res": "ok" }
-
-# Client to app event 
+# ------ Client to app event 
 @srv.router.post("/client-app-event")
 async def client_app_event(request: Request, payload: ClientAppEventModel):
   client = srv.get_client(request)
@@ -79,11 +82,12 @@ async def client_app_event(request: Request, payload: ClientAppEventModel):
     "payload": payload.payload
   })
 
-
-# ------
+# ------ Notify
 @srv.router.post("/notify")
 async def notify(request: Request, payload: NotifyModel) -> None:
   client, app = srv.get_client_app(request)
+  if not app.config.system.check("notify"):
+    raise HTTPException(status_code=403, detail="Permission denied")
 
   await client.send_event("app:notify", {
     "name": app.name,
@@ -96,9 +100,12 @@ async def notify(request: Request, payload: NotifyModel) -> None:
     "displayEvenActive": payload.displayEvenActive
   })
 
+# ------ Alert
 @srv.router.post("/alert")
 async def alert(request: Request, payload: AlertModel) -> None:
   client, app = srv.get_client_app(request)
+  if not app.config.system.check("alert"):
+    raise HTTPException(status_code=403, detail="Permission denied")
 
   await client.send_event("app:alert", {
     "id": app.id,
@@ -119,8 +126,8 @@ async def alert(request: Request, payload: AlertModel) -> None:
   })
 
 # ------ SYSTEM / SESSIONS
-srv.include(info.router, prefix="/info")
+srv.include(info.router, prefix="/info", tags=["SystemService-Info"])
 
 # ------ App Manage
-srv.include(app.router, prefix="/app")
+srv.include(app.router, prefix="/app", tags=["SystemService-App"])
 

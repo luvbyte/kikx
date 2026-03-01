@@ -1,21 +1,29 @@
 import os
 import shutil
-import logging
-from pathlib import Path
-from typing import List, Any
-
 from fastapi import (
   APIRouter, HTTPException, Request,
   UploadFile, File, Query
 )
 from fastapi.responses import StreamingResponse
+
+from pathlib import Path
+from typing import List, Any
 from pydantic import BaseModel
 
+from lib.utils import joinpath
 from lib.service import create_service
 
+from core.logging import Logger
+
+
+
+logging = Logger("kikx_service_fs", "kikx_service_fs.log")
+logger = logging.get_logger()
+
+
+
 srv = create_service(__file__)
-logger = logging.getLogger("storage")
-logging.basicConfig(level=logging.INFO)
+
 
 class FileWriteRequest(BaseModel):
   filename: str
@@ -28,21 +36,24 @@ class CopyMoveRequest(BaseModel):
   source: str
   destination: str
 
+
 def resolve_app_path(app, path: str, read: bool) -> Path:
   core = srv.get_core()
+  
   if "://" in path:
     protocol, full_path = path.split("://", 1)
   else:
     protocol, full_path = "data", path
 
   ptype = "read" if read else "write"
-  permissions = app.get_permissions("storage")
+  storage = app.config.storage
 
   if protocol == "data":
-    return app.get_app_data_path() / full_path
-
+    return joinpath(app.get_app_data_path(), full_path)
+  
+  # Full access / *
   if protocol == "root":
-    if permissions.check("root", ptype):
+    if storage.check("root", ptype):
       return core.config.resolve_path(full_path)
     else:
       srv.exception(400, "Permission denied for root access")
@@ -55,10 +66,10 @@ def resolve_app_path(app, path: str, read: bool) -> Path:
   if protocol not in storage_paths:
     srv.exception(400, "Invalid protocol")
 
-  if not permissions.check(protocol, ptype):
+  if not storage.check(protocol, ptype):
     srv.exception(400, "Permission denied")
 
-  return storage_paths[protocol] / full_path
+  return joinpath(storage_paths[protocol], full_path)
 
 
 def resolve_client_path(client, path: str) -> Path:

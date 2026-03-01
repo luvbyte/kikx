@@ -25,7 +25,7 @@ class KikxPaths:
   @property
   def home(self):
     return self._get_env("KIKX_HOME_PATH")
-  
+
 
 
   

@@ -1,12 +1,16 @@
 import asyncio
-import logging
-from typing import Optional, Union, Callable, Any, List
 
 from fastapi import WebSocket
+from typing import Optional, Union, Callable, Any, List
 
 from lib.utils import send_event, is_websocket_connected
 
-logger = logging.getLogger(__name__)
+from core.logging import Logger
+
+
+
+logging = Logger("kikx_connections", "kikx_connections.log")
+logger = logging.get_logger()
 
 
 class MessageEvent:
@@ -24,7 +28,7 @@ class Connection:
   @property
   def is_connected(self) -> bool:
     return is_websocket_connected(self.websocket)
-  
+
   def info(self):
     return {
       "connected": self.is_connected

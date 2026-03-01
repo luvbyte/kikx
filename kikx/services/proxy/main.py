@@ -3,6 +3,13 @@ from fastapi import Request, HTTPException, Query, Response
 
 from lib.service import create_service
 
+from core.logging import Logger
+
+
+
+logging = Logger("kikx_service_proxy", "kikx_service_proxy.log")
+logger = logging.get_logger()
+
 
 srv = create_service(__file__)
 
@@ -12,6 +19,8 @@ async def forward_request(method: str, request: Request, target_url: str):
   client, app = srv.get_client_or_app(request)
   headers = dict(request.headers)
   if app:
+    if not app.config.proxy:
+      raise HTTPException(status_code=403, detail="Permission denied for proxy")
     headers.pop("kikx-app-id")
   else:
     headers.pop("kikx-client-id")
@@ -20,7 +29,6 @@ async def forward_request(method: str, request: Request, target_url: str):
     raise HTTPException(status_code=400, detail="Missing target URL in query parameter")
 
   headers.pop("host", None)
-  
 
   try:
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
@@ -33,7 +41,7 @@ async def forward_request(method: str, request: Request, target_url: str):
     # Forward all headers except 'transfer-encoding' to avoid issues
     response_headers = {k: v for k, v in response.headers.items() if k.lower() != "transfer-encoding"}
 
-    # 🔥 Manually add CORS headers to prevent browser blocking
+    # Manually add CORS headers to prevent browser blocking
     response_headers["Access-Control-Allow-Origin"] = "null"  # Allow all domains (change if needed)
     response_headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
     response_headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"

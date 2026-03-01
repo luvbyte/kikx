@@ -1,0 +1,49 @@
+{
+  "name": "com.kikx.florix",
+  "title": "Florix",
+  "version": "0.1.0",
+  "kikx_version": "0.2.0",
+  "iframe": {
+    "allowfullscreen": true,
+    "sandbox": [
+      "allow-scripts"
+    ],
+    "allow": [
+      "screen-wake-lock",
+      "clipboard-read",
+      "clipboard-write"
+    ],
+    "loading": "eager",
+    "referrerpolicy": "no-referrer"
+  },
+  "modules": {
+    "tasks": {
+      "shell": true
+    }
+  },
+  "proxy": false,
+  "system": {
+    "access": [
+      "funcx",
+      "notify",
+      "alert"
+    ]
+  },
+  "storage": {
+    "app": null,
+    "root": null,
+    "home": null
+  },
+  "sudo": false,
+  "icon": "icon.png",
+  "category": null,
+  "author": "luvbyte",
+  "description": null,
+  "source": {
+    "url": "https://github.com/luvbyte/kikx-florix-app",
+    "owner": "luvbyte",
+    "repo": "kikx-florix-app",
+    "tag": "0.1.0"
+  },
+  "theme": "transparent"
+}

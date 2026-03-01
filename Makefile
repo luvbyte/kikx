@@ -18,7 +18,7 @@ run:
 	cd kikx && ../$(PY_PATH) main.py
 
 serve:
-	cd kikx && ../$(PY_PATH) -m uvicorn main:kikx_app
+	cd kikx && ../$(PY_PATH) -m uvicorn main:kikx_app --reload
 
 test:
 	./$(PY_PATH) -m pytest

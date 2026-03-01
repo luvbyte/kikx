@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.utils import load_app_manifest
-from core.models.app_models import AppsListModel
+from pydantic import BaseModel, Field
 
 from . import get_core
 
 
 router = APIRouter()
+
+
+
+class AppsListModel(BaseModel):
+  client_id: str = Field(..., description="Client ID")
 
 
 @router.post("/apps/list")

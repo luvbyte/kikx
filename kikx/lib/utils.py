@@ -1,6 +1,9 @@
 import sys
 import base64
+import inspect
+import asyncio
 
+from uuid import uuid4
 from pathlib import Path
 from importlib import import_module
 from datetime import datetime, timezone
@@ -15,9 +18,50 @@ from starlette.websockets import WebSocketState
 
 
 
+async def any_run(func, *args, **kwargs):
+  if inspect.iscoroutinefunction(func):
+    return await func(*args, **kwargs)
+  else:
+    return func(*args, **kwargs)
 
 def get_timestamp():
   return datetime.now(timezone.utc).isoformat()
+
+def generate_uuid() -> str:
+  return uuid4().hex
+
+def is_version_ok(current_version: str, required_version: str) -> bool:
+  def normalize(v):
+    return [int(x) for x in v.split(".")]
+  
+  try:
+    current = normalize(current_version)
+    required = normalize(required_version)
+  except ValueError:
+    return False  # invalid version format
+  
+  max_len = max(len(current), len(required))
+  current += [0] * (max_len - len(current))
+  required += [0] * (max_len - len(required))
+  
+  return current >= required
+
+def is_update_available(current_version: str, latest_version: str) -> bool:
+  def normalize(v):
+    return [int(x) for x in v.split(".")]
+  
+  try:
+    current = normalize(current_version)
+    latest = normalize(latest_version)
+  except ValueError:
+    return False  # invalid version format
+  
+  max_len = max(len(current), len(latest))
+  current += [0] * (max_len - len(current))
+  latest += [0] * (max_len - len(latest))
+  
+  return current < latest
+
 
 def import_relative_module(path: str, name: str) -> Any:
   """
@@ -129,3 +173,12 @@ def file_response(base: str | Path, *paths: str | Path) -> Path:
 
   return FileResponse(full_path)
 
+
+def joinpath(base: str | Path, *parts: str | Path) -> Path:
+  base = Path(base).resolve()
+  target = base.joinpath(*parts).resolve()
+
+  if not target.is_relative_to(base):
+    raise HTTPException(status_code=401, detail="Path traversal detected")
+
+  return target
