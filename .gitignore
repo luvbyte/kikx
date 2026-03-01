@@ -93,6 +93,8 @@ kikxfs/logs/*
 kikxfs/root/*
 
 kikxfs/home/*
+
+kikxfs/apps/*
 kikxfs/data/app/*
 kikxfs/data/data/*
 
