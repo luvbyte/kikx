@@ -1,3 +1,0 @@
-<div class="w-full h-full flex items-center justify-center relative">
-  Displays active devices
-<div>
