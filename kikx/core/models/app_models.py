@@ -8,11 +8,25 @@ from core.func.func import FuncXModel
 # App iframs flags
 IframeSandboxFlag = Literal[
   "allow-scripts",
+  "allow-same-origin",  # 
+
   "allow-forms",
-  "allow-modals",
+  "allow-top-navigation",
+  "allow-top-navigation-by-user-activation",
+  "allow-top-navigation-to-custom-protocols",
+
+  "allow-popups",
+  "allow-popups-to-escape-sandbox",
+
   "allow-downloads",
+  "allow-downloads-without-user-activation",
+
+  "allow-modals",
+  "allow-pointer-lock",
   "allow-orientation-lock",
   "allow-presentation",
+
+  "allow-storage-access-by-user-activation",
 ]
 
 # App iframs allow features

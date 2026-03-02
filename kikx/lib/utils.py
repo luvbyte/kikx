@@ -16,6 +16,9 @@ from fastapi.responses import FileResponse
 
 from starlette.websockets import WebSocketState
 
+from packaging.version import Version, InvalidVersion
+from packaging.specifiers import SpecifierSet, InvalidSpecifier
+
 
 
 async def any_run(func, *args, **kwargs):
@@ -30,50 +33,38 @@ def get_timestamp():
 def generate_uuid() -> str:
   return uuid4().hex
 
-def is_version_ok(current_version: str, required_version: str, ignore_patch: bool = False) -> bool:
-  def normalize(v):
-    return [int(x) for x in v.split(".")]
-  
+def is_version_ok_deprecated(current_version: str, requirement: str) -> bool:
   try:
-    current = normalize(current_version)
-    required = normalize(required_version)
-  except ValueError:
-    return False  # invalid version format
-  
-  max_len = max(len(current), len(required))
-  current += [0] * (max_len - len(current))
-  required += [0] * (max_len - len(required))
-  
-  if ignore_patch and max_len >= 3:
-    # Ignore patch (3rd segment)
-    current = current[:2]
-    required = required[:2]
-  
-  return current >= required
+    version = Version(current_version)
+    spec = SpecifierSet(requirement)
+    return version in spec
+  except (InvalidVersion, InvalidSpecifier):
+    return False
+
+def is_version_ok(current_version: str, requirement: str) -> bool:
+  try:
+    version = Version(current_version)
+    
+    # Allow patch updates
+    if not any(requirement.strip().startswith(op) for op in "<>!=~="):
+      requirement = f"~={requirement}"
+
+    spec = SpecifierSet(requirement)
+    return version in spec
+  except (InvalidVersion, InvalidSpecifier):
+    return False
 
 def is_update_available(current_version: str, latest_version: str) -> bool:
-  def normalize(v):
-    return [int(x) for x in v.split(".")]
-  
   try:
-    current = normalize(current_version)
-    latest = normalize(latest_version)
-  except ValueError:
-    return False  # invalid version format
-  
-  max_len = max(len(current), len(latest))
-  current += [0] * (max_len - len(current))
-  latest += [0] * (max_len - len(latest))
-  
-  return current < latest
-
+    return Version(current_version) < Version(latest_version)
+  except InvalidVersion:
+    return False
 
 def import_relative_module(path: str, name: str) -> Any:
   """
   Import a module relatively using standard import mechanisms.
   """
   return import_module(path, name)
-
 
 def dynamic_import(module_name: str, file_path: str, cache: bool = False) -> Any:
   """
@@ -147,7 +138,6 @@ def convert_to_base64(data: bytes) -> str:
   """
   return base64.b64encode(data).decode("utf-8")
 
-
 def ensure_dir(path: str) -> str:
   """
   Ensure a directory exists; create it if missing.
@@ -177,7 +167,6 @@ def file_response(base: str | Path, *paths: str | Path) -> Path:
     raise HTTPException(status_code=404, detail="File not found")
 
   return FileResponse(full_path)
-
 
 def joinpath(base: str | Path, *parts: str | Path) -> Path:
   base = Path(base).resolve()
