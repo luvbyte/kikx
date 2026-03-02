@@ -30,7 +30,7 @@ def get_timestamp():
 def generate_uuid() -> str:
   return uuid4().hex
 
-def is_version_ok(current_version: str, required_version: str) -> bool:
+def is_version_ok(current_version: str, required_version: str, ignore_patch: bool = False) -> bool:
   def normalize(v):
     return [int(x) for x in v.split(".")]
   
@@ -43,6 +43,11 @@ def is_version_ok(current_version: str, required_version: str) -> bool:
   max_len = max(len(current), len(required))
   current += [0] * (max_len - len(current))
   required += [0] * (max_len - len(required))
+  
+  if ignore_patch and max_len >= 3:
+    # Ignore patch (3rd segment)
+    current = current[:2]
+    required = required[:2]
   
   return current >= required
 

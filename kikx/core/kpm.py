@@ -61,7 +61,11 @@ class AppInstaller:
 
   @property
   def is_compatible(self):
-    return is_version_ok(self.manifest.kikx_version, self.core.version)
+    return is_version_ok(
+      self.manifest.kikx_version,
+      self.core.version,
+      ignore_patch=True
+    )
 
   # If its an update / obj / None
   @property

@@ -48,7 +48,8 @@ async def lifespan(app: FastAPI):
     server_config = core.config.kikx.server
     core.scr.print(f"http://{server_config.host}:{server_config.port}\n")
 
-  yield
+  yield # 
+  
   await core.on_close()
   core.scr.print_divider("KIKX SHUTDOWN")
 
@@ -64,6 +65,25 @@ kikx_app.add_middleware(
   allow_methods=["*"],
   allow_headers=["*"],
 )
+
+# Global exception handler
+@kikx_app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+  if request.scope["type"] == "websocket":
+    raise exc  # Let
+
+  if core.is_dev_mode:
+    logger.exception("Unhandled exception")
+  else:
+    logger.error(f"Error({type(exc).__name__}): {exc}")
+
+  return JSONResponse(
+    status_code=500,
+    content={
+      "success": False,
+      "detail": "Internal server error"
+    },
+  )
 
 # Static file mounts
 kikx_app.mount("/share", StaticFiles(directory=core.config.share_path), name="share")
@@ -105,16 +125,22 @@ def login_page(file: Optional[str] = None, ui: Optional[str] = None):
 
 @kikx_app.post("/login", tags=["Auth"])
 async def login(access: str = Form(...), ui: str = Form(...)):
-  try:
-    access_token = core.auth.generate_access_token(access, ui)
+  access_token = core.auth.generate_access_token(access, ui)
+
+  response = JSONResponse(content={"message": "Login successful"})
+  response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
+  #max_age=None,   # No explicit max age
+  #expires=None    # No explicit expiry time
+  return response
+
+@kikx_app.get("/lazy-login", tags=["Auth"])
+def lazy_login(key: str, ui: str):
+  access_token = core.auth.generate_access_token(key, ui)
+
+  response = RedirectResponse("/")
+  response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
   
-    response = JSONResponse(content={"message": "Login successful"})
-    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
-    #max_age=None,   # No explicit max age
-    #expires=None    # No explicit expiry time
-    return response
-  except Exception:
-    raise HTTPException(status_code=500, detail="Unknown error")
+  return response
 
 @kikx_app.get("/logout", tags=["Auth"])
 def logout():
@@ -124,11 +150,8 @@ def logout():
 
 @kikx_app.get("/generate", tags=["Auth"])
 def generate(key: str, ui: str):
-  try:
-    access_token = core.auth.generate_access_token(key, ui)
-    return {"access_token": access_token}
-  except Exception:
-    raise HTTPException(status_code=500, detail="Unknown error")
+  access_token = core.auth.generate_access_token(key, ui)
+  return {"access_token": access_token}
 
 # -------------------------------------
 # App Lifecycle
@@ -139,29 +162,23 @@ async def close_app(app_model: CloseAppModel):
   client, app = core.get_client_app_by_id(app_model.app_id)
   if not client or not app:
     raise HTTPException(status_code=401, detail="Unauthorized")
-  try:
-    asyncio.create_task(core.close_app(client, app))
-    return { "res": "ok" }
-  except Exception as e:
-    logger.exception(f"Error closing app {e}")
-    raise HTTPException(status_code=403, detail=f"Can't close app - {e}")
+
+  asyncio.create_task(core.close_app(client, app))
+  return { "res": "ok" }
 
 @kikx_app.post("/open-app")
 async def open_app(app_model: OpenAppModel):
-  try:
-    app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(core, app_model.name), app_model.sudo)
+  app = await core.open_app(app_model.client_id, app_model.name, load_app_manifest(core, app_model.name), app_model.sudo)
 
-    return {
-      "id": app.id,
-      "url": f"/app/{app.id}/index.html?starting=true",
-      "iframe": app.config.iframe.get_dict(),
+  return {
+    "id": app.id,
+    "url": f"/app/{app.id}/index.html?starting=true",
+    "iframe": app.config.iframe.get_dict(),
 
-      "manifest": app.manifest,
-      "isSudo": app.sudo
-    }
-  except Exception as e:
-    raise HTTPException(status_code=401, detail=str(e))
-
+    "manifest": app.manifest,
+    "isSudo": app.sudo
+  }
+  
 # -------------------------------------
 # File Routes
 # -------------------------------------
@@ -197,18 +214,6 @@ def home_page(request: Request, ui_name: str, path: str):
     raise HTTPException(status_code=404, detail="UI not found in auth.json")
 
   return file_response(core.config.resolve_path(ui_config.path), "www", path)
-
-@kikx_app.get("/lazy-login")
-def lazy_login(key: str, ui: str):
-  try:
-    access_token = core.auth.generate_access_token(key, ui)
-  
-    response = RedirectResponse("/")
-    response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="strict")
-    
-    return response
-  except Exception:
-    raise HTTPException(status_code=500, detail="Unknown error")
 
 @kikx_app.get("/")
 def root_page(request: Request):

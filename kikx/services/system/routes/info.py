@@ -40,8 +40,10 @@ async def close_session(request: Request, session_id: str):
     raise HTTPException(status_code=403, detail="Permission denied")
 
   core = srv.get_core()
+  
   try:
     result = await core.close_client(session_id)
+
     return { "res": result }
-  except Exception as e:
-    router.srv.exception(detail=str(e))
+  except Exception:
+    raise HTTPException(status_code=404, detail="Session not found")

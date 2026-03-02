@@ -68,64 +68,58 @@ async def get_installed_apps(app_name: Optional[str] = None, core = Depends(chec
 
 @router.post("/prepare-install")
 async def prepare_install(file: UploadFile = File(...), core = Depends(check_permisson)):
-  try:
-    if not file.filename.endswith(".kikx"):
-      raise HTTPException(400, "Only .kikx packages are supported")
-  
-    raw_temp = Path(tempfile.mkdtemp()) / file.filename
-  
-    with open(raw_temp, "wb") as buffer:
-      shutil.copyfileobj(file.file, buffer)
-  
-    file_hash = hash_file(raw_temp)
-  
-    temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-  
-    # removing source if found for local installs
-    source_file = temp_dir / ".source_data.json"
-    source_file.unlink(missing_ok=True)
-  
-    # Extract only if not already extracted
-    if not any(temp_dir.iterdir()):
-      extracted_path = resolve_app_package(raw_temp, temp_dir)
-    else:
-      extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
-  
-    installer = AppInstaller(core, extracted_path)
-  
-    return {
-      "temp_id": file_hash,
-      "manifest": installer.get_app_manifest(),
-      "is_update": installer.is_update,
-      "app_installed": installer.is_app_installed,
-      "is_compatible": installer.is_compatible
-    }
-  except Exception:
-    raise HTTPException(status_code=500, detail="Unknown Error")
+  if not file.filename.endswith(".kikx"):
+    raise HTTPException(400, "Only .kikx packages are supported")
+
+  raw_temp = Path(tempfile.mkdtemp()) / file.filename
+
+  with open(raw_temp, "wb") as buffer:
+    shutil.copyfileobj(file.file, buffer)
+
+  file_hash = hash_file(raw_temp)
+
+  temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
+  temp_dir.mkdir(parents=True, exist_ok=True)
+
+  # removing source if found for local installs
+  source_file = temp_dir / ".source_data.json"
+  source_file.unlink(missing_ok=True)
+
+  # Extract only if not already extracted
+  if not any(temp_dir.iterdir()):
+    extracted_path = resolve_app_package(raw_temp, temp_dir)
+  else:
+    extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
+
+  installer = AppInstaller(core, extracted_path)
+
+  return {
+    "temp_id": file_hash,
+    "manifest": installer.get_app_manifest(),
+    "is_update": installer.is_update,
+    "app_installed": installer.is_app_installed,
+    "is_compatible": installer.is_compatible
+  }
 
 @router.get("/preview/{temp_id}/{path:path}")
 async def get_file(temp_id: str, path: str):
-  try:
-    temp_dir = Path(tempfile.gettempdir()) / f"kikx_{temp_id}"
-  
-    if not temp_dir.exists():
-      raise HTTPException(404, "Package not found")
-  
-    extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
-  
-    requested_path = (extracted_path / path).resolve()
-  
-    # Prevent path traversal
-    if not str(requested_path).startswith(str(extracted_path.resolve())):
-      raise HTTPException(403, "Access denied")
-  
-    if not requested_path.exists() or not requested_path.is_file():
-      raise HTTPException(404, "File not found")
-  
-    return FileResponse(requested_path)
-  except Exception:
-    raise HTTPException(status_code=500, detail="Unknown Error")
+  temp_dir = Path(tempfile.gettempdir()) / f"kikx_{temp_id}"
+
+  if not temp_dir.exists():
+    raise HTTPException(404, "Package not found")
+
+  extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
+
+  requested_path = (extracted_path / path).resolve()
+
+  # Prevent path traversal
+  if not str(requested_path).startswith(str(extracted_path.resolve())):
+    raise HTTPException(403, "Access denied")
+
+  if not requested_path.exists() or not requested_path.is_file():
+    raise HTTPException(404, "File not found")
+
+  return FileResponse(requested_path)
 
 @router.post("/confirm-install")
 async def confirm_install(request: Request, temp_id: str, core = Depends(check_permisson)):
@@ -150,18 +144,14 @@ async def confirm_install(request: Request, temp_id: str, core = Depends(check_p
 
   installer = AppInstaller(core, extracted_dirs[0])
 
-  try:
-    result = installer.install(source)
+  result = installer.install(source)
 
-    # async Broadcast to all clients
-    asyncio.create_task(core.broadcast_to_clients("app:installed", installer.get_manifest()))
+  # async Broadcast to all clients
+  asyncio.create_task(core.broadcast_to_clients("app:installed", installer.get_manifest()))
 
-    return {"res": "ok", "result": result}
-  except Exception as e:
-    raise HTTPException(status_code=401, detail=str(e))
-  finally:
-    shutil.rmtree(temp_dir, ignore_errors=True)
+  shutil.rmtree(temp_dir, ignore_errors=True)
 
+  return {"res": "ok", "result": result}
 
 @router.post("/cancel-install")
 async def cancel_install(temp_id: str):
@@ -188,7 +178,6 @@ async def uninstall_app_route(app_name: str, core = Depends(check_permisson)):
     return { "res": "ok" }
   except Exception as e:
     raise HTTPException(status_code=401, detail=str(e))
-
 
 @router.post("/prepare-github")
 async def prepare_install_github(

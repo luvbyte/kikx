@@ -36,7 +36,6 @@ async def app_func(request: Request, app_func_model: FuncXModel):
   try:
     return await app.run_function(app_func_model)
   except Exception as e:
-    # raise # TODO: remove
     raise HTTPException(status_code=500, detail=str(e))
 
 # ------ Client FuncX 
@@ -60,12 +59,9 @@ async def close_app(request: Request) -> None:
 # ------ Client logout by itself
 @srv.router.post("/client-logout")
 async def client_logout(request: Request) -> None:
-  try:
-    client = srv.get_client(request)
-    await srv.get_core().close_client(client.id)
-    return { "res": "ok" }
-  except Exception:
-    raise HTTPException(status_code=500, detail="Unknown error")
+  client = srv.get_client(request)
+  await srv.get_core().close_client(client.id)
+  return { "res": "ok" }
 
 # ------ Client to app event 
 @srv.router.post("/client-app-event")
