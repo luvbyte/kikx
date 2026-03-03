@@ -11,9 +11,9 @@ from core.kpm import GITHUB_API, AppInstaller, parse_github_repo, resolve_app_pa
 
 PRE_INSTALL_APPS = {
   # name: (repo, tag)
-  "com.kikx.appstore": ("https://github.com/luvbyte/kikx-appstore-app", "0.0.2"),
-  # "com.kikx.sessions": ("https://github.com/luvbyte/kikx-appstore-app", "0.1.1"),
-  # "com.kikx.files": ("https://github.com/luvbyte/kikx-appstore-app", "0.1.2")
+  "com.kikx.appstore": ("https://github.com/luvbyte/kikx-appstore-app", "0.0.3"),
+  "com.kikx.sessions": ("https://github.com/luvbyte/kikx-sessions-app", "0.1.0"),
+  "com.kikx.files": ("https://github.com/luvbyte/kikx-files-app", "0.1.1"),
 }
 
 async def pre_check_apps(core):
