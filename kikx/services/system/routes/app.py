@@ -176,7 +176,12 @@ async def cancel_install(temp_id: str):
 async def uninstall_app_route(app_name: str, core = Depends(check_permisson)):
   try:
     AppUninstaller(core, app_name).uninstall()
-  
+    
+    # async Broadcast to all clients
+    asyncio.create_task(core.broadcast_to_clients("app:uninstalled", {
+      "name": app_name
+    }))
+
     return { "res": "ok" }
   except Exception as e:
     raise HTTPException(status_code=401, detail=str(e))

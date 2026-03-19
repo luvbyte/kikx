@@ -160,7 +160,11 @@ class AppModel(BaseModel):
   title: str = Field(..., description="App title")
   version: str = Field(..., description="App Version")
 
-  kikx_version: str = Field(..., description="Minimum kikx version")
+  # one comparision if this is not None then will ignore mix & max field checks
+  kikx_version: Optional[str] = Field(None, description="Required kikx version")
+  # If both none can run on any version
+  min_version: Optional[str] = Field(None, description="Minimum kikx version")
+  max_version: Optional[str] = Field(None, description="Maximum kikx version")
 
   # Frontend permissions
   iframe: AppIframeModel = Field(default_factory=AppIframeModel, description="Iframe permissons")

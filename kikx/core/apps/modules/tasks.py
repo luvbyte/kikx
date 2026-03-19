@@ -20,7 +20,7 @@ from lib.parser import parse_config
 
 
 
-logging = Logger("kikx_core", "kikx_core.log")
+logging = Logger("kikx_app_tasks", "kikx_app_tasks.log")
 logger = logging.get_logger()
 
 
@@ -92,7 +92,8 @@ class Task:
         stderr=self.stderr,
         cwd=self.cwd,
         start_new_session=True,
-        preexec_fn=preexec
+        preexec_fn=preexec,
+        limit=10 * 1024 * 1024 # 10 mb
       )
     else:
       self.process = await asyncio.create_subprocess_exec(
@@ -103,7 +104,8 @@ class Task:
         stderr=self.stderr,
         cwd=self.cwd,
         start_new_session=True,
-        preexec_fn=preexec
+        preexec_fn=preexec,
+        limit=10 * 1024 * 1024 # 10 mb
       )
     self.started = True
     self.sid = os.getsid(self.process.pid)

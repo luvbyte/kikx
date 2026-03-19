@@ -1,4 +1,5 @@
 import os
+import stat
 import shutil
 from fastapi import (
   APIRouter, HTTPException, Request,
@@ -8,6 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from pathlib import Path
 from typing import List, Any
+from datetime import datetime
 from pydantic import BaseModel
 
 from lib.utils import joinpath
@@ -24,6 +26,22 @@ logger = logging.get_logger()
 
 srv = create_service(__file__)
 
+class FileInfo(BaseModel):
+  name: str
+  suffix: str
+  directory: bool
+  absolute_path: str
+  size_bytes: int
+  created: datetime
+  modified: datetime
+  accessed: datetime
+  owner: str | None
+  group: str | None
+  permissions: str
+  exists: bool
+  is_file: bool
+  is_symlink: bool
+
 
 class FileWriteRequest(BaseModel):
   filename: str
@@ -39,7 +57,7 @@ class CopyMoveRequest(BaseModel):
 
 def resolve_app_path(app, path: str, read: bool) -> Path:
   core = srv.get_core()
-  
+
   if "://" in path:
     protocol, full_path = path.split("://", 1)
   else:
@@ -113,22 +131,42 @@ def move_item(request: Request, payload: CopyMoveRequest) -> dict:
   return {"message": "Move successful", "source": payload.source, "destination": payload.destination}
 
 
-@srv.router.get("/list", response_model=List[Any])
-def list_files(request: Request, directory: str = "") -> List[dict]:
-  dir_path = resolve_path(request, directory, True)
+@srv.router.get("/list", response_model=List[FileInfo])
+def list_files(request: Request, directory: str = "") -> List[FileInfo]:
+  dir_path = Path(resolve_path(request, directory, True))
 
-  if not os.path.exists(dir_path):
+  if not dir_path.exists() or not dir_path.is_dir():
     raise HTTPException(status_code=404, detail="Directory not found")
 
-  def file_info(path: Path) -> dict:
-    return {
-      "name": path.name,
-      "suffix": path.suffix,
-      "directory": path.is_dir()
-    }
+  files = []
 
-  return [file_info(Path(dir_path) / path) for path in os.listdir(dir_path)]
+  for path in dir_path.iterdir():
+    try:
+      stat_result = path.stat()
 
+      files.append(
+        FileInfo(
+          name=path.name,
+          suffix=path.suffix,
+          directory=path.is_dir(),
+          absolute_path=str(path.resolve()),
+          size_bytes=stat_result.st_size,
+          created=datetime.fromtimestamp(stat_result.st_ctime),
+          modified=datetime.fromtimestamp(stat_result.st_mtime),
+          accessed=datetime.fromtimestamp(stat_result.st_atime),
+          owner=path.owner() if hasattr(path, "owner") else None,
+          group=path.group() if hasattr(path, "group") else None,
+          permissions=oct(stat.S_IMODE(stat_result.st_mode)),
+          exists=path.exists(),
+          is_file=path.is_file(),
+          is_symlink=path.is_symlink(),
+        )
+      )
+    except FileNotFoundError:
+      # File deleted during iteration
+      continue
+
+  return files
 
 @srv.router.get("/read")
 def read_file(request: Request, filename: str) -> StreamingResponse:

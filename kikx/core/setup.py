@@ -16,6 +16,11 @@ PRE_INSTALL_APPS = {
   "com.kikx.files": ("https://github.com/luvbyte/kikx-files-app", "0.1.1"),
 }
 
+PRE_INSTALL_UI = {
+  "mui": ("https://github.com/luvbyte/kikx-mui", "0.1.0"),
+  "kui": ("https://github.com/luvbyte/kikx-kui", "")
+}
+
 async def pre_check_apps(core):
   apps = core.user.get_installed_apps()
 

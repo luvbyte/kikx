@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 import urllib.request
 
 from lib.hash import hash_file
-from lib.utils import is_version_ok, is_update_available, generate_uuid
+from lib.utils import is_version_ok, is_version_supported, is_update_available, generate_uuid
 
 
 from fastapi import HTTPException
@@ -61,7 +61,13 @@ class AppInstaller:
 
   @property
   def is_compatible(self):
-    return is_version_ok(self.core.version, self.manifest.kikx_version)
+    manifest = self.manifest
+    core_version = self.core.version
+
+    if manifest.kikx_version:
+      return is_version_ok(core_version, manifest.kikx_version)
+
+    return is_version_supported(core_version, manifest.min_version, manifest.max_version)
 
   # If its an update / obj / None
   @property

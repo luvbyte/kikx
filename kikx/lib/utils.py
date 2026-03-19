@@ -33,14 +33,7 @@ def get_timestamp():
 def generate_uuid() -> str:
   return uuid4().hex
 
-def is_version_ok_deprecated(current_version: str, requirement: str) -> bool:
-  try:
-    version = Version(current_version)
-    spec = SpecifierSet(requirement)
-    return version in spec
-  except (InvalidVersion, InvalidSpecifier):
-    return False
-
+# Not required
 def is_version_ok(current_version: str, requirement: str) -> bool:
   try:
     version = Version(current_version)
@@ -52,6 +45,26 @@ def is_version_ok(current_version: str, requirement: str) -> bool:
     spec = SpecifierSet(requirement)
     return version in spec
   except (InvalidVersion, InvalidSpecifier):
+    return False
+
+# Checks target_version is in between both
+def is_version_supported(
+  target_version: str,
+  min_version: str | None = None,
+  max_version: str | None = None
+) -> bool:
+  try:
+    v = Version(target_version)
+
+    if min_version and v < Version(min_version):
+      return False
+
+    if max_version and v > Version(max_version):
+      return False
+
+    return True
+
+  except InvalidVersion:
     return False
 
 def is_update_available(current_version: str, latest_version: str) -> bool:
