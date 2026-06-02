@@ -17,7 +17,7 @@ class KikxPaths:
   @property
   def storage(self):
     return self._get_env("KIKX_STORAGE_PATH")
-  
+
   @property
   def app(self):
     return self._get_env("KIKX_APP_PATH")
@@ -27,5 +27,3 @@ class KikxPaths:
     return self._get_env("KIKX_HOME_PATH")
 
 
-
-  

@@ -240,18 +240,3 @@ def delete_directory(request: Request, dirname: str) -> dict:
   shutil.rmtree(dir_path)
   logger.info(f"Deleted directory {dir_path}")
   return {"message": "Directory deleted successfully"}
-
-
-@srv.router.get("/serve")
-async def serve_file(request: Request, filename: str) -> StreamingResponse:
-  """Deprecated: Serve a file for download."""
-  file_path = resolve_path(request, filename, True)
-
-  if not os.path.exists(file_path):
-    raise HTTPException(status_code=404, detail="File not found")
-
-  return StreamingResponse(
-    open(file_path, "rb"),
-    media_type="application/octet-stream",
-    headers={"Content-Disposition": f"attachment; filename={os.path.basename(file_path)}"}
-  )

@@ -251,13 +251,33 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
 
   logger.info(f"WebSocket: App connected {app.id} (Client: {client.id})")
 
-  try:
-    while True:
+  # try:
+  #   while True:
+  #     data = await websocket.receive_json()
+  #     logger.debug(f"WebSocket Data (App {app.id}): {data}")
+  #     await core.on_app_data(client, app, data)
+  # except WebSocketDisconnect:
+  #   logger.info(f"WebSocket: App disconnected {app.id}")
+  # except Exception as e:
+  #   logger.exception(f"WebSocket app error: {app.id}: {e}")
+  
+  while True:
+    try:
       data = await websocket.receive_json()
       logger.debug(f"WebSocket Data (App {app.id}): {data}")
-      await core.on_app_data(client, app, data)
-  except WebSocketDisconnect:
-    logger.info(f"WebSocket: App disconnected {app.id}")
+
+      try:
+        await core.on_app_data(client, app, data)
+      except Exception as e:
+        logger.exception(f"Error processing app data {app.id}: {e}")
+
+    except WebSocketDisconnect:
+      logger.info(f"WebSocket: App disconnected {app.id}")
+      break
+
+    except Exception as e:
+      logger.exception(f"WebSocket receive error {app.id}: {e}")
+
 
 @kikx_app.websocket("/client")
 async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[str] = None, access_token: str = Cookie(None)):
@@ -296,11 +316,21 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
 
   logger.info(f"WebSocket: Client connected (ID: {client.id})")
 
-  try:
-    while True:
+  # try:
+  #   while True:
+  #     data = await websocket.receive_json()
+  #     await core.on_client_data(client, data)
+  # except WebSocketDisconnect:
+  #   logger.info(f"WebSocket: Client {client.id} disconnected ACTIVE: {len(core.clients)}")
+  # except Exception as e:
+  #   logger.exception(f"WebSocket client error: {e}")
+
+  while True:
+    try:
       data = await websocket.receive_json()
       await core.on_client_data(client, data)
-  except WebSocketDisconnect:
-    logger.info(f"WebSocket: Client {client.id} disconnected ACTIVE: {len(core.clients)}")
-  except Exception as e:
-    logger.exception(f"WebSocket client error: {e}")
+    except WebSocketDisconnect:
+      logger.info(f"Client {client.id} disconnected")
+      break
+    except Exception as e:
+      logger.exception(f"Error handling client {client.id}: {e}")

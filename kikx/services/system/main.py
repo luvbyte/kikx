@@ -52,7 +52,7 @@ async def client_func(request: Request, client_func_model: FuncXModel):
 async def close_app(request: Request) -> None:
   client, app = srv.get_client_app(request)
   await client.send_event("app:close", {
-    "appID": app.id,
+    "id": app.id,
     "name": app.name
   })
 
