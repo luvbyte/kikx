@@ -2,6 +2,7 @@ import json
 import httpx
 import shutil
 import tempfile
+import aiofiles
 from pathlib import Path
 
 from lib.hash import hash_file
@@ -63,15 +64,21 @@ async def install_from_github(
       "Chrome/122.0.0.0 Safari/537.36"
     ),
   }
+  
+  timeout = httpx.Timeout(
+    connect=30.0,
+    read=60.0,
+    write=60.0,
+    pool=60.0,
+  )
 
   raw_temp_dir = Path(tempfile.mkdtemp())
   extract_temp_dir = Path(tempfile.mkdtemp())
-  raw_temp = None
 
   try:
     async with httpx.AsyncClient(
       follow_redirects=True,
-      timeout=httpx.Timeout(30.0)
+      timeout=timeout
     ) as client:
 
       resp = await client.get(url, headers=headers)
@@ -105,9 +112,10 @@ async def install_from_github(
 
       async with client.stream("GET", download_url) as r:
         r.raise_for_status()
-        with open(raw_temp, "wb") as f:
-          async for chunk in r.aiter_bytes():
-            f.write(chunk)
+      
+        async with aiofiles.open(raw_temp, "wb") as f:
+          async for chunk in r.aiter_bytes(chunk_size=1024 * 1024):
+            await f.write(chunk)
 
     file_hash = hash_file(raw_temp)
 

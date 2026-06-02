@@ -4,6 +4,8 @@ import httpx
 import shutil
 import asyncio
 import tempfile
+import hashlib
+import aiofiles
 import subprocess
 
 from pathlib import Path
@@ -194,12 +196,14 @@ async def prepare_install_github(
 ):
   owner, repo = parse_github_repo(repo_url)
 
-  # Select correct release URL
-  if tag:
-    url = f"{GITHUB_API}/{owner}/{repo}/releases/tags/{tag}"
-  else:
-    url = f"{GITHUB_API}/{owner}/{repo}/releases/latest"
+  # Build release URL
+  release_url = (
+    f"{GITHUB_API}/{owner}/{repo}/releases/tags/{tag}"
+    if tag
+    else f"{GITHUB_API}/{owner}/{repo}/releases/latest"
+  )
 
+  # Configure request headers
   headers = {
     "Accept": "application/vnd.github+json",
     "User-Agent": (
@@ -209,46 +213,122 @@ async def prepare_install_github(
     ),
   }
 
-  async with httpx.AsyncClient(follow_redirects=True) as client:
-    resp = await client.get(url, headers=headers)
-
-    if resp.status_code != 200:
-      raise HTTPException(404, f"Release not found ({resp.status_code})")
-
-    release = resp.json()
-
-  # Find .kikx asset
-  kikx_asset = next(
-    (a for a in release.get("assets", []) if a["name"].endswith(".kikx")),
-    None
+  # Configure timeouts
+  timeout = httpx.Timeout(
+    connect=30.0,
+    read=120.0,
+    write=120.0,
+    pool=30.0,
   )
 
-  if not kikx_asset:
-    raise HTTPException(400, "No .kikx asset found in release")
+  try:
+    async with httpx.AsyncClient(
+      timeout=timeout,
+      follow_redirects=True,
+      headers=headers,
+    ) as client:
 
-  download_url = kikx_asset["browser_download_url"]
+      # Fetch release metadata
+      release_resp = await client.get(release_url)
 
-  # Download asset
-  raw_temp = Path(tempfile.mkdtemp()) / kikx_asset["name"]
+      if release_resp.status_code == 404:
+        raise HTTPException(404, "Release not found")
 
-  async with httpx.AsyncClient(follow_redirects=True) as client:
-    async with client.stream("GET", download_url, headers=headers) as r:
-      r.raise_for_status()
-      with open(raw_temp, "wb") as f:
-        async for chunk in r.aiter_bytes():
-          f.write(chunk)
+      release_resp.raise_for_status()
 
-  # Hash
-  file_hash = hash_file(raw_temp)
+      release = release_resp.json()
 
-  temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
+      # Find .kikx asset
+      kikx_asset = next(
+        (
+          asset
+          for asset in release.get("assets", [])
+          if asset["name"].endswith(".kikx")
+        ),
+        None,
+      )
+
+      if not kikx_asset:
+        raise HTTPException(
+          400,
+          "No .kikx asset found in release"
+        )
+
+      download_url = kikx_asset["browser_download_url"]
+
+      # Create temp file path
+      raw_temp = (
+        Path(tempfile.mkdtemp())
+        / kikx_asset["name"]
+      )
+
+      # Download and hash simultaneously
+      sha256 = hashlib.sha256()
+
+      async with client.stream(
+        "GET",
+        download_url,
+      ) as response:
+        response.raise_for_status()
+
+        async with aiofiles.open(
+          raw_temp,
+          "wb"
+        ) as f:
+          async for chunk in response.aiter_bytes(
+            chunk_size=1024 * 1024
+          ):
+            sha256.update(chunk)
+            await f.write(chunk)
+
+      file_hash = sha256.hexdigest()
+
+  except httpx.ConnectTimeout:
+    raise HTTPException(
+      504,
+      "Connection to GitHub timed out"
+    )
+
+  except httpx.ReadTimeout:
+    raise HTTPException(
+      504,
+      "GitHub download timed out"
+    )
+
+  except httpx.HTTPStatusError as e:
+    raise HTTPException(
+      502,
+      f"GitHub request failed ({e.response.status_code})"
+    )
+
+  except httpx.HTTPError as e:
+    raise HTTPException(
+      502,
+      f"GitHub error: {str(e)}"
+    )
+
+  # Create extraction cache directory
+  temp_dir = (
+    Path(tempfile.gettempdir())
+    / f"kikx_{file_hash}"
+  )
+
   temp_dir.mkdir(parents=True, exist_ok=True)
 
+  # Extract package if not already extracted
   if not any(temp_dir.iterdir()):
-    extracted_path = resolve_app_package(raw_temp, temp_dir)
+    extracted_path = await asyncio.to_thread(
+      resolve_app_package,
+      raw_temp,
+      temp_dir
+    )
   else:
-    extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
+    extracted_path = next(
+      p for p in temp_dir.iterdir()
+      if p.is_dir()
+    )
 
+  # Store source metadata
   source = {
     "url": repo_url,
     "owner": owner,
@@ -256,11 +336,14 @@ async def prepare_install_github(
     "tag": release.get("tag_name"),
   }
 
-  (temp_dir / ".source_data.json").write_text(json.dumps(source))
+  (temp_dir / ".source_data.json").write_text(
+    json.dumps(source)
+  )
 
+  # Create installer instance
   installer = AppInstaller(core, extracted_path)
-  
-  # If app installed - then return that source
+
+  # Return installed source if already installed
   if installer.is_app_installed:
     source = installer.get_source()
 
@@ -270,5 +353,99 @@ async def prepare_install_github(
     "source": source,
     "is_update": installer.is_update,
     "app_installed": installer.is_app_installed,
-    "is_compatible": installer.is_compatible
+    "is_compatible": installer.is_compatible,
   }
+
+# @router.post("/prepare-github")
+# async def prepare_install_github(
+#   repo_url: str,
+#   tag: str | None = None,
+#   core=Depends(check_permisson)
+# ):
+#   owner, repo = parse_github_repo(repo_url)
+
+#   # Select correct release URL
+#   if tag:
+#     url = f"{GITHUB_API}/{owner}/{repo}/releases/tags/{tag}"
+#   else:
+#     url = f"{GITHUB_API}/{owner}/{repo}/releases/latest"
+
+#   headers = {
+#     "Accept": "application/vnd.github+json",
+#     "User-Agent": (
+#       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+#       "AppleWebKit/537.36 (KHTML, like Gecko) "
+#       "Chrome/122.0.0.0 Safari/537.36"
+#     ),
+#   }
+  
+#   timeout = httpx.Timeout(
+#     connect=30.0,
+#     read=60.0,
+#     write=60.0,
+#     pool=60.0,
+#   )
+
+#   async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+#     resp = await client.get(url, headers=headers)
+
+#     if resp.status_code != 200:
+#       raise HTTPException(404, f"Release not found ({resp.status_code})")
+
+#     release = resp.json()
+
+#   # Find .kikx asset
+#   kikx_asset = next(
+#     (a for a in release.get("assets", []) if a["name"].endswith(".kikx")),
+#     None
+#   )
+
+#   if not kikx_asset:
+#     raise HTTPException(400, "No .kikx asset found in release")
+
+#   download_url = kikx_asset["browser_download_url"]
+
+#   # Download asset
+#   raw_temp = Path(tempfile.mkdtemp()) / kikx_asset["name"]
+
+#   async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+#     async with client.stream("GET", download_url, headers=headers) as r:
+#       r.raise_for_status()
+#       with open(raw_temp, "wb") as f:
+#         async for chunk in r.aiter_bytes():
+#           f.write(chunk)
+
+#   # Hash
+#   file_hash = hash_file(raw_temp)
+
+#   temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
+#   temp_dir.mkdir(parents=True, exist_ok=True)
+
+#   if not any(temp_dir.iterdir()):
+#     extracted_path = resolve_app_package(raw_temp, temp_dir)
+#   else:
+#     extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
+
+#   source = {
+#     "url": repo_url,
+#     "owner": owner,
+#     "repo": repo,
+#     "tag": release.get("tag_name"),
+#   }
+
+#   (temp_dir / ".source_data.json").write_text(json.dumps(source))
+
+#   installer = AppInstaller(core, extracted_path)
+  
+#   # If app installed - then return that source
+#   if installer.is_app_installed:
+#     source = installer.get_source()
+
+#   return {
+#     "temp_id": file_hash,
+#     "manifest": installer.get_app_manifest(),
+#     "source": source,
+#     "is_update": installer.is_update,
+#     "app_installed": installer.is_app_installed,
+#     "is_compatible": installer.is_compatible
+#   }
