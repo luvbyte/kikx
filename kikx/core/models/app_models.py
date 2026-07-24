@@ -1,71 +1,82 @@
-from typing import List, Dict, Optional, Literal, Union
+from typing import Literal, Any
 from pydantic import BaseModel, Field, field_validator, field_serializer
 
 from core.func.func import FuncXModel
+from .base import GithubSourceModel
 
+StorageName = Literal["root", "home", "os", "osr"]
+PermissionType = Literal["read", "write"]
 
-
-# App iframs flags
+# App iframe sandbox flags
 IframeSandboxFlag = Literal[
-  "allow-scripts",
-  "allow-same-origin",  # 
+  "allow-scripts",  # Allows JavaScript execution inside the iframe.
+  "allow-same-origin",  # Uses the iframe's real origin instead of a unique sandbox origin (enables cookies, localStorage, IndexedDB, etc.).
 
-  "allow-forms",
-  "allow-top-navigation",
-  "allow-top-navigation-by-user-activation",
-  "allow-top-navigation-to-custom-protocols",
+  "allow-forms",  # Allows HTML form submission.
+  "allow-top-navigation",  # Allows the iframe to navigate the top-level page.
+  "allow-top-navigation-by-user-activation",  # Allows top-level navigation only after a user gesture.
+  "allow-top-navigation-to-custom-protocols",  # Allows navigation to custom URI schemes (e.g. mailto:, tel:, myapp:).
 
-  "allow-popups",
-  "allow-popups-to-escape-sandbox",
+  "allow-popups",  # Allows opening new windows/tabs via window.open() or target="_blank".
+  "allow-popups-to-escape-sandbox",  # Popups are opened without inheriting the iframe's sandbox restrictions.
 
-  "allow-downloads",
-  "allow-downloads-without-user-activation",
+  "allow-downloads",  # Allows file downloads.
+  "allow-downloads-without-user-activation",  # Allows downloads without requiring a user gesture.
 
-  "allow-modals",
-  "allow-pointer-lock",
-  "allow-orientation-lock",
-  "allow-presentation",
+  "allow-modals",  # Allows alert(), confirm(), and prompt() dialogs.
+  "allow-pointer-lock",  # Allows use of the Pointer Lock API (mouse capture).
+  "allow-orientation-lock",  # Allows locking the screen orientation.
+  "allow-presentation",  # Allows use of the Presentation API (external displays).
 
-  "allow-storage-access-by-user-activation",
+  "allow-storage-access-by-user-activation",  # Allows Storage Access API after a user gesture (third-party storage access).
 ]
 
-# App iframs allow features
+# App iframe Permissions Policy ("allow" attribute) features
 IframeAllowFeature = Literal[
-  "accelerometer",
-  "ambient-light-sensor",
-  "autoplay",
-  "battery",
-  "camera",
-  "clipboard-read",
-  "clipboard-write",
-  "display-capture",
-  "document-domain",
-  "encrypted-media",
-  "execution-while-not-rendered",
-  "execution-while-out-of-viewport",
-  "fullscreen",
-  "gamepad",
-  "geolocation",
-  "gyroscope",
-  "hid",
-  "identity-credentials-get",
-  "idle-detection",
-  "interest-cohort",
-  "keyboard-map",
-  "magnetometer",
-  "microphone",
-  "midi",
-  "navigation-override",
-  "payment",
-  "picture-in-picture",
-  "publickey-credentials-get",
-  "screen-wake-lock",
-  "serial",
-  "speaker-selection",
-  "storage-access",
-  "usb",
-  "web-share",
-  "xr-spatial-tracking",
+  "accelerometer",  # Access the device accelerometer.
+  "ambient-light-sensor",  # Access the ambient light sensor.
+  "autoplay",  # Allow media to autoplay.
+  "battery",  # Access the Battery Status API (mostly deprecated).
+  "camera",  # Access the user's camera.
+  "clipboard-read",  # Read from the system clipboard.
+  "clipboard-write",  # Write to the system clipboard.
+  "display-capture",  # Capture the screen, window, or tab.
+  "document-domain",  # Allow use of document.domain for legacy same-origin relaxation.
+  "encrypted-media",  # Play DRM-protected media (EME).
+  "execution-while-not-rendered",  # Continue executing while the iframe is not rendered.
+  "execution-while-out-of-viewport",  # Continue executing while the iframe is off-screen.
+  "fullscreen",  # Allow entering fullscreen mode.
+  "gamepad",  # Access connected game controllers.
+  "geolocation",  # Access the user's location.
+  "gyroscope",  # Access the device gyroscope.
+  "hid",  # Access Human Interface Devices (HID).
+  "identity-credentials-get",  # Allow Identity Credentials / FedCM API.
+  "idle-detection",  # Detect whether the user or device is idle.
+  "interest-cohort",  # Legacy FLoC permission (obsolete in modern browsers).
+  "keyboard-map",  # Access the Keyboard Layout Map API.
+  "magnetometer",  # Access the device magnetometer.
+  "microphone",  # Access the user's microphone.
+  "midi",  # Access MIDI devices.
+  "navigation-override",  # Allow overriding certain browser navigation behaviors.
+  "payment",  # Allow use of the Payment Request API.
+  "picture-in-picture",  # Allow Picture-in-Picture video mode.
+  "publickey-credentials-get",  # Allow WebAuthn (passkeys/security keys).
+  "screen-wake-lock",  # Prevent the screen from sleeping.
+  "serial",  # Access serial devices.
+  "speaker-selection",  # Allow selecting audio output devices.
+  "storage-access",  # Allow the Storage Access API.
+  "usb",  # Access USB devices through WebUSB.
+  "web-share",  # Allow use of the Web Share API.
+  "xr-spatial-tracking",  # Access WebXR devices and spatial tracking (AR/VR).
+]
+
+# System Access List 
+ACCESS_LIST = Literal[
+  "funcx", # Run funcx functions from js
+  "alert", # Alert notifications
+  "sessions", # Client(UI) sessions managing
+  "kpm", # Install / Uninstall Apps
+  "invoke" # Invoke actions
 ]
 
 # App dynamic modules
@@ -78,43 +89,62 @@ class AppModuleTasksConfigModel(BaseModel):
   kikx_env: bool = True
   # If this is False then uses program env
   sandbox: bool = False
-  # env variables in key/values
-  env: Dict[str, str] = {}
+  # Custum env dict
+  env: dict[str, str] = Field(default_factory=dict)
   # Main program to run while running tasks
   main: str = Field('python3 -u {app_path}/tasks/{name}.py {args}', description="Prefix for all tasks")
 
 # App storage access permissions
 class AppStoragePermissionsModel(BaseModel):
-  app: Optional[Literal['read']] = Field(None, description="App storage permission")
-  root: Optional[Literal['read', 'write', '*']] = Field(None, description="Root storage permission")
- 
-  home: Optional[Literal['read', 'write', '*']] = Field(None, description="Home storage permission")
+  root: Literal["read", "write", "*"] | None = Field(
+    default=None,
+    description="Root storage permission",
+  )
 
-  def check_read(self, storage: str) -> bool:
-    permission = getattr(self, storage, None)
-    if permission is None:
-      raise ValueError(f"Invalid storage name: {storage}")
-    return permission in {'read', '*'}
+  os: Literal["read", "write", "*"] | None = Field(
+    default=None,
+    description="OS home storage permission",
+  )
 
-  def check_write(self, storage: str) -> bool:
-    permission = getattr(self, storage, None)
-    if permission is None:
+  osr: Literal["read", "write", "*"] | None = Field(
+    default=None,
+    description="OS root storage permission",
+  )
+
+  home: Literal["read", "write", "*"] | None = Field(
+    default=None,
+    description="Home storage permission",
+  )
+
+  def _get_permission(self, storage: StorageName) -> str | None:
+    if storage not in self.__class__.model_fields:
       raise ValueError(f"Invalid storage name: {storage}")
-    return permission in {'write', '*'}
-  
-  def check(self, storage, _type):
-    func = {
-      "read": self.check_read,
-      "write": self.check_write
-    }.get(_type)
-    if func is None:
-      raise ValueError(f"Invalid check type: {_type}")
-    
-    return func(storage)
+
+    return getattr(self, storage)
+
+  def check_read(self, storage: StorageName) -> bool:
+    permission = self._get_permission(storage)
+    return permission in {"read", "*"}
+
+  def check_write(self, storage: StorageName) -> bool:
+    permission = self._get_permission(storage)
+    return permission in {"write", "*"}
+
+  def check(
+    self,
+    storage: StorageName,
+    permission_type: PermissionType,
+  ) -> bool:
+    permission = self._get_permission(storage)
+
+    if permission_type == "read":
+      return permission in {"read", "*"}
+
+    return permission in {"write", "*"}
 
 # App system access permissions
 class AppSystemPermissionsModel(BaseModel):
-  access: List[Literal["funcx", "notify", "alert", "sessions", "info", "kpm"]] = []
+  access: list[ACCESS_LIST] = Field(default_factory=list)
 
   # Remove duplicates during validation
   @field_validator("access")
@@ -129,8 +159,8 @@ class AppSystemPermissionsModel(BaseModel):
 class AppIframeModel(BaseModel):
   allowfullscreen: bool = Field(False, description="Allow fullscreen mode")
 
-  sandbox: List[IframeSandboxFlag] = []
-  allow: List[IframeAllowFeature] = []
+  sandbox: list[IframeSandboxFlag] = Field(default_factory=list)
+  allow: list[IframeAllowFeature] = Field(default_factory=list)
 
   loading: Literal["lazy", "eager"] = Field("eager", description="Lazy or eager loading")
 
@@ -155,46 +185,67 @@ class AppIframeModel(BaseModel):
 
 # APP config model in data/data/app
 class AppModel(BaseModel):
-  # github.luvbyte.appstore
-  name: str = Field(..., description="App name")
-  title: str = Field(..., description="App title")
-  version: str = Field(..., description="App Version")
-
-  # one comparision if this is not None then will ignore mix & max field checks
-  kikx_version: Optional[str] = Field(None, description="Required kikx version")
-  # If both none can run on any version
-  min_version: Optional[str] = Field(None, description="Minimum kikx version")
-  max_version: Optional[str] = Field(None, description="Maximum kikx version")
+  # org.author.name
+  name: str = Field(
+    ...,
+    min_length=1,
+    max_length=20,
+    description="App name",
+  )
+  title: str = Field(
+    ...,
+    min_length=1,
+    max_length=20,
+    description="App title",
+  )
+  version: str = Field(
+    ...,
+    pattern=r"^\d+\.\d+\.\d+$",
+    description="App version (major.minor.patch)",
+  )
+  kikx_version: str = Field(
+    ...,
+    pattern=r"^(?:(?:\^|~|~=|>=|<=|==|!=|>|<)?\d+\.\d+\.\d+)(?:,(?:(?:>=|<=|==|!=|>|<)\d+\.\d+\.\d+))*$",
+    description="Required Kikx version",
+  )
 
   # Frontend permissions
   iframe: AppIframeModel = Field(default_factory=AppIframeModel, description="Iframe permissons")
 
   # App modules to use
-  modules: Dict[APP_MODULE, Dict] = Field({}, description="App modules to use")
+  modules: dict[APP_MODULE, dict[str, Any]] = Field(default_factory=dict, description="App modules to use")
 
   # Service permissions
+  os: bool = False
+  kv: bool = False
   proxy: bool = False
-  system: AppSystemPermissionsModel = Field(default_factory=AppSystemPermissionsModel, description="system permissions")
-  storage: AppStoragePermissionsModel = Field(default_factory=AppStoragePermissionsModel, description="storage permissions")
+  micro: bool = False
+  tasker: bool = False
 
-  # Super permissions ( Dangerous )
-  sudo: bool = False  # Access sudo
+  # Track ws messages if ws disconnected
+  ws_tracking: bool = True
 
-# Github source model for apps
-class GithubSourceModel(BaseModel):
-  url: str
-  owner: str
-  repo: str
-  tag: Optional[str]
+  # System and Storage permissions
+  system: AppSystemPermissionsModel = Field(default_factory=AppSystemPermissionsModel, description="System permissions")
+  storage: AppStoragePermissionsModel = Field(default_factory=AppStoragePermissionsModel, description="Storage permissions for fs")
+
+  # Super permissions
+  sudo: bool = False
+
+# Opens app with these options
+class AppOptionsModel(BaseModel):
+  sudo: bool = False
+  args: list[str] = Field(default_factory=list)
+  query: dict[str, Any] = Field(default_factory=dict)
 
 # App manifest app.json in app root fs
 class AppManifestModel(AppModel):
   icon: str = "icon.png"
-  category: str | None = None
-  author: Optional[str] = Field(None, description="App Author")
-  description: Optional[str] = Field(None, description="App Description")
-  
-  source: Union[Literal['local'], GithubSourceModel] = "local"
+  category: str | None = Field(None, description="App Category")
+  author: str | None = Field(None, description="App Author")
+  description: str | None = Field(None, description="App Description")
+
+  source: Literal['local'] | GithubSourceModel = "local"
 
   # theme
   theme: str = "dark"

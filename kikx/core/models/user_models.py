@@ -1,21 +1,32 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 
 
 # User model
 class UserDataModel(BaseModel):
-  name: str = Field(..., description="User full name")
-  username: str = Field(..., description="Username name")
-  age: Optional[int] = Field(None, description="User age")
-  gender: Optional[Literal['male', 'female']] = Field(None, description="User gender")
+  name: str = Field(
+    ...,
+    min_length=1,
+    max_length=256,
+    description="Name"
+  )
+  username: str = Field(
+    ...,
+    min_length=1,
+    max_length=256,
+    description="Username name"
+  )
 
-# Auth model *
+# Auth model
 class UserAuthModel(BaseModel):
-  name: str = Field(..., description="User name")
-  access: str = Field(..., description="Password")
-  
-  access_tokens: list = Field([], description="Access Tokens")
+  access: str = Field(
+    ...,
+    min_length=1,
+    max_length=256,
+    description="Access key"
+  )
 
-  ui: List[str] = Field(..., description="Ui list")
+  ui: list[str] = Field(..., description="UI's")
   default_ui: str = Field(..., description="default one to use")
+

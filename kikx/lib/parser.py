@@ -1,12 +1,11 @@
 import json
-# import tomli
-# import yaml
-import logging
-
 from pathlib import Path
 from typing import IO, Any, Optional, Type, Union
 from pydantic import BaseModel, ValidationError
 
+from typing import Generic, TypeVar
+
+T = TypeVar("T", bound=BaseModel)
 
 def parse_file(
   file: IO,
@@ -50,3 +49,24 @@ def parse_config(
 
   except Exception as e:
     raise RuntimeError(f"Unexpected error parsing {file_path}") from e
+
+
+class ParseConfig(Generic[T]):
+  def __init__(self, path: Path, model: type[T]) -> None:
+    self.path = path
+    self.model = model
+    self._data: T = self.load()
+
+  @property
+  def data(self) -> T:
+    return self._data
+
+  def load(self) -> T:
+    self._data = parse_config(self.path, self.model)
+    return self._data
+
+  def save(self) -> None:
+    self.path.write_text(
+      self._data.model_dump_json(indent=2),
+      encoding="utf-8",
+    )

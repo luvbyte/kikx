@@ -1,29 +1,26 @@
 import json
-import uuid
-import httpx
 import shutil
+import logging
 import asyncio
 import tempfile
-import hashlib
-import aiofiles
-import subprocess
 
 from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
 
 from lib.hash import hash_file
-from urllib.parse import urlparse
-from core.kpm import GITHUB_API, AppInstaller, AppUninstaller, resolve_app_package, parse_github_repo
+from lib.utils import file_response
+from core.kpm import AppInstaller, AppUninstaller
+from core.setup.pkg import parse_github_repo, extract_package, fetch_release_package
 
-from fastapi import APIRouter, Request, UploadFile, File, HTTPException, Depends
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Request, UploadFile, File, Depends
 
+
+logger = logging.getLogger(__name__)
 
 
 class AppInstallRoute(BaseModel):
   uri: Optional[str] = None 
-
 
 class ServiceRouter(APIRouter):
   def __init__(self):
@@ -41,141 +38,212 @@ router = ServiceRouter()
 def check_permisson(request: Request):
   srv = router.get_srv()
   core = srv.get_core()
-  
-  return core # remove 
 
   client, app = srv.get_client_or_app(request)
   if app is None: # allow access for clients
     return core
 
   # If app - check kpm exists in app config
-  if not app.config.system.check("kpm"):
-    raise HTTPException(403, "Permission denied")
+  if not app.config.system.check("kpm") or not app.config.sudo:
+    srv.exception(403, "Require 'kpm' permission")
 
   return core
 
-# Installed app manifest 
-def get_installed_app(app_name, core):
-  return core.user.load_app_manifest(app_name)
+def get_or_extract(raw_temp: Path, temp_dir: Path) -> Path:
+  dirs = [p for p in temp_dir.iterdir() if p.is_dir()]
 
-# Return apps / app
+  if len(dirs) == 1:
+    return dirs[0]
+
+  return extract_package(raw_temp, temp_dir)
+
 @router.get("/installed-apps")
 async def get_installed_apps(app_name: Optional[str] = None, core = Depends(check_permisson)):
-  try:
-    if app_name is None:
-      return [get_installed_app(name, core) for name in core.user.get_installed_apps()]
-    
-    return get_installed_app(app_name, core)
-  except Exception as e:
-    raise HTTPException(status_code=404, detail=str(e))
+  return core.get_installed_apps(raw=True)
 
-
+# ------------- Prepare Local Install By UploadFile
 @router.post("/prepare-install")
 async def prepare_install(file: UploadFile = File(...), core = Depends(check_permisson)):
-  if not file.filename.endswith(".kikx"):
-    raise HTTPException(400, "Only .kikx packages are supported")
+  srv = router.get_srv()
+  
+  upload_dir = Path(tempfile.mkdtemp())
 
-  raw_temp = Path(tempfile.mkdtemp()) / file.filename
+  try:
+    if not file.filename.endswith(".kikx"):
+      srv.exception(403, "Only .kikx packages are supported")
 
-  with open(raw_temp, "wb") as buffer:
-    shutil.copyfileobj(file.file, buffer)
+    raw_temp = upload_dir / file.filename
 
-  file_hash = hash_file(raw_temp)
+    with open(raw_temp, "wb") as buffer:
+      shutil.copyfileobj(file.file, buffer)
+    
+    await file.close()
+    
+    file_hash = hash_file(raw_temp)
+    
+    temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+  
+    # removing source if found for local install
+    source_file = temp_dir / ".source_data.json"
+    source_file.unlink(missing_ok=True)
 
-  temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
-  temp_dir.mkdir(parents=True, exist_ok=True)
+    # Extract only if not already extracted
+    extracted_path = get_or_extract(raw_temp, temp_dir)
+    
+    installer = AppInstaller(core, extracted_path)
+  
+    return {
+      "temp_id": file_hash,
+      "manifest": installer.get_app_manifest(),
+      "is_update": installer.is_update,
+      "app_installed": installer.is_app_installed,
+      "is_compatible": installer.is_compatible
+    }
+  except Exception as e:
+    logger.exception(e)
+    srv.exception(403, e)
+  finally:
+    shutil.rmtree(upload_dir, ignore_errors=True)
 
-  # removing source if found for local installs
-  source_file = temp_dir / ".source_data.json"
-  source_file.unlink(missing_ok=True)
+# ------------- Prepare Github Install
+# Optimize make fast
+@router.post("/prepare-github")
+async def prepare_install_github(
+  repo_url: str,
+  tag: str | None = None,
+  core=Depends(check_permisson)
+):
+  srv = router.get_srv()
+  
+  download_dir = Path(tempfile.mkdtemp())
 
-  # Extract only if not already extracted
-  if not any(temp_dir.iterdir()):
-    extracted_path = resolve_app_package(raw_temp, temp_dir)
-  else:
-    extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
+  try:
+    owner, repo = parse_github_repo(repo_url)
 
-  installer = AppInstaller(core, extracted_path)
+    release, raw_temp = await fetch_release_package(download_dir, owner, repo, tag)
 
-  return {
-    "temp_id": file_hash,
-    "manifest": installer.get_app_manifest(),
-    "is_update": installer.is_update,
-    "app_installed": installer.is_app_installed,
-    "is_compatible": installer.is_compatible
-  }
+    # Hash
+    file_hash = hash_file(raw_temp)
+  
+    temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
 
+    extracted_path = get_or_extract(raw_temp, temp_dir)
+
+    source = {
+      "url": repo_url,
+      "owner": owner,
+      "repo": repo,
+      "tag": release.get("tag_name"),
+      "hash": file_hash
+    }
+
+    (temp_dir / ".source_data.json").write_text(json.dumps(source))
+  
+    installer = AppInstaller(core, extracted_path)
+
+    # If app installed - then return that source
+    if installer.is_app_installed:
+      source = installer.get_source()
+  
+    return {
+      "temp_id": file_hash,
+      "manifest": installer.get_app_manifest(),
+      "source": source,
+      "is_update": installer.is_update,
+      "app_installed": installer.is_app_installed,
+      "is_compatible": installer.is_compatible
+    }
+  except Exception as e:
+    logger.exception(e)
+    srv.exception(403, e)
+  finally:
+    shutil.rmtree(download_dir, ignore_errors=True)
+
+# ------------- Preview App By TempID
 @router.get("/preview/{temp_id}/{path:path}")
 async def get_file(temp_id: str, path: str):
-  temp_dir = Path(tempfile.gettempdir()) / f"kikx_{temp_id}"
+  srv = router.get_srv()
 
-  if not temp_dir.exists():
-    raise HTTPException(404, "Package not found")
+  try:
+    temp_dir = Path(tempfile.gettempdir()) / f"kikx_{temp_id}"
+  
+    if not temp_dir.exists():
+      srv.exception(404, "Package not found")
 
-  extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
+    extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
 
-  requested_path = (extracted_path / path).resolve()
+    return file_response(extracted_path, path)
 
-  # Prevent path traversal
-  if not str(requested_path).startswith(str(extracted_path.resolve())):
-    raise HTTPException(403, "Access denied")
+  except Exception as e:
+    srv.exception(403, e)
 
-  if not requested_path.exists() or not requested_path.is_file():
-    raise HTTPException(404, "File not found")
-
-  return FileResponse(requested_path)
-
+# ------------- Confirm Install After Preview
 @router.post("/confirm-install")
 async def confirm_install(request: Request, temp_id: str, core = Depends(check_permisson)):
   srv = router.get_srv()
-  core = srv.get_core()
 
-  temp_dir = Path(tempfile.gettempdir()) / f"kikx_{temp_id}"
+  try:
+    temp_dir = Path(tempfile.gettempdir()) / f"kikx_{temp_id}"
 
-  if not temp_dir.exists():
-    raise HTTPException(404, "Install session not found")
+    if not temp_dir.exists():
+      srv.exception(404, "Install session not found")
 
-  extracted_dirs = [p for p in temp_dir.iterdir() if p.is_dir()]
-  if len(extracted_dirs) != 1:
-    raise HTTPException(400, "Corrupted session")
+    extracted_dirs = [p for p in temp_dir.iterdir() if p.is_dir()]
+    if len(extracted_dirs) != 1:
+      srv.exception(403, "Corrupted session")
 
-  source_file = temp_dir / ".source_data.json"
+    source_file = temp_dir / ".source_data.json"
+  
+    if not source_file.exists():
+      source = "local"
+    else:
+      source = json.loads(source_file.read_text())
+  
+    installer = AppInstaller(core, extracted_dirs[0])
+  
+    result = installer.install(source)
+  
+    # async Broadcast to all clients
+    asyncio.create_task(core.broadcast_to_clients("app:installed", installer.get_manifest()))
+  
+    shutil.rmtree(temp_dir, ignore_errors=True)
+  
+    return {"res": "ok", "result": result}
+  except Exception as e:
+    logger.exception(e)
+    srv.exception(403, e)
 
-  if not source_file.exists():
-    source = "local"
-  else:
-    source = json.loads(source_file.read_text())
-
-  installer = AppInstaller(core, extracted_dirs[0])
-
-  result = installer.install(source)
-
-  # async Broadcast to all clients
-  asyncio.create_task(core.broadcast_to_clients("app:installed", installer.get_manifest()))
-
-  shutil.rmtree(temp_dir, ignore_errors=True)
-
-  return {"res": "ok", "result": result}
-
+# ------------- Cancel Install and Cleanup
 @router.post("/cancel-install")
-async def cancel_install(temp_id: str):
-  base_tmp = Path(tempfile.gettempdir()).resolve()
-  temp_dir = (base_tmp / f"kikx_{temp_id}").resolve()
+async def cancel_install(temp_id: str, _ = Depends(check_permisson)):
+  srv = router.get_srv()
 
-  if not temp_dir.exists():
-    return {"res": "already_cancelled"}
+  try:
+    base_tmp = Path(tempfile.gettempdir()).resolve()
+    temp_dir = (base_tmp / f"kikx_{temp_id}").resolve()
 
-  # critical safety check
-  if not temp_dir.is_relative_to(base_tmp):
-    raise HTTPException(400, "Unsafe path")
+    if not temp_dir.exists():
+      return srv.ok("already_cancelled")
 
-  shutil.rmtree(temp_dir, ignore_errors=True)
+    # critical safety check
+    if not temp_dir.is_relative_to(base_tmp):
+      srv.exception(403, "Forbidden path")
 
-  return {"res": "cancelled"}
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
+    return srv.ok()
 
+  except Exception as e:
+    logger.exception(e)
+    srv.exception(403, e)
+
+# ------------- Uninstall App
 @router.delete("/uninstall")
 async def uninstall_app_route(app_name: str, core = Depends(check_permisson)):
+  srv = router.get_srv()
+
   try:
     AppUninstaller(core, app_name).uninstall()
     
@@ -184,268 +252,9 @@ async def uninstall_app_route(app_name: str, core = Depends(check_permisson)):
       "name": app_name
     }))
 
-    return { "res": "ok" }
+    return srv.ok()
+
   except Exception as e:
-    raise HTTPException(status_code=401, detail=str(e))
+    logger.exception(e)
+    srv.exception(403, e)
 
-@router.post("/prepare-github")
-async def prepare_install_github(
-  repo_url: str,
-  tag: str | None = None,
-  core=Depends(check_permisson)
-):
-  owner, repo = parse_github_repo(repo_url)
-
-  # Build release URL
-  release_url = (
-    f"{GITHUB_API}/{owner}/{repo}/releases/tags/{tag}"
-    if tag
-    else f"{GITHUB_API}/{owner}/{repo}/releases/latest"
-  )
-
-  # Configure request headers
-  headers = {
-    "Accept": "application/vnd.github+json",
-    "User-Agent": (
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-      "AppleWebKit/537.36 (KHTML, like Gecko) "
-      "Chrome/122.0.0.0 Safari/537.36"
-    ),
-  }
-
-  # Configure timeouts
-  timeout = httpx.Timeout(
-    connect=30.0,
-    read=120.0,
-    write=120.0,
-    pool=30.0,
-  )
-
-  try:
-    async with httpx.AsyncClient(
-      timeout=timeout,
-      follow_redirects=True,
-      headers=headers,
-    ) as client:
-
-      # Fetch release metadata
-      release_resp = await client.get(release_url)
-
-      if release_resp.status_code == 404:
-        raise HTTPException(404, "Release not found")
-
-      release_resp.raise_for_status()
-
-      release = release_resp.json()
-
-      # Find .kikx asset
-      kikx_asset = next(
-        (
-          asset
-          for asset in release.get("assets", [])
-          if asset["name"].endswith(".kikx")
-        ),
-        None,
-      )
-
-      if not kikx_asset:
-        raise HTTPException(
-          400,
-          "No .kikx asset found in release"
-        )
-
-      download_url = kikx_asset["browser_download_url"]
-
-      # Create temp file path
-      raw_temp = (
-        Path(tempfile.mkdtemp())
-        / kikx_asset["name"]
-      )
-
-      # Download and hash simultaneously
-      sha256 = hashlib.sha256()
-
-      async with client.stream(
-        "GET",
-        download_url,
-      ) as response:
-        response.raise_for_status()
-
-        async with aiofiles.open(
-          raw_temp,
-          "wb"
-        ) as f:
-          async for chunk in response.aiter_bytes(
-            chunk_size=1024 * 1024
-          ):
-            sha256.update(chunk)
-            await f.write(chunk)
-
-      file_hash = sha256.hexdigest()
-
-  except httpx.ConnectTimeout:
-    raise HTTPException(
-      504,
-      "Connection to GitHub timed out"
-    )
-
-  except httpx.ReadTimeout:
-    raise HTTPException(
-      504,
-      "GitHub download timed out"
-    )
-
-  except httpx.HTTPStatusError as e:
-    raise HTTPException(
-      502,
-      f"GitHub request failed ({e.response.status_code})"
-    )
-
-  except httpx.HTTPError as e:
-    raise HTTPException(
-      502,
-      f"GitHub error: {str(e)}"
-    )
-
-  # Create extraction cache directory
-  temp_dir = (
-    Path(tempfile.gettempdir())
-    / f"kikx_{file_hash}"
-  )
-
-  temp_dir.mkdir(parents=True, exist_ok=True)
-
-  # Extract package if not already extracted
-  if not any(temp_dir.iterdir()):
-    extracted_path = await asyncio.to_thread(
-      resolve_app_package,
-      raw_temp,
-      temp_dir
-    )
-  else:
-    extracted_path = next(
-      p for p in temp_dir.iterdir()
-      if p.is_dir()
-    )
-
-  # Store source metadata
-  source = {
-    "url": repo_url,
-    "owner": owner,
-    "repo": repo,
-    "tag": release.get("tag_name"),
-  }
-
-  (temp_dir / ".source_data.json").write_text(
-    json.dumps(source)
-  )
-
-  # Create installer instance
-  installer = AppInstaller(core, extracted_path)
-
-  # Return installed source if already installed
-  if installer.is_app_installed:
-    source = installer.get_source()
-
-  return {
-    "temp_id": file_hash,
-    "manifest": installer.get_app_manifest(),
-    "source": source,
-    "is_update": installer.is_update,
-    "app_installed": installer.is_app_installed,
-    "is_compatible": installer.is_compatible,
-  }
-
-# @router.post("/prepare-github")
-# async def prepare_install_github(
-#   repo_url: str,
-#   tag: str | None = None,
-#   core=Depends(check_permisson)
-# ):
-#   owner, repo = parse_github_repo(repo_url)
-
-#   # Select correct release URL
-#   if tag:
-#     url = f"{GITHUB_API}/{owner}/{repo}/releases/tags/{tag}"
-#   else:
-#     url = f"{GITHUB_API}/{owner}/{repo}/releases/latest"
-
-#   headers = {
-#     "Accept": "application/vnd.github+json",
-#     "User-Agent": (
-#       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-#       "AppleWebKit/537.36 (KHTML, like Gecko) "
-#       "Chrome/122.0.0.0 Safari/537.36"
-#     ),
-#   }
-  
-#   timeout = httpx.Timeout(
-#     connect=30.0,
-#     read=60.0,
-#     write=60.0,
-#     pool=60.0,
-#   )
-
-#   async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-#     resp = await client.get(url, headers=headers)
-
-#     if resp.status_code != 200:
-#       raise HTTPException(404, f"Release not found ({resp.status_code})")
-
-#     release = resp.json()
-
-#   # Find .kikx asset
-#   kikx_asset = next(
-#     (a for a in release.get("assets", []) if a["name"].endswith(".kikx")),
-#     None
-#   )
-
-#   if not kikx_asset:
-#     raise HTTPException(400, "No .kikx asset found in release")
-
-#   download_url = kikx_asset["browser_download_url"]
-
-#   # Download asset
-#   raw_temp = Path(tempfile.mkdtemp()) / kikx_asset["name"]
-
-#   async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-#     async with client.stream("GET", download_url, headers=headers) as r:
-#       r.raise_for_status()
-#       with open(raw_temp, "wb") as f:
-#         async for chunk in r.aiter_bytes():
-#           f.write(chunk)
-
-#   # Hash
-#   file_hash = hash_file(raw_temp)
-
-#   temp_dir = Path(tempfile.gettempdir()) / f"kikx_{file_hash}"
-#   temp_dir.mkdir(parents=True, exist_ok=True)
-
-#   if not any(temp_dir.iterdir()):
-#     extracted_path = resolve_app_package(raw_temp, temp_dir)
-#   else:
-#     extracted_path = next(p for p in temp_dir.iterdir() if p.is_dir())
-
-#   source = {
-#     "url": repo_url,
-#     "owner": owner,
-#     "repo": repo,
-#     "tag": release.get("tag_name"),
-#   }
-
-#   (temp_dir / ".source_data.json").write_text(json.dumps(source))
-
-#   installer = AppInstaller(core, extracted_path)
-  
-#   # If app installed - then return that source
-#   if installer.is_app_installed:
-#     source = installer.get_source()
-
-#   return {
-#     "temp_id": file_hash,
-#     "manifest": installer.get_app_manifest(),
-#     "source": source,
-#     "is_update": installer.is_update,
-#     "app_installed": installer.is_app_installed,
-#     "is_compatible": installer.is_compatible
-#   }

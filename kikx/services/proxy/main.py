@@ -1,14 +1,11 @@
 import httpx
-from fastapi import Request, HTTPException, Query, Response
+import logging
+from fastapi import Request, Query, Response
 
 from lib.service import create_service
 
-from core.logging import Logger
 
-
-
-logging = Logger("kikx_service_proxy", "kikx_service_proxy.log")
-logger = logging.get_logger()
+logger = logging.getLogger(__name__)
 
 
 srv = create_service(__file__)
@@ -20,13 +17,14 @@ async def forward_request(method: str, request: Request, target_url: str):
   headers = dict(request.headers)
   if app:
     if not app.config.proxy:
-      raise HTTPException(status_code=403, detail="Permission denied for proxy")
+      srv.exception(403, "Require 'proxy' permission")
+
     headers.pop("kikx-app-id")
   else:
     headers.pop("kikx-client-id")
 
   if not target_url:
-    raise HTTPException(status_code=400, detail="Missing target URL in query parameter")
+    srv.exception(400, "Missing target URL in query parameter")
 
   headers.pop("host", None)
 
@@ -55,13 +53,13 @@ async def forward_request(method: str, request: Request, target_url: str):
     )
 
   except httpx.TimeoutException:
-    raise HTTPException(status_code=504, detail="Request to target server timed out")
+    srv.exception(504, "Request to target server timed out")
 
   except httpx.RequestError:
-    raise HTTPException(status_code=502, detail="Failed to connect to target server")
+    srv.exception(502, "Failed to connect to target server")
 
   except Exception as e:
-    raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    srv.exception(500, f"Internal server error: {str(e)}")
 
 @srv.router.get("/")
 async def proxy_get(request: Request, url: str = Query(...)):

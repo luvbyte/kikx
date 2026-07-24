@@ -1,61 +1,97 @@
 import asyncio
+import logging
+
+from typing import Any
 from pathlib import Path
-from typing import Dict, Optional, List
 
 from fastapi import WebSocket
 
-from lib.utils import get_timestamp
-
-from lib.utils import generate_uuid, ensure_dir, dynamic_import, joinpath
-from core.models.app_models import AppModel
-from core.func import FuncX, funcx, funcx_handler
+from core.func import FuncX, funcx
 from core.connection import Connection
+from core.models.app_models import AppModel, AppOptionsModel, AppManifestModel
 
-from core.logging import Logger
+from lib.storage import KVStorage
+from lib.utils import get_timestamp
+from lib.utils import generate_uuid, ensure_dir, dynamic_import, joinpath
 
 
-logging = Logger("kikx_apps", "kikx_apps.log")
-logger = logging.get_logger()
 
+logger = logging.getLogger(__name__)
 
 
 class App(FuncX):
-  def __init__(self, client_id: str, name: str, app_path: Path, config: AppModel, user: object, manifest, sudo=False):
+  def __init__(
+    self,
+    client_id: str,
+    name: str,
+    app_path: Path,
+    config: AppModel,
+    user: Any,
+    manifest: AppManifestModel,
+    options: AppOptionsModel | dict
+  ) -> None:
+
     super().__init__()
-    self.name: str = name
-    self.id: str = generate_uuid()
-    self.client_id: str = client_id
-    self.app_path: Path = app_path
-    self.config: AppModel = config
-    self.manifest = manifest
-    self.title: str = config.title
-    self.user = user  # Custom user object
-    
-    self.sudo = True if self.config.sudo else sudo  # Sudo App
-    
-    self.created_at = get_timestamp()
 
-    self.connection = Connection()
-    self.__modules: List[Dict[str, object]] = []
+    self.name: str = name               # App unique name
+    self.id: str = generate_uuid()      # App unique id
+    self.client_id: str = client_id     # Client id which opened this app
+    self.app_path: Path = app_path      # App path
+    self.config: AppModel = config      # App config in data/
+    self.manifest: AppManifestModel = manifest  # App manifest file app.json
+    self.title: str = config.title      # App title
+    self.user: Any = user                    # User instance
+    
+    # App Start options
+    self.options: AppOptionsModel = options if isinstance(options, AppOptionsModel) else AppOptionsModel(**options)
+    self.sudo: bool = True if self.config.sudo else self.options.sudo  # Sudo App
 
+    # App opened time
+    self.created_at: str = get_timestamp()
+    # App ws connection
+    self.connection: Connection = Connection("App", self.config.ws_tracking)
+    # Loaded app modules
+    self.__modules: list[dict[str, Any]] = []
+    # Temp kv storage
+    self._data: KVStorage = KVStorage()
+
+    # Start loading app modules
     self.load_modules()
 
-  def info(self):
+  def info(self) -> dict[str, Any]:
+    """Get App info dict"""
     return {
       "id": self.id,
       "name": self.name,
       "title": self.title,
-      
-      "sudo": self.sudo,
+
+      "options": self.options.model_dump(),
+      "manifest": self.manifest.model_dump(),
+      "config": self.config.model_dump(),
+
+      "sudo": self.is_sudo,
       "created_at": self.created_at,
 
       "connection": self.connection.info()
     }
 
   @property
+  def data(self) -> KVStorage:
+    return self._data
+
+  @property
   def connected(self) -> bool:
     """Check if WebSocket is still connected."""
     return self.connection.is_connected
+
+  @property
+  def is_sudo(self) -> bool:
+    return self.sudo
+
+  # Saving app config
+  def save_config(self) -> None:
+    logger.info(f"Saving app config: {self.name} (ID: {self.id})")
+    self.user.save_app_config(self.name, self.config)
 
   def load_modules(self) -> None:
     """Dynamically load app modules from config."""
@@ -94,13 +130,15 @@ class App(FuncX):
     await self.connection.connect(websocket)
     logger.info(f"WebSocket connected for app: {self.name}")
 
-  async def send_event(self, event: str, payload: object) -> None:
+  async def send_event(self, event: str, payload: Any) -> None:
     """Send event to frontend."""
     await self.connection.send_event(event, payload)
 
   async def on_close(self) -> None:
     """Clean up all modules on app close."""
     logger.info(f"Closing app: {self.name} (ID: {self.id})")
+  
+    await super().on_close()
 
     results = await asyncio.gather(
       *[getattr(self, module["name"]).on_close() for module in self.__modules],
@@ -109,7 +147,13 @@ class App(FuncX):
     for module, result in zip(self.__modules, results):
       if isinstance(result, Exception):
         logger.warning(f"Error closing module {module['name']}: {result}")
-    await super().on_close()
+    
+    # Try closing connection
+    try:
+      await asyncio.wait_for(self.connection.close(), timeout=2)
+    except asyncio.TimeoutError:
+      logger.warning("Timed out while closing connection from app.")
+
 
   def __str__(self) -> str:
     return f"App ({self.name}) - (ID: {self.id})"

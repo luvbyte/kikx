@@ -5,11 +5,10 @@ import asyncio
 
 from uuid import uuid4
 from pathlib import Path
+from typing import Any, Callable
 from importlib import import_module
 from datetime import datetime, timezone
 from importlib import util as importlib_util
-
-from typing import Any, Callable, Union
 
 from fastapi import WebSocket, HTTPException
 from fastapi.responses import FileResponse
@@ -20,59 +19,65 @@ from packaging.version import Version, InvalidVersion
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 
 
-
-async def any_run(func, *args, **kwargs):
+# Run coro / func
+async def any_run(func, *args, **kwargs) -> Any:
   if inspect.iscoroutinefunction(func):
     return await func(*args, **kwargs)
   else:
     return func(*args, **kwargs)
 
-def get_timestamp():
+# Get current timestamp
+def get_timestamp() -> str:
   return datetime.now(timezone.utc).isoformat()
 
+# Generate uuid
 def generate_uuid() -> str:
   return uuid4().hex
 
-# Not required
-def is_version_ok(current_version: str, requirement: str) -> bool:
+# ------------- Version checkings
+def _convert_requirement(requirement: str) -> str:
+  requirement = requirement.strip()
+
+  # caret (^)
+  if requirement.startswith("^"):
+    v = Version(requirement[1:])
+
+    if v.major > 0:
+      upper = f"{v.major + 1}.0.0"
+    elif v.minor > 0:
+      upper = f"0.{v.minor + 1}.0"
+    else:
+      upper = f"0.0.{v.micro + 1}"
+
+    return f">={v},<{upper}"
+
+  # tilde (~)
+  if requirement.startswith("~") and not requirement.startswith("~="):
+    v = Version(requirement[1:])
+    upper = f"{v.major}.{v.minor + 1}.0"
+    return f">={v},<{upper}"
+
+  # Bare version -> compatible release
+  if not any(requirement.startswith(op) for op in ("<", ">", "!", "=", "~")):
+    return f"~={requirement}"
+
+  return requirement
+
+def is_version_match(current_version: str, requirement: str) -> bool:
   try:
     version = Version(current_version)
-    
-    # Allow patch updates
-    if not any(requirement.strip().startswith(op) for op in "<>!=~="):
-      requirement = f"~={requirement}"
-
-    spec = SpecifierSet(requirement)
+    spec = SpecifierSet(_convert_requirement(requirement))
     return version in spec
   except (InvalidVersion, InvalidSpecifier):
     return False
 
-# Checks target_version is in between both
-def is_version_supported(
-  target_version: str,
-  min_version: str | None = None,
-  max_version: str | None = None
-) -> bool:
-  try:
-    v = Version(target_version)
-
-    if min_version and v < Version(min_version):
-      return False
-
-    if max_version and v > Version(max_version):
-      return False
-
-    return True
-
-  except InvalidVersion:
-    return False
-
 def is_update_available(current_version: str, latest_version: str) -> bool:
   try:
-    return Version(current_version) < Version(latest_version)
+    return Version(latest_version) > Version(current_version)
   except InvalidVersion:
     return False
 
+# ------------- Modules
 def import_relative_module(path: str, name: str) -> Any:
   """
   Import a module relatively using standard import mechanisms.
@@ -109,19 +114,17 @@ def dynamic_import(module_name: str, file_path: str, cache: bool = False) -> Any
   spec.loader.exec_module(module)
   return module
 
+# ------------- Websocket
 def is_websocket_connected(ws: WebSocket) -> bool:
-  """
-  Check if a WebSocket connection is active.
+  if not isinstance(ws, WebSocket):
+    return False
 
-  Args:
-    ws: The WebSocket instance.
+  return (
+    ws.client_state is WebSocketState.CONNECTED
+    and ws.application_state is WebSocketState.CONNECTED
+  )
 
-  Returns:
-    True if connected, False otherwise.
-  """
-  return isinstance(ws, WebSocket) and ws.client_state == WebSocketState.CONNECTED
-
-async def send_event(websocket: WebSocket, event: str, payload: Union[dict, Callable[[], dict]]) -> None:
+async def send_event(websocket: WebSocket, event: str, payload: Any) -> None:
   """
   Send a JSON event to a WebSocket client.
 
@@ -139,6 +142,7 @@ async def send_event(websocket: WebSocket, event: str, payload: Union[dict, Call
     except Exception:
       pass
 
+# ------------- Conversion
 def convert_to_base64(data: bytes) -> str:
   """
   Convert bytes to a base64-encoded string.
@@ -151,7 +155,8 @@ def convert_to_base64(data: bytes) -> str:
   """
   return base64.b64encode(data).decode("utf-8")
 
-def ensure_dir(path: str) -> str:
+# ------------- Path
+def ensure_dir(path: str | Path) -> str | Path:
   """
   Ensure a directory exists; create it if missing.
 
@@ -164,7 +169,7 @@ def ensure_dir(path: str) -> str:
   Path(path).mkdir(parents=True, exist_ok=True)
   return path
 
-def file_response(base: str | Path, *paths: str | Path) -> Path:
+def file_response(base: str | Path, *paths) -> Path:
   """
   Safely join base with one or more path components.
   Returns a Path guaranteed to be inside base, or raises HTTPException(403/404).
@@ -181,7 +186,7 @@ def file_response(base: str | Path, *paths: str | Path) -> Path:
 
   return FileResponse(full_path)
 
-def joinpath(base: str | Path, *parts: str | Path) -> Path:
+def joinpath(base: str | Path, *parts) -> Path:
   base = Path(base).resolve()
   target = base.joinpath(*parts).resolve()
 
@@ -189,3 +194,9 @@ def joinpath(base: str | Path, *parts: str | Path) -> Path:
     raise HTTPException(status_code=401, detail="Path traversal detected")
 
   return target
+
+def is_safe_path(base: str | Path, *parts) -> bool:
+  base = Path(base).resolve()
+  target = base.joinpath(*parts).resolve()
+  
+  return target.is_relative_to(base)

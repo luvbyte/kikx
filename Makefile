@@ -1,29 +1,37 @@
-PHONY: venv install run
+.PHONY: all venv run dev test clean
 
-PY_PATH=venv/bin/python3
+PY_PATH = venv/bin/python3
 
-# Create a virtual environment
+all: run
+
 venv:
-	@echo "Creating virtual environment"
-	python3 -m venv venv
-	@echo "Virtual environment created."
+	@if [ ! -f venv/bin/activate ]; then \
+		echo "Creating virtual environment..."; \
+		rm -rf venv; \
+		python3 -m venv venv; \
+		echo "Virtual environment created."; \
+	fi
 
-# Install dependencies from requirements.txt
-install:
+venv/.installed: requirements.txt | venv
 	$(PY_PATH) -m pip install -r requirements.txt
+	@touch venv/.installed
 	@echo "Dependencies installed."
 
-# Run the Python script
-run:
+run: venv/.installed
 	cd kikx && ../$(PY_PATH) main.py
 
-serve:
-	cd kikx && ../$(PY_PATH) -m uvicorn main:kikx_app --reload
+# cli: venv/.installed
+# 	cd kikx && ../$(PY_PATH) cli.py
 
-test:
-	./$(PY_PATH) -m pytest
+dev: venv/.installed
+	cd kikx && ../$(PY_PATH) -m uvicorn core.kikx:kikx_app --reload --timeout-graceful-shutdown 5
 
-# Clean up the virtual environment and cache
+setup: venv/.installed
+	cd kikx && ../$(PY_PATH) setup.py
+
+test: venv/.installed
+	$(PY_PATH) -m pytest
+
 clean:
 	rm -rf venv __pycache__ kikx/__pycache__ */__pycache__
 	@echo "Cleaned up."

@@ -45,3 +45,35 @@
 - Fixed app icons grid and control center icons
 - Minor UI updates
 - Bug fixes
+
+## [0.3.0]
+### Added
+- OS Service
+- KV Service
+- Micro Service
+- App Invoke
+- Sessions info, apps info, kikx info
+- Open app from app using args, query
+- Explorer system app
+
+### Fixed
+- Some Bugs :)
+
+### Changed
+- Changed app.manifest.json to app.json
+- Tasks app module quick & long task
+- Sessions & Kpm require sudo
+- Removed default icons
+- Removed notify
+- App models
+- Removed kikxlib
+- fs service routes
+- updated logging
+
+## MUI updates
+- App invoking
+- App Invoke Actions (wallpaper & share)
+- Added video wallpaper support
+- Updated ui
+- Live update alerts
+- UI updates

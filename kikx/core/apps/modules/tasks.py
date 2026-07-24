@@ -1,68 +1,221 @@
 import os
 import sys
 import pwd
+import json
 import shlex
 import signal
 import asyncio
+import logging
 
 from uuid import uuid4
 from pathlib import Path
+from typing import Any, Callable
 from pydantic import BaseModel, Field
-from typing import Dict, Optional, List, Union
 
 from core.func import funcx
-from core.logging import Logger
 from core.func.handlers import Handler
-
 from core.models.app_models import AppModuleTasksConfigModel
 
-from lib.parser import parse_config
+from lib.storage import KVStorage
 
 
 
-logging = Logger("kikx_app_tasks", "kikx_app_tasks.log")
-logger = logging.get_logger()
+# Logger
+logger = logging.getLogger(__name__)
 
+
+
+class TaskKVStorage(KVStorage):
+  def __init__(self):
+    pass
+
+  async def func(self, name, options):
+    if name not in ["set", "pop", "reset"]:
+      raise Exception("Invalid func name")
+
+    print(name, options)
 
 
 class SafeDict(dict):
-  def __missing__(self, key):
+  def __missing__(self, key: str) -> str:
     return '{' + key + '}'
 
-class Task:
-  def __init__(self, cmd: str, env: Dict[str, str], shell: bool, cwd: str, sudo: bool):
-    self.cmd: str = cmd
-    self.cwd = cwd
-    self.shell = shell
-    self.env: Dict[str, str] = env
-    self.id: str = uuid4().hex
-    self.started: bool = False
-    self.process: Optional[asyncio.subprocess.Process] = None
-    self.stdout_timeout: int = 30
-    self.waiting: bool = False
-    self.task_input: List[str] = []
-    
-    # root / nobody - user
-    self.sudo = sudo
 
+class QTask:
+  def __init__(self, cmd: str, env: dict[str, str], shell: bool, cwd: str, sudo: bool) -> None:
+    self.id: str = uuid4().hex
+
+    self.cwd: str = cwd       # Task working directory
+    self.sudo: bool = sudo    # Sudo task
+    self.shell: bool = shell  # Subprocess Shell
+    self.cmd: str = cmd       # command to run
+    # Task env dict
+    self.env: dict[str, str] = env
+
+    self.process: asyncio.subprocess.Process | None = None
+    
     self.stdout = asyncio.subprocess.PIPE
     self.stdin = asyncio.subprocess.PIPE
     self.stderr = asyncio.subprocess.PIPE
-    
-    self.sid: Optional[int] = None
-    self.pgid: Optional[int] = None
-    
+
     self._cleaned = False
-  
-  def get_user(self):
+    self.sid: int | None = None
+    self.pgid: int | None = None
+
+  @property
+  def returncode(self) -> int | None:
+    return None if self.process is None else self.process.returncode
+
+  def get_user(self) -> str:
     return "root" if self.sudo else "nobody"
 
-  def demote(self, user_name):
+  def demote(self, user_name: str) -> Callable:
     def result():
       pw = pwd.getpwnam(user_name)
       os.setgid(pw.pw_gid)
       os.setuid(pw.pw_uid)
     return result
+
+  # Returns Coro
+  def _create_process(self) -> asyncio.subprocess.Process:
+    if self.sudo:
+      preexec = None  # stay root
+    else:
+      preexec = self.demote(self.get_user())
+
+    if self.shell:
+      return asyncio.create_subprocess_shell(
+        self.cmd,
+        env=self.env,
+        stdout=self.stdout,
+        stdin=self.stdin,
+        stderr=self.stderr,
+        cwd=self.cwd,
+        start_new_session=True,
+        preexec_fn=preexec,
+        limit=10 * 1024 * 1024 # 10 mb
+      )
+    else:
+      return asyncio.create_subprocess_exec(
+        *shlex.split(self.cmd),
+        env=self.env,
+        stdout=self.stdout,
+        stdin=self.stdin,
+        stderr=self.stderr,
+        cwd=self.cwd,
+        start_new_session=True,
+        preexec_fn=preexec,
+        limit=10 * 1024 * 1024 # 10 mb
+      )
+  
+  # Run quick Task
+  async def run(self, input_text: str) -> dict:
+    self.process = await self._create_process()
+
+    self.sid = os.getsid(self.process.pid)
+    self.pgid = os.getpgid(self.process.pid)
+
+    stdout, stderr = await self.process.communicate(
+      input_text.encode() if input_text is not None else None
+    )
+
+    return {
+      "returncode": self.process.returncode,
+      "stdout": stdout,
+      "stderr": stderr,
+    }
+    
+  # Force kill with sigint fastest
+  async def _force_kill(self):
+    if (
+      self.process is None
+      or self.process.returncode is not None
+      or self.pgid is None
+    ):
+      logger.info(f"Task {self.id} already finished or not fully started")
+      return
+
+    try:
+      os.killpg(self.pgid, signal.SIGKILL)
+    except ProcessLookupError:
+      pass
+
+  # Kill task
+  async def clean(self) -> None:
+    if self._cleaned:
+      return
+    await self._force_kill()
+    self._cleaned = True
+  
+
+class Task(QTask):
+  def __init__(self, cmd: str, env: dict[str, str], shell: bool, cwd: str, sudo: bool, allow_commands: bool, output_mode: str) -> None:
+    super().__init__(cmd, env, shell, cwd, sudo)
+
+    self.started: bool = False
+    self.completed: bool = False
+
+    self.stdout_timeout: int = 3
+
+    self._cleaned: bool = False
+    
+    self.allow_commands: bool = allow_commands
+
+    # Save output
+    self._output_mode: str = output_mode # send | save | *
+    self.task_output: dict[str, dict] = {}
+
+    # Error text
+    self.error_text: str | None = None
+
+    # Output message index
+    self.output_index: int = 0
+
+  @property
+  def is_output_both(self) -> bool:
+    return self._output_mode == "*"
+
+  @property
+  def is_output_save(self) -> bool:
+    return self._output_mode == "save" or self.is_output_both
+
+  @property
+  def is_output_send(self) -> bool:
+    return self._output_mode == "send" or self.is_output_both
+
+  # Get task info
+  def info(self) -> dict:
+    return {
+      "id": self.id,
+      "is_shell": self.shell,
+      "started": self.started,
+      "completed": self.completed,
+      
+      "error_text": self.error_text,
+
+      "output_index": self.output_index,
+      "output_count": len(self.task_output),
+      
+      "output_mode": self._output_mode,
+      "allow_commands": self.allow_commands,
+
+      "stdout_timeout": self.stdout_timeout,
+      
+      "sudo": self.sudo,
+      
+      "cleaned": self._cleaned,
+      
+      "returncode": self.returncode
+    }
+  
+  def get_task_output(self, index: int | None = None) -> list:
+    if index is None:
+      return list(self.task_output.values())
+
+    return [self.task_output.get(f"i_{index}", None)]
+
+  def clear_output(self) -> None:
+    self.task_output.empty()
 
   async def send(self, data: str) -> None:
     """Send input to the subprocess."""
@@ -71,45 +224,52 @@ class Task:
 
     self.process.stdin.write(data.encode() + b'\n')
     await self.process.stdin.drain()
+  
+  # Task command : !_KIKX_!{ 'event': 'something', 'payload': {} }
+  async def _on_command(self, event: str, payload: dict) -> Any:
+    print("Task command: ", event, payload)
+    
+    if event == "kv":
+      return await self.kv_storage.func(payload["name"], payload["options"])
 
-  async def run(self, handler: Handler) -> Union[str, Dict[str, Optional[str]]]:
+  async def on_command(self, command) -> Any:
+    try:
+      event, payload = json.loads(command).values()
+      if not isinstance(event, str):
+        raise Exception("Task command event must be string")
+
+      return await self._on_command(event, payload)
+    except Exception as e:
+      logger.info(f"Task ({self.id}) command Exception:", e)
+  
+  async def on_output(self, handler: Handler, decoded_line: str) -> None:
+    data = {
+      "index": self.output_index,
+      "message": decoded_line
+    }
+
+    if self.is_output_send and handler:
+      await handler.output(data)
+    if self.is_output_save:
+      self.task_output[f"i_{self.output_index}"] = data
+
+    self.output_index += 1
+
+  async def run(self, handler: Handler | None) -> str:
     """Start the subprocess and handle its output."""
     if self.started or self.process:
-      await handler.error("Can't re-run task that's already running")
-      raise Exception("Can't re-run task that's already running")
-    
-    if self.sudo:
-      preexec = None  # stay root
-    else:
-      preexec = self.demote(self.get_user())
+      handler and await handler.error("Can't re-run task, Its already running")
+      raise Exception("Can't re-run task, Its already running")
 
-    if self.shell:
-      self.process = await asyncio.create_subprocess_shell(
-        self.cmd,
-        env=self.env,
-        stdout=self.stdout,
-        stdin=self.stdin,
-        stderr=self.stderr,
-        cwd=self.cwd,
-        start_new_session=True,
-        preexec_fn=preexec,
-        limit=10 * 1024 * 1024 # 10 mb
-      )
-    else:
-      self.process = await asyncio.create_subprocess_exec(
-        *shlex.split(self.cmd),
-        env=self.env,
-        stdout=self.stdout,
-        stdin=self.stdin,
-        stderr=self.stderr,
-        cwd=self.cwd,
-        start_new_session=True,
-        preexec_fn=preexec,
-        limit=10 * 1024 * 1024 # 10 mb
-      )
+    self.completed = False
+    
+    self.process = await self._create_process()
+    
     self.started = True
+    self._cleaned = False
     self.sid = os.getsid(self.process.pid)
     self.pgid = os.getpgid(self.process.pid)
+
     logger.info(f"Task started: {self.id} with command: {self.cmd}")
     
     while True:
@@ -117,114 +277,46 @@ class Task:
         stdout_line = await asyncio.wait_for(self.process.stdout.readline(), timeout=self.stdout_timeout)
         if not stdout_line:
           break
-        await handler.output(stdout_line.decode())
+        
+        decoded_line = stdout_line.decode()
+        decoded_line_strip = decoded_line.strip()
+        
+        # If task command
+        if self.allow_commands and decoded_line_strip[:8] == "!_KIKX_!":
+          await self.on_command(decoded_line_strip[8:])
+          continue
+        
+        await self.on_output(handler, decoded_line)
       except asyncio.TimeoutError:
-        await handler.info(f"Task {self.id}: No output for {self.stdout_timeout} seconds, checking process...\n")
+        handler and await handler.info(f"Task {self.id}: No output for {self.stdout_timeout} seconds, checking process...\n")
         if self.process.returncode is not None:
           break
 
     await self.process.wait()
+
     stderr = await self.process.stderr.read()
     if stderr:
-      await handler.error(stderr.decode())
+      self.error_text = stderr.decode()
+      handler and await handler.error(self.error_text)
+
+    self.completed = True
+
     return self.id
 
-  # under testing
-  async def run_quick(self, input_text: Optional[str] = None):
-    """Run subprocess once and optionally send input."""
-    if self.shell:
-      proc = await asyncio.create_subprocess_shell(
-        self.cmd,
-        env=self.env,
-        cwd=self.cwd,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True
-      )
-    else:
-      proc = await asyncio.create_subprocess_exec(
-        *shlex.split(self.cmd),
-        env=self.env,
-        cwd=self.cwd,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True
-      )
-
-    input_bytes = input_text.encode() if input_text else None
-    stdout, stderr = await proc.communicate(input=input_bytes)
-
-    return {
-      "stdout": stdout.decode().strip(),
-      "stderr": stderr.decode().strip(),
-      "returncode": proc.returncode
-    }
-  
-  # force kill with sigint fastest
-  async def _force_kill(self):
-    if not self.process or self.process.returncode is not None:
-      logger.info(f"Task {self.id} already finished")
-      return
-
-    try:
-      os.killpg(self.pgid, signal.SIGKILL)
-      logger.warning(f"Task {self.id} (SID {self.sid}) forcefully killed")
-    except Exception as e:
-      logger.error(f"Force kill failed for {self.id}: {e}")
-
-  # sending sigint + sigkill
-  async def _force_gracefully_clean(self):
-    if not self.process or self.process.returncode is not None:
-      logger.info(f"Task {self.id} already finished")
-      return
-
-    try:
-      os.killpg(self.pgid, signal.SIGINT)  # Try graceful stop
-      await asyncio.wait_for(self.process.wait(), timeout=5)
-      logger.info(f"Task {self.id} closed gracefully.")
-    except asyncio.TimeoutError:
-      os.killpg(self.pgid, signal.SIGKILL)  # Force kill if it hangs
-      logger.warning(f"Task {self.id} forcefully killed after timeout.")
-    except Exception as e:
-      logger.error(f"Force kill failed for {self.id}: {e}")
-
-  # gracefully + force 
-  async def _clean_process(self, graceful_timeout: int = 3) -> None:
-    if not self.process or self.process.returncode is not None:
-      logger.info(f"Task {self.id} already finished")
-      return
-    try:
-      # Try graceful shutdown
-      self.process.terminate()
-      await asyncio.wait_for(self.process.wait(), timeout=graceful_timeout)
-      logger.info(f"Task closed gracefully -- {self.id}")
-    except asyncio.TimeoutError:
-      # os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
-      await self._force_gracefully_clean()
-      logger.warning(f"Task forcefully killed after timeout -- {self.id}")
-    except Exception as e:
-      # Catch any unexpected errors (e.g., process no longer exists)
-      logger.error(f"Error cleaning task {self.id}: {e}")
-
-  async def clean(self) -> None:
-    if self._cleaned:
-      return
-    await self._force_kill()
-    self._cleaned = True
 
 class Tasks:
-  def __init__(self, app, config):
+  def __init__(self, app, config: dict) -> None:
     # tasks config {}
-    self.app_id = app.id
-    self.app_name = app.name
-    self.config = AppModuleTasksConfigModel(**config)
-    self.app_path = app.app_path
-    self.task_cwd = str(app.get_app_data_path())
+    self.app_id: str = app.id
+    self.app_name: str = app.name
+    self.config: AppModuleTasksConfigModel = AppModuleTasksConfigModel(**config)
+    self.app_path: Path = app.app_path
+
+    self.kv_storage: TaskKVStorage = TaskKVStorage()
+    self.task_cwd: str = str(app.get_app_data_path())
 
     # If not sandbox then copies program env
-    self.task_env = {} if self.config.sandbox else os.environ.copy()
+    self.task_env: dict[str, str] = {} if self.config.sandbox else os.environ.copy()
 
     # Include kikx_env variables must shell True
     if self.config.kikx_env and self.config.shell:
@@ -239,7 +331,7 @@ class Tasks:
 
     # Format paths for task template
     # Task template
-    self.task_template = self.config.main.format_map(SafeDict({
+    self.task_template: str = self.config.main.format_map(SafeDict({
       "app_name": app.name,
       "app_path": str(app.get_app_path()),
       "storage_path": str(app.user.storage_path),
@@ -255,130 +347,189 @@ class Tasks:
       # 1. app/bin | 2. storage/bin | 3. kikx path
       "PATH": f'{str(self.app_path / "bin")}:{app.user.get_path_env()}:{str(Path(sys.executable).parent)}:{self.task_env.get("PATH", "")}'
     })
-    
-    # Sudo
-    self.sudo = app.sudo #
 
+    # If app run as Sudo
+    self.sudo: bool = app.is_sudo #
+    
+    # Send app message event
     self.send_event = app.send_event
     
-    self.running_tasks: Dict[str, Task] = {}
-    self.ctasks: List[asyncio.Task] = []
+    self.active_tasks: dict[str, Task] = {}
+    
+    # coro tasks
+    self.coro_tasks: list[asyncio.Task] = []
 
-  def __on_ctask_complete(self, task: asyncio.Task) -> None:
-    """Callback when a task is finished."""
-    if task in self.ctasks:
-      logger.info(f"CTask completed: {task.get_name()}")
-      self.ctasks.remove(task)
+  def __on_coro_task_complete(self, task: asyncio.Task) -> None:
+    if task in self.coro_tasks:
+      logger.info(f"CoroTask completed: {task.get_name()}")
+      self.coro_tasks.remove(task)
 
-  async def _run_task(self, task: Task, handler: Handler):
+  def get_task(self, task_id: str) -> Task:
+    task = self.active_tasks.get(task_id)
+    if not task:
+      raise Exception(f"Task not found: {task_id}")
+
+    return task
+
+  async def _run_task(self, task: Task, handler: Handler | None) -> None:
     """Run and monitor the task."""
     try:
-      await handler.started("Task started\n")
+      handler and await handler.started("Task started\n")
       return await task.run(handler)
     except Exception as e:
       logger.exception(f"Error while running task {task.id}")
-      await handler.error(str(e))
+      handler and await handler.error(str(e))
     except asyncio.CancelledError:
-      logger.info(f"CTask cancelled: {task.id}")
+      logger.info(f"CoroTask cancelled: {task.id}")
     finally:
       await task.clean()
-      self.running_tasks.pop(task.id, None)
 
-      await handler.ended("CTask ended\n")
+      handler and await handler.ended("CoroTask ended\n")
 
+  # --------- Create task
   @funcx
-  async def run_task(self, task_cmd: str, handler_id: str):
-    """Public entry to start a task."""
+  async def create_task(
+    self,
+    task_cmd: str,
+    no_sudo: bool = False,
+    allow_commands: bool = False,
+    output_mode: str = "send"
+  ) -> dict:
     split_cmd = shlex.split(task_cmd)
-    if not split_cmd:
+    if len(split_cmd) <= 0:
       raise Exception("Command not found")
+    
+    cmd_name = split_cmd[0]
+    cmd_args = " ".join(split_cmd[1:])
 
     task_cmd = self.task_template.format_map(SafeDict({
-      "name": split_cmd[0],
-      "args": " ".join(split_cmd[1:])
+      "name": cmd_name,
+      "args": cmd_args
     }))
 
-    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, self.sudo)
+    # No sudo or sudo from app
+    sudo = False if no_sudo else self.sudo
 
-    self.running_tasks[task.id] = task
-    ctask = asyncio.create_task(self._run_task(task, Handler(handler_id, self.send_event)), name=task.id)
-    ctask.add_done_callback(self.__on_ctask_complete)
-    self.ctasks.append(ctask)
+    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, sudo, allow_commands, output_mode)
 
-    return task.id
+    self.active_tasks[task.id] = task
 
-  @funcx # 
-  async def run_once(self, task_cmd: str, task_input: Optional[str] = None):
+    return task.info()
+
+  # --------- Run task
+  @funcx
+  async def run_task(self, task_id: str, handler_id: str | None) -> dict:
+    task = self.get_task(task_id)
+    
+    handler = Handler(handler_id, self.send_event) if handler_id else None
+
+    coro_task = asyncio.create_task(self._run_task(task, handler), name=task.id)
+    coro_task.add_done_callback(self.__on_coro_task_complete)
+    self.coro_tasks.append(coro_task)
+
+    return task.info()
+
+  # --------- Quick run task
+  @funcx
+  async def quick_run(self, task_cmd: str, no_sudo: bool = False, input_args: list[str] | None = None) -> dict:
     split_cmd = shlex.split(task_cmd)
-    if not split_cmd:
+    if len(split_cmd) <= 0:
       raise Exception("Command not found")
+    
+    cmd_name = split_cmd[0]
+    cmd_args = " ".join(split_cmd[1:])
 
     task_cmd = self.task_template.format_map(SafeDict({
-      "name": split_cmd[0],
-      "args": " ".join(split_cmd[1:])
+      "name": cmd_name,
+      "args": cmd_args
     }))
+    
+    task_input = "\n".join(input_args or [])
 
-    task = Task(task_cmd, self.task_env, self.config.shell, self.task_cwd, self.sudo)
+    # No sudo or sudo from app
+    sudo = False if no_sudo else self.sudo
 
-    async def _runner():
-      try:
-        return await task.run_quick(task_input)
-      except asyncio.CancelledError:
-        logger.info(f"Task {task.id} was cancelled — terminating subprocess.")
-        try:
-          await task.clean()  # ensures process group is killed
-        except Exception as ce:
-          logger.warning(f"Error cleaning cancelled task {task.id}: {ce}")
-        raise  # re-raise so asyncio knows it was cancelled
-      except Exception as e:
-        logger.exception(f"Error running task {task.id}: {e}")
-        try:
-          await task.clean()
-        except Exception as ce:
-          logger.warning(f"Error cleaning failed task {task.id}: {ce}")
+    task = QTask(task_cmd, self.task_env, self.config.shell, self.task_cwd, sudo)
 
-    ctask = asyncio.create_task(_runner(), name=task.id)
-    ctask.add_done_callback(self.__on_ctask_complete)
-    self.ctasks.append(ctask)
+    self.active_tasks[task.id] = task
 
-    return await ctask
+    try:
+      return await task.run(task_input)
+    except asyncio.CancelledError:
+      raise Exception("Task cancelled")
+    finally:
+      await task.clean()
 
+  # --------- Kill task / remove from tasks
   @funcx
-  async def kill(self, task_id: str) -> None:
+  async def kill(self, task_id: str, remove: bool = False) -> None:
     """Cancel a running task."""
-    ctask = next((t for t in self.ctasks if t.get_name() == task_id), None)
-    if ctask:
-      ctask.cancel()
-      logger.info(f"Cancelled Ctask {task_id}")
+    coro_task = next((t for t in self.coro_tasks if t.get_name() == task_id), None)
+    if coro_task:
+      coro_task.cancel()
+      logger.info(f"Task killed ID: {task_id}")
+    
+    # Remove task 
+    if remove:
+      logger.info(f"Task removing: {task_id}")
+      self.active_tasks.pop(task_id, None)
 
+  # --------- Send input to task
   @funcx
   async def send_input(self, task_id: str, input_text: str) -> None:
     """Send input to a running task."""
-    task = self.running_tasks.get(task_id)
-    if not task:
-      raise Exception("Task not found")
-    await task.send(input_text)
+    return await self.get_task(task_id).send(input_text)
+  
+  # --------- Get task info
+  @funcx
+  async def get_task_info(self, task_id: str) -> dict:
+    """Get task info"""
+    return self.get_task(task_id).info()
 
+  # --------- Get task output list
+  @funcx
+  async def get_task_output(self, task_id: str, *args, **options) -> list:
+    """Get task output"""
+    return self.get_task(task_id).get_task_output(*args, **options)
+
+  # --------- Run task command
+  @funcx
+  async def task_command(self, task_id: str, event: str, payload: Any) -> Any:
+    """Run task command"""
+    return await self.get_task(task_id)._on_command(event, payload)
+
+  # --------- Clear task output list
+  @funcx
+  async def clear_task_ouput(self, task_id: str) -> None:
+    self.get_task(task_id).clear_output()
+
+  # -------------------------------
   async def on_close(self) -> None:
     """Cancel and clean all background tasks safely."""
-    if not self.ctasks:
+    logger.info(f"Closing App Tasks: {self.app_name} (ID: {self.app_id})")
+
+    if not self.coro_tasks and not self.active_tasks:
       return
 
     logger.info(f"Shutting down all running tasks for (App: {self.app_name}) (ID: {self.app_id})...")
 
     # Cancel all asyncio tasks
-    for t in list(self.ctasks):
+    for t in list(self.coro_tasks):
       t.cancel()
 
     # Wait briefly for cooperative exit
-    done, pending = await asyncio.wait(self.ctasks, timeout=1.5)
-    for p in pending:
-      logger.warning(f"Force-cancelling {p.get_name()}")
-      p.cancel()
+    if self.coro_tasks:
+      done, pending = await asyncio.wait(self.coro_tasks, timeout=1.5)
+      for p in pending:
+        logger.warning(f"Force-cancelling {p.get_name()}")
+        p.cancel()
 
     # Ensure subprocesses are killed
-    for task in list(self.running_tasks.values()):
+    for task in list(self.active_tasks.values()):
       await task.clean()
+    
+    self.coro_tasks.clear()
+    self.active_tasks.clear()
 
     logger.info(f"All tasks closed cleanly for (App: {self.app_name}) (ID: {self.app_id}).")
 

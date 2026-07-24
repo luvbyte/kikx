@@ -1,86 +1,76 @@
-# Kikx Package Manager
-from pathlib import Path
+import json
+import shutil
 
-from lib.parser import parse_config
+from pathlib import Path
+from pydantic import Field
+
+from core.utils import load_app_manifest
 from core.models.app_models import AppManifestModel, AppModel, GithubSourceModel
 
-from typing import List
-import shutil
-import json
-import time
-
-import tempfile
-import zipfile
-import subprocess
-from urllib.parse import urlparse
-import urllib.request
-
-from lib.hash import hash_file
-from lib.utils import is_version_ok, is_version_supported, is_update_available, generate_uuid
-
-
-from fastapi import HTTPException
+from lib.parser import parse_config
+from lib.utils import is_version_match, is_update_available, joinpath
 
 
 
-GITHUB_API = "https://api.github.com/repos"
-
+# App install manifest app.json file
 class AppInstallManifest(AppManifestModel):
-  include: List[str] = []
+  include: list[str] = Field(default_factory=list)
 
-
-# ------------- Installer
+# ------------- Installers
 class AppInstaller:
   def __init__(self, core, src_path: str | Path):
+    self.core = core # Kikx core
+
     self.status_history = ["Installer initializing"]
-    self.core = core
     self.src_path = Path(src_path).resolve()
+    
+    app_manifest_path = (self.src_path / "app.json").resolve()
+    if not app_manifest_path.is_file():
+      raise Exception("app.json not found")
 
-    # Load manifest
-    self.manifest = parse_config(
-      self.src_path / "app.manifest.json",
-      AppInstallManifest
-    )
+    try:
+      self.manifest = parse_config(app_manifest_path, AppInstallManifest)
+    except Exception:
+      raise Exception("Error parsing app.json")
 
-    # Target paths
     # apps/<name>
+    # Target app path
     self.target_path = (self.core.config.apps_path / self.manifest.name).resolve()
     self.apps_base_path = self.core.config.apps_path.resolve()
     # data/app
     self.apps_data_base_path = self.core.config.apps_data_path.resolve()
-
+    
+    # Status
     self.set_status("Manifest loaded")
 
-  @property
+  @property # Return new app name
   def app_name(self) -> str:
     return self.manifest.name.strip()
   
-  @property
+  @property # If app path exists
   def is_app_installed(self) -> bool:
+    # TODO: solid check
     return self.target_path.exists()
 
-  @property
+  @property # Check kikx version match
   def is_compatible(self):
-    manifest = self.manifest
-    core_version = self.core.version
-
-    if manifest.kikx_version:
-      return is_version_ok(core_version, manifest.kikx_version)
-
-    return is_version_supported(core_version, manifest.min_version, manifest.max_version)
+    return is_version_match(self.core.version, self.manifest.kikx_version)
 
   # If its an update / obj / None
-  @property
+  @property # If app has update
   def is_update(self):
     if not self.is_app_installed:
       return False
-    
-    # ------------- Get old manifest
-    manifest = self.core.user.load_app_manifest(self.app_name)
-    
-    current_version = manifest.version
-    latest_version = self.manifest.version
 
+    # ------------- Get old manifest
+    manifest = load_app_manifest(self.core, self.app_name, raw=True)
+    
+    # Old app version
+    current_version = manifest.version
+    # Latest app version
+    latest_version = self.manifest.version
+    
+    # Compare and return if True
     if is_update_available(current_version, latest_version):
       return {
         "current_version": current_version,
@@ -92,13 +82,16 @@ class AppInstaller:
       }
 
     return False
-
+  
+  # Get source 
   def get_source(self):
     return self.manifest.source
 
+  # State tracking
   def set_status(self, text: str) -> None:
     self.status_history.append(text)
-
+  
+  # Get src app manifest based on keys to include
   def get_manifest(self, keys_to_include=None) -> dict:
     manifest = self.manifest.model_dump()
 
@@ -109,14 +102,16 @@ class AppInstaller:
       }
 
     return manifest
-
+  
+  # Extract App config from manifest
   def get_app_config(self) -> dict:
     return self.get_manifest(list(AppModel.model_fields.keys()))
 
+  # Extract App manifest based on model
   def get_app_manifest(self) -> dict:
     return self.get_manifest(list(AppManifestModel.model_fields.keys()))
 
-  # local / github {}
+  # local / github 
   def install(self, source) -> bool:
     if not self.is_compatible:
       raise Exception("App is not compatible")
@@ -139,7 +134,7 @@ class AppInstaller:
       self._rollback()
       raise
   
-  # Check source it missmatch raise
+  # Check source if missmatch raise
   def _source_check(self, current, latest):
     # If both local matched
     if current == "local" and latest == "local":
@@ -162,19 +157,20 @@ class AppInstaller:
       return True
 
     raise Exception("Invalid source configuration")
-
+  
+  # update app
   def update(self, source) -> bool:
     if not self.is_app_installed:
       raise Exception("App is not installed")
-    
+
     if not self.is_compatible:
       raise Exception("App is not compatible")
-    
-    previous_manifest = self.core.user.load_app_manifest(self.app_name)
+
+    previous_manifest = load_app_manifest(self.core, self.app_name, raw=True)
 
     # check source matched
     self._source_check(previous_manifest.source, source)
-    
+
     # only install latest version cant install lesser
     if not self.is_update:
       raise Exception("App already installed")
@@ -296,9 +292,48 @@ class AppInstaller:
   def get_status(self):
     return self.status_history
 
+class UIInstaller:
+  def __init__(self, core, name: str, src_path: Path):
+    self.core = core
+    self.name: str = name
+    self.src_path: Path = src_path
 
-# ------------- Uninstaller
+    self.target_path: Path = joinpath(self.core.config.uis_path, name)
 
+  # If already
+  def install(self, force=False):
+    if self.target_path.exists() and not force:
+      raise Exception("UI already exists.")
+
+    # Remove existing installation if present
+    if self.target_path.exists():
+      if self.target_path.is_dir():
+        shutil.rmtree(self.target_path)
+      else:
+        self.target_path.unlink()
+
+    # Ensure parent directory exists
+    self.target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Copy extracted UI into place
+    if self.src_path.is_dir():
+      shutil.copytree(self.src_path, self.target_path)
+    else:
+      shutil.copy2(self.src_path, self.target_path)
+
+    user_config = self.core.auth.user_config
+
+    # Register UI
+    if self.target_path.name not in user_config.ui:
+      user_config.ui.append(self.target_path.name)
+
+    if len(user_config.ui) == 1:
+      user_config.default_ui = self.target_path.name
+  
+    # Save user config
+    self.core.auth.save()
+
+# ------------- Uninstallers
 class AppUninstaller:
   def __init__(self, core, app_name: str):
     self.core = core
@@ -384,56 +419,34 @@ class AppUninstaller:
   def get_status(self):
     return self.status_history
 
+class UIUninstaller:
+  def __init__(self, core, ui_name: str):
+    self.core = core
+    self.ui_name = ui_name
+    
+    self.ui_path = joinpath(core.user.uis_path / ui_name)
+  
+  def uninstall(self):
+    if not self.ui_path.exists():
+      raise FileNotFoundError("UI not found")
 
-# ------------- Utils
-def resolve_app_package(uri: str | Path, temp_dir: Path | None = None) -> Path:
-  path = Path(uri).resolve()
+    # Remove installed UI
+    if self.ui_path.is_dir():
+      shutil.rmtree(self.ui_path)
+    else:
+      self.ui_path.unlink()
 
-  if not path.exists():
-    raise FileNotFoundError("App package not found")
+    user_config = self.core.auth.user_config
+    ui_name = self.ui_path.name
 
-  if path.suffix != ".kikx":
-    raise ValueError("Only .kikx packages are supported")
+    # Remove from registered UIs
+    if ui_name in user_config.ui:
+      user_config.ui.remove(ui_name)
 
-  # Create temp_dir if not provided
-  if temp_dir is None:
-    temp_dir = Path(tempfile.mkdtemp())
-  else:
-    temp_dir = Path(temp_dir).resolve()
-    temp_dir.mkdir(parents=True, exist_ok=True)
+    # Update default UI if necessary
+    if user_config.default_ui == ui_name:
+      user_config.default_ui = user_config.ui[-1] if user_config.ui else ""
 
-  # Security: ensure temp_dir exists
-  if not temp_dir.exists():
-    raise RuntimeError("Failed to create temp directory")
-
-  with zipfile.ZipFile(path, "r") as zip_ref:
-    for member in zip_ref.namelist():
-      member_path = temp_dir / member
-
-      # Prevent zip-slip
-      if not member_path.resolve().is_relative_to(temp_dir.resolve()):
-        raise ValueError("Unsafe file detected inside package")
-
-    zip_ref.extractall(temp_dir)
-
-  extracted_dirs = [p for p in temp_dir.iterdir() if p.is_dir()]
-
-  if len(extracted_dirs) != 1:
-    raise ValueError("Invalid app structure")
-
-  return extracted_dirs[0]
-
-
-def parse_github_repo(repo_url: str) -> tuple[str, str]:
-  parsed = urlparse(repo_url)
-
-  if parsed.netloc not in ("github.com", "www.github.com"):
-    raise HTTPException(400, "Invalid GitHub URL")
-
-  parts = parsed.path.strip("/").split("/")
-  if len(parts) < 2:
-    raise HTTPException(400, "Invalid GitHub repository URL")
-
-  return parts[0], parts[1]
-
+    # Save configuration
+    self.core.auth.save()
 

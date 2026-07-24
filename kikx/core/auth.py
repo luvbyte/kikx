@@ -1,33 +1,43 @@
 from uuid import uuid4
+from typing import Any
 from pathlib import Path
-from typing import Optional, Dict
-
-from lib.parser import parse_config
-from core.models.user_models import UserAuthModel
 
 from fastapi import HTTPException
+
+from lib.parser import ParseConfig
+from core.models.user_models import UserAuthModel
+
 
 # -------------------------------------
 # Auth Class
 # -------------------------------------
 
 class Auth:
-  def __init__(self, user_config_path: Path):
-    self._user_config: UserAuthModel = parse_config(user_config_path, UserAuthModel)
-    self.access_tokens = []
+  def __init__(self, user_config_path: Path) -> None:
+    self.config_store: ParseConfig = ParseConfig(user_config_path, UserAuthModel)
+    self.access_tokens: list[str] = []
 
   @property
   def user_config(self) -> UserAuthModel:
-    return self._user_config
-  
-  def pop_access_token(self, access_token: str) -> Optional[str]:
+    return self.config_store.data
+
+  def save(self):
+    self.config_store.save()
+
+  def info(self) -> dict[str, Any]:
+    return {
+      "tokens": self.access_tokens,
+      "user_config": self.user_config.model_dump()
+    }
+
+  def pop_access_token(self, access_token: str) -> str | None:
     try:
       self.access_tokens.remove(access_token)  # remove by value (first occurrence)
       return access_token
     except ValueError:
       return None
 
-  def generate_access_token(self, access: str, ui: str) -> Optional[str]:
+  def generate_access_token(self, access: str, ui: str) -> str | None:
     if access != self.user_config.access:
       raise HTTPException(status_code=401, detail="Invalid credentials")
     
@@ -39,5 +49,5 @@ class Auth:
 
     return uid
   
-  def check_access_token(self, token: str) -> Optional[str]:
+  def check_access_token(self, token: str) -> str | None:
     return token in self.access_tokens

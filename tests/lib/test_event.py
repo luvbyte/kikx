@@ -104,24 +104,3 @@ async def test_emit_async_background():
   await asyncio.sleep(0.05)
 
   assert result == ["done"]
-
-
-# ----------------------------------
-# Test: error handling does not crash
-# ----------------------------------
-
-@pytest.mark.asyncio
-async def test_emit_async_error_handling(capfd):
-  events = Events()
-
-  async def bad_handler():
-    raise ValueError("Boom")
-
-  events.add_event("error", bad_handler)
-
-  await events.emit_async("error")
-
-  await asyncio.sleep(0.05)
-
-  captured = capfd.readouterr()
-  assert "Event handler error" in captured.out

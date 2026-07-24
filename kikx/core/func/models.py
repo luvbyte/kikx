@@ -1,10 +1,11 @@
-from typing import Any, Callable, List, Optional
 from pydantic import BaseModel, Field
+
+from typing import Any
 
 
 class FuncXConfig(BaseModel):
-  args: List[Any] = []
-  options: dict = {}
+  args: list[Any] = Field(default_factory=list)
+  options: dict[str, Any] = Field(default_factory=dict)
   timeout: int = 0
 
 class FuncXModel(BaseModel):

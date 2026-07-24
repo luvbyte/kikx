@@ -1,45 +1,62 @@
-import json
-import logging
+from typing import Any
 from pathlib import Path
 
 from utils import get_root_path
 
-from core.models.kikx_models import RootConfigModel
 from core.storage import Storage
+from core.models.kikx_models import RootConfigModel
 
 from lib.utils import ensure_dir, joinpath
 from lib.parser import parse_config
 
 
+
 # Cant uninstall but can update
-ADMIN_APPS = { 
+ADMIN_APPS = [
   "com.kikx.appstore",
   "com.kikx.sessions",
-  "com.kikx.files"
-}
+  "com.kikx.explorer"
+]
 
 
 class Config:
   """Main configuration manager for storage, paths, and app access."""
 
-  def __init__(self, storage: str):
+  def __init__(self, storage: str) -> None:
     self._storage: Storage = Storage(storage)
     self._kikx: RootConfigModel = parse_config(
       self.resolve_path("storage://config/kikx.json"), RootConfigModel
     )
 
   @property
-  def admin_apps(self):
+  def admin_apps(self) -> list[str]:
     return ADMIN_APPS
+  
+  def info(self) -> dict[str, Any]:
+    return {
+      "storage": self.storage.info(),
+      "kikx": self.kikx.model_dump(),
+      "apps_list": [str(path) for path in self.get_apps_list()],
+      "paths": {
+        "share_path": str(self.share_path),
+        "files_path": str(self.files_path),
+        "apps_path": str(self.apps_path),
+        "uis_path": str(self.uis_path),
+        "data_path": str(self.data_path),
+        "apps_data_path": str(self.apps_data_path),
+      }
+    }
 
-  def resolve_path(self, line: str) -> Path | str:
+  def resolve_path(self, line: str) -> Path:
     """Resolves custom protocol paths to absolute storage paths."""
-    splitted = line.split("://", 1)
-    if len(splitted) <= 1:
-      return line  # raw path
+    if "://" not in line:
+      return Path(line)
+    
+    protocol, path = line.split("://", 1)
 
-    protocol, path = splitted
     match protocol:
+      case "root":
+        return "/" if not path else joinpath("/", path)
       case "storage":
         return self.storage.join(path)
       case "share":
@@ -53,7 +70,7 @@ class Config:
       case "kikx":
         return joinpath(get_root_path(), path)
       case _:
-        return line
+        return Path(line)
 
   @property
   def storage(self) -> Storage:
@@ -64,9 +81,13 @@ class Config:
     """Returns the parsed kikx root config."""
     return self._kikx
 
-  def get_apps_list(self) -> list[Path]:
-    """Returns a list of all app directories under apps path."""
-    return list(self.apps_path.glob("*/"))
+  @property
+  def storage_path(self) -> Path:
+    return ensure_dir(self.storage.path)
+
+  @property
+  def home_path(self) -> Path:
+    return ensure_dir(self.resolve_path("storage://home"))
 
   @property
   def share_path(self) -> Path:
@@ -97,3 +118,7 @@ class Config:
   def apps_data_path(self) -> Path:
     """Returns app data path"""
     return ensure_dir(self.resolve_path("storage://data/app"))
+
+  def get_apps_list(self) -> list[Path]:
+    """Returns a list of all app directories under apps path."""
+    return list(self.apps_path.glob("*/"))

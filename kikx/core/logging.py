@@ -1,37 +1,35 @@
-import os
 import logging
+from pathlib import Path
 
 
-class Logger:
-  def __init__(self, name: str = "kikx", log_file: str = "kikx.log"):
-    self.logger = logging.getLogger(name)
-    self.logger.setLevel(logging.DEBUG)
-    self.logger.propagate = False  # Prevent duplicate logs
+def setup_logging(logs_path: str = "logs", log_file: str = "kikx.log") -> None:
+  log_dir = Path(logs_path)
+  log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Avoid adding handlers multiple times
-    if not self.logger.handlers:
-      # Create logs directory if not exists
-      os.makedirs("logs", exist_ok=True)
-      log_path = os.path.join("logs", log_file)
+  root = logging.getLogger()
 
-      # File Handler (WITH timestamp)
-      file_handler = logging.FileHandler(log_path)
-      file_handler.setLevel(logging.DEBUG)
-      file_formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
-      )
-      file_handler.setFormatter(file_formatter)
+  # Don't configure twice
+  if root.handlers:
+    return
 
-      # Console Handler (WITHOUT timestamp)
-      console_handler = logging.StreamHandler()
-      console_handler.setLevel(logging.DEBUG)
-      console_formatter = logging.Formatter("%(message)s")
-      console_handler.setFormatter(console_formatter)
+  root.setLevel(logging.DEBUG)
 
-      # Add handlers
-      self.logger.addHandler(file_handler)
-      self.logger.addHandler(console_handler)
+  file_handler = logging.FileHandler(log_dir / log_file, encoding="utf-8")
+  file_handler.setLevel(logging.DEBUG)
+  file_handler.setFormatter(
+    logging.Formatter(
+      "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    )
+  )
 
-  def get_logger(self):
-    return self.logger
+  console_handler = logging.StreamHandler()
+  console_handler.setLevel(logging.INFO)  # or DEBUG if you want
+  console_handler.setFormatter(logging.Formatter("%(message)s"))
 
+  root.addHandler(file_handler)
+  root.addHandler(console_handler)
+
+  # Silence noisy third-party libraries
+  logging.getLogger("multipart").setLevel(logging.WARNING)
+  logging.getLogger("python_multipart").setLevel(logging.WARNING)
+  logging.getLogger("uvicorn.access").setLevel(logging.INFO)

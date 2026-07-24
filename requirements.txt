@@ -11,3 +11,5 @@ lupa
 requests
 packaging
 aiofiles
+pillow
+cmd2

@@ -1,73 +1,91 @@
-import asyncio
+import logging
 
 from fastapi import WebSocket
-from typing import Optional, Union, Callable, Any, List
+
+from typing import Any, Callable
 
 from lib.utils import send_event, is_websocket_connected
 
-from core.logging import Logger
 
 
-
-logging = Logger("kikx_connections", "kikx_connections.log")
-logger = logging.get_logger()
+logger = logging.getLogger(__name__)
 
 
 class MessageEvent:
-  def __init__(self, event: str, payload: Union[dict, Callable[[], dict]]):
-    self.event = event
-    self.payload = payload
+  def __init__(self, event: str, payload: Any) -> None:
+    self.event: str = event
+    self.payload: Any = payload
 
 
 class Connection:
-  def __init__(self) -> None:
-    self.timeout: float = 10 * 60  # 10 minutes in seconds
-    self.websocket: Optional[WebSocket] = None
-    self.tracking: List[MessageEvent] = []
+  def __init__(self, name: str = "", track_messages: bool = True) -> None:
+    self.name: str = name
+    self.new_connection: bool = True
+
+    self.track_messages: bool = track_messages
+
+    self.websocket: WebSocket | None = None
+    self.tracking: list[MessageEvent] = []
 
   @property
   def is_connected(self) -> bool:
     return is_websocket_connected(self.websocket)
 
-  def info(self):
+  def info(self) -> dict:
     return {
       "connected": self.is_connected
     }
 
   async def connect(self, websocket: WebSocket) -> None:
     if not isinstance(websocket, WebSocket):
-      raise TypeError("Internal Error: Invalid websocket type")
+      raise TypeError(f"{self.name}: Internal Error: Invalid websocket type")
+    
+    # Try closing old one before connecting new
+    await self.close()
 
-    if self.websocket is None:
-      logger.info("New websocket connection established.")
-      self.websocket = websocket
+    if self.new_connection:
+      self.new_connection = False
+    
+    self.websocket = websocket
+    
+    # Skip sending track messages
+    if not self.track_messages:
+      return
 
-    elif not self.is_connected:
-      logger.info("Reconnecting websocket and resending tracked messages.")
-      self.websocket = websocket
-      for message in self.tracking:
+    pending = self.tracking.copy()
+
+    if len(pending) > 0:
+      logger.info(f"{self.name}: Sending tracked messages.")
+      for message in pending:
         await self._send_message(message)
-    else:
-      logger.warning("Attempt to connect while websocket is already active.")
-      raise ConnectionError("WebSocket is already connected")
 
     self.tracking.clear()
-
+  
   async def _send_message(self, message: MessageEvent) -> None:
     await send_event(self.websocket, message.event, message.payload)
 
-  async def send_event(self, event: str, payload: Union[dict, Callable[[], dict]]) -> None:
+  async def send_event(self, event: str, payload: Any) -> None:
     message = MessageEvent(event, payload)
-    if not self.is_connected:
-      logger.debug(f"WebSocket not connected. Tracking message: {event}")
+    if not self.is_connected and self.track_messages:
+      logger.debug(f"{self.name}: WebSocket not connected. Tracking message: {event}")
       self.tracking.append(message)
     else:
       await self._send_message(message)
-  
-  async def close(self, code=1000, reason=None):
-    if not self.is_connected:
+
+  async def close(self, code=1000, reason=None) -> None:
+    if not self.websocket:
       return
+    
     try:
-      await self.websocket.close(code=code, reason=reason)
-    except Exception:
-      pass
+      if self.is_connected:
+        await self.websocket.close(code=code, reason=reason)
+        logger.info(f"Connection({self.name}) closed.")
+      else:
+        logger.info(f"Connection({self.name}) already closed.")
+    except RuntimeError as e:
+      logger.info(f"Connection({self.name}) already closed: {e}")
+    except Exception as e:
+      logger.exception(f"Connection({self.name}): Error closing websocket: {e}")
+    finally:
+      self.websocket = None
+

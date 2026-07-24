@@ -1,21 +1,16 @@
-import logging
 import sys
-
 from os import getcwd
 from subprocess import Popen, PIPE
-from typing import Optional
 
-logger = logging.getLogger(__name__)
 
 
 class Process:
-  def __init__(self, proc: Popen):
+  def __init__(self, proc: Popen) -> None:
     """
     Wraps a subprocess.Popen instance and waits for it to complete.
     """
     self._process = proc
     self._process.wait()
-    logger.info(f"Process finished with return code: {self._process.returncode}")
 
   def output(self) -> str:
     """
@@ -23,7 +18,6 @@ class Process:
     """
     if self._process.stdout:
       output = self._process.stdout.read().decode("utf-8").strip()
-      logger.debug(f"Process output: {output}")
       return output
     return ""
 
@@ -36,7 +30,7 @@ class Process:
 
 
 class ProcessBuilder:
-  def __init__(self, cmd: str):
+  def __init__(self, cmd: str) -> None:
     """
     A builder for configuring and running shell processes.
     """
@@ -46,8 +40,6 @@ class ProcessBuilder:
     self.stderr = PIPE
     self.cwd: str = getcwd()
     self.shell: bool = True
-
-    logger.debug(f"Initialized ProcessBuilder: cmd='{cmd}', cwd='{self.cwd}'")
 
   def pipe(self) -> Process:
     """
@@ -63,11 +55,9 @@ class ProcessBuilder:
       self.stdin = sys.stdin
       self.stdout = sys.stdout
       self.stderr = sys.stderr
-      logger.debug("Running without output capture (inherit stdio)")
     return self._run()
 
   def _run(self) -> Process:
-    logger.info(f"Executing command: {self.cmd}")
     proc = Popen(
       self.cmd,
       cwd=self.cwd,

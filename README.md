@@ -18,8 +18,26 @@ It acts as an application runtime environment where apps (built using HTML, CSS,
 ![Mui Screenshot 1](docs/screenshots/kikx-mui-1.jpg)
 ![Mui Screenshot 2](docs/screenshots/kikx-mui-2.jpg)
 
-### KUI (old)
-![KUI Screenshot 1](docs/screenshots/kikx-kui.jpg)
+---
+
+## ⚙️ Installation & Setup
+
+Make sure Python 3.8+ is installed and make.
+
+```bash
+
+# close repo
+git clone https://github.com/luvbyte/kikx.git
+
+cd kikx
+
+# Setup (creates venv & fs)
+make setup
+
+# Start 
+make run
+
+```
 
 ---
 
@@ -28,9 +46,12 @@ It acts as an application runtime environment where apps (built using HTML, CSS,
 Kikx provides a service-oriented backend architecture powered by **FastAPI**.  
 Apps communicate securely with the server through structured services such as:
 
-- **fs** – File system operations  
-- **system** – System-level interactions  
-- **proxy** – External request handling  
+- **fs** – File system operations
+- **system** – System-level interactions
+- **proxy** – External request handling
+- **kv** – App key, value storage
+- **micro** – App micro services
+- **os** – OS service
 
 These services are implemented using FastAPI `APIRouter` modules for modularity and scalability.
 
@@ -53,10 +74,8 @@ Through this system, apps can:
 
 - 🖥️ Virtual OS-like interface in the browser  
 - ⚡ FastAPI backend for high-performance Python scripting  
-- 🧠 Runs Web Apps using ui with fs, system, proxy services
-- 🌐 Frontend (KUI) built using HTML, jQuery and TailwindCSS 
+- 🧠 Runs Web Apps using ui with fs, system, proxy services ...
 - ✨ Frontend (MUI) built using Vue, TailwindCSS and DaisyUI
-- 🔌 Easily extendable and modular design
 
 ---
 
@@ -64,83 +83,6 @@ Through this system, apps can:
 
 - **Backend:** Python 3, FastAPI  
 - **Frontend:** Vue, TailwindCSS, DaisyUI, HTML, CSS, jQuery
-
----
-
-## ⚙️ Installation & Setup
-
-Make sure Python 3.8+ is installed and make.
-
-```bash
-# Default access key is 'kikx'
-
-# close repo
-git clone https://github.com/luvbyte/kikx.git
-
-cd kikx
-
-# run
-make
-
-# OR
-
-# Create a virtual environment
-make venv
-
-# Install dependencies
-make install
-
-# Start the server
-make run
-
-# OR Manually
-
-python3 -m venv venv
-source venv/bin/activate
-
-pip install -r requirements.txt
-
-cd kikx && python3 main.py
-
-```
-
----
-
-## 🛣️ Roadmap / TODO
-Kikx is actively evolving. Below are planned features and improvements
-
-### (MUI) App Features
-- App redirects
-- App popups
-- KLand for apps
-- Split screen support
-- Settings for full customizations
-- Drag and drop support
-
-### 📦 App Manager
-- Manage app permissions
-- Sudo permissions for app [ ✔️ ]
-
-### 🏬 App Store [ ✔️ ]
-- App marketplace
-- Install / uninstall apps
-- Version management & updates
-- Community app publishing system
-
-### 📂 File Manager (Vue-based)
-- Build a modern file manager using Vue
-- File system navigation (folders, breadcrumbs)
-- File upload & download support
-- Create, rename, delete files/folders
-- Code editor integration
-
-### 👨‍💻 New Desktop UI
-- Desktop UI Support
-
-### 😮‍💨 Cleaning & Tests
-- Clean code optimizations
-- Tests
-- Docs
 
 ---
 

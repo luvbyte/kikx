@@ -1,34 +1,43 @@
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Any
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
 
 from lib.event import Events
-from lib.parser import parse_config
+
 
 class KikxService:
-  def __init__(self, file: str):
+  def __init__(self, file: str, desc: str | None = None) -> None:
+    # Service abs path
     self.path: Path = Path(file).parent
+    # Meta
     self.name: str = self.path.name
+    self.desc: str | None = desc
     self.config: dict = {}
+    # Fastapi Router
     self.router: APIRouter = APIRouter()
-    self._includes: Dict[str, object] = {}
-    self._include_routes: Dict[APIRouter, str] = {}
+    # Dict set by Service init
+    self._includes: dict[str, Any] = {}
+    self._include_routes: dict[APIRouter, str] = {}
+    # Service events
     self._events: Events = Events()
+    # Health Api route
+    self.router.add_api_route("/health", lambda: {"res": "ok"})
   
-  async def on_start(self, core):
+  # Service start
+  async def on_start(self, core: Any) -> None:
     await self._events.emit("startup", core)
 
-  async def on_close(self, core):
+  # Service close
+  async def on_close(self, core: Any) -> None:
     await self._events.emit("shutdown", core)
 
   # Include sub routes 
-  def include(self, router: APIRouter, prefix: str, tags = []):
+  def include(self, router: APIRouter, prefix: str, tags: list[str] | None = None) -> None:
     router._srv = self
 
     self.router.include_router(
-      router, prefix=prefix, tags=tags
+      router, prefix=prefix, tags=tags or []
     )
     self._include_routes[prefix] = router
     
@@ -38,20 +47,30 @@ class KikxService:
         func(self)
     except Exception:
       pass
+  
+  # Get from includes
+  def get(self, name: str) -> Any | None:
+    return self._includes.get(name, None)
+  
+  # Raise HTTPException with status_code, detaul
+  def exception(self, status_code: int = 500, exception: str = "Unknown Error") -> None:
+    if isinstance(exception, HTTPException):
+      raise exception
 
-  def get(self, name: str) -> Optional[object]:
-    return self._includes.get(name)
+    raise HTTPException(status_code=status_code, detail=str(exception))
 
-  def exception(self, status_code: int = 404, detail: str = "") -> None:
-    raise HTTPException(status_code=status_code, detail=str(detail))
+  def ok(self, msg: str = "ok"):
+    return { "res": msg }
 
-  def get_core(self) -> object:
+  # Get core instance
+  def get_core(self) -> Any:
     core = self.get("core")
     if core is None:
       self.exception(500, "Service error: Core service not available")
     return core
 
-  def get_client(self, request: Request) -> object:
+  # Get client from request
+  def get_client(self, request: Request) -> Any:
     client_id = request.headers.get("kikx-client-id")
     if client_id is None:
       self.exception(401, "Missing 'kikx-client-id' header")
@@ -61,7 +80,8 @@ class KikxService:
       self.exception(404, "Client not found")
     return client
 
-  def get_client_app(self, request: Request) -> Tuple[object, object]:
+  # Get app + client from request
+  def get_client_app(self, request: Request) -> tuple[Any, Any]:
     app_id = request.headers.get("kikx-app-id")
     if app_id is None:
       self.exception(401, "Missing 'kikx-app-id' header")
@@ -72,33 +92,36 @@ class KikxService:
 
     return client, app
 
-  def get_client_or_app(self, request: Request) -> Tuple[object, Optional[object]]:
+  # Get client / app from request Client: (client, None) | App: (client, app)
+  def get_client_or_app(self, request: Request) -> tuple[Any, Any | None]:
     if "kikx-client-id" in request.headers:
       return self.get_client(request), None
     elif "kikx-app-id" in request.headers:
       return self.get_client_app(request)
     self.exception(401, "Require 'kikx-[app|client]-id' in headers")
 
+  # Add service event handler
   def on(self, event: str) -> Callable:
     def wrapper(func: Callable) -> None:
       self._events.add_event(event, func)
     return wrapper
 
-  # --
-  async def broadcast_signal_to_clients(self, signal: str, payload: dict) -> None:
+  # Broadcast signal, payload to all clients
+  async def broadcast_signal_to_clients(self, signal: str, payload: Any) -> None:
     core = self.get_core()
     payload = { "signal": signal, "payload": payload }
     
     await core.broadcast_client_event("signal", payload)
   
-  # broadcast to all running apps - for all clients / client
-  async def broadcast_signal_to_apps(self, signal: str, payload: dict, client_id: str | None = None) -> None:
+  # Broadcast to all running apps - for all clients / client if client_id given
+  async def broadcast_signal_to_apps(self, signal: str, payload: Any, client_id: str | None = None) -> None:
     core = self.get_core()
     payload = { "signal": signal, "payload": payload }
 
     await core.broadcast_app_event("signal", payload, client_id)
 
 
-def create_service(file: str) -> KikxService:
-  return KikxService(file)
+# Create service instance
+def create_service(file: str, *args, **kwargs) -> KikxService:
+  return KikxService(file, *args, **kwargs)
 
