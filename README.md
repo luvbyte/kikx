@@ -34,8 +34,8 @@ cd kikx
 # Setup (creates venv & fs)
 make setup
 
-# Start 
-make run
+# Start
+sudo make run
 
 ```
 
