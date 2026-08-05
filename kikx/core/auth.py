@@ -1,10 +1,10 @@
-from uuid import uuid4
 from typing import Any
 from pathlib import Path
 
 from fastapi import HTTPException
 
 from lib.parser import ParseConfig
+from lib.utils import generate_uuid
 from core.models.user_models import UserAuthModel
 
 
@@ -37,17 +37,17 @@ class Auth:
     except ValueError:
       return None
 
-  def generate_access_token(self, access: str, ui: str) -> str | None:
+  def generate_access_token(self, access: str, ui: str) -> str:
     if access != self.user_config.access:
       raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if ui not in self.user_config.ui:
       raise HTTPException(status_code=404, detail="UI not found")
 
-    uid = f"{uuid4()}_{ui}"
+    uid = f"{generate_uuid()}_{ui}"
     self.access_tokens.append(uid)
 
     return uid
   
-  def check_access_token(self, token: str) -> str | None:
+  def check_access_token(self, token: str) -> bool:
     return token in self.access_tokens

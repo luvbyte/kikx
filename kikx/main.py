@@ -1,13 +1,15 @@
-from core.global_config import GlobalConfig
 
-gconfig = GlobalConfig()
 
 def main() -> None:
+  from core.global_config import GlobalConfig
+  
+  gconfig = GlobalConfig()
+
   print("Starting kikx...")
 
   gconfig.kikx.dev_mode = False
 
-  from core.kikx import kikx_app, core
+  from kikx import kikx_app, core
   import uvicorn
 
   server_config = core.config.kikx.server
@@ -29,7 +31,8 @@ def main() -> None:
   try:
     server.run()
   except KeyboardInterrupt:
-    print("\nBye :)")
+    core.scr.print("\nBye :)")
+
 
 if __name__ == "__main__":
   main()

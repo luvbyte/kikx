@@ -33,8 +33,7 @@ gconfig = GlobalConfig()
 
 STORAGE = gconfig.kikx.get_fs_path()
 if not STORAGE.is_dir():
-  print(f"\nFS path '{STORAGE}' not found Quiting.\n")
-  exit()
+  raise Exception(f"\nFS path '{STORAGE}' not found!!!\n")
 
 setup_logging(
   os.path.join(STORAGE, "logs"),
@@ -149,7 +148,7 @@ class OpenAppModel(BaseModel):
 # Auth Routes
 # -------------------------------------
 @kikx_app.get("/login", tags=["Auth"])
-def login_page(file: Optional[str] = None, ui: Optional[str] = None):
+def login_page():
   return file_response("web/auth", "login.html")
 
 @kikx_app.post("/login", tags=["Auth"])
@@ -204,7 +203,7 @@ async def open_app(app_model: OpenAppModel):
 async def close_app(app_model: CloseAppModel):
   client, app = core.get_client_app_by_id(app_model.app_id)
   if not client or not app:
-    raise HTTPException(status_code=401, detail="Unauthorized")
+    raise HTTPException(401, "Unauthorized")
 
   asyncio.create_task(core.close_app(client, app))
   return { "res": "ok" }
@@ -214,26 +213,23 @@ async def close_app(app_model: CloseAppModel):
 # -------------------------------------
 
 @kikx_app.get("/app/{app_id}/{path:path}")
-async def app_web(app_id: str, path: str, starting: bool = False):
-  """App files located in www"""
+def app_web(app_id: str, path: str, starting: bool = False):
   client, app = core.get_client_app_by_id(app_id)
   if not client or not app:
-    raise HTTPException(status_code=401, detail="App not found")
+    raise HTTPException(401, "App not found")
 
   return file_response(app.app_path, (path.replace("_app/", "") if path.startswith("_app/") else f"www/{path}"))
 
 @kikx_app.get("/app-data/{app_id}/{path:path}")
-async def app_data(app_id: str, path: str, starting: bool = False):
-  """App data files"""
+def app_data(app_id: str, path: str, starting: bool = False):
   client, app = core.get_client_app_by_id(app_id)
   if not client or not app:
-    raise HTTPException(status_code=401, detail="App not found")
+    raise HTTPException(401, "App not found")
 
   return file_response(app.get_app_data_path(), path)
 
 @kikx_app.get("/ui/{ui_name}/{path:path}")
 def home_page(request: Request, ui_name: str, path: str):
-  """UI files located in www"""
   path = "index.html" if not path.strip() else path
   # Require access for index page
   if path == "index.html":
@@ -242,7 +238,7 @@ def home_page(request: Request, ui_name: str, path: str):
       return RedirectResponse(f"/login?ui={ui_name}")
   # Checking if ui enabled
   if ui_name not in core.auth.user_config.ui:
-    raise HTTPException(status_code=404, detail="UI not found in auth.json")
+    raise HTTPException(404, "UI not found in auth.json")
 
   return file_response(core.config.uis_path, ui_name, "www", path)
 

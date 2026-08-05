@@ -31,16 +31,19 @@ class Events:
   def __init__(self) -> None:
     self._events: dict[str, Any] = {}
   
+  # Registered Events Info
   def info(self) -> dict[str, Any]:
     return {
       "registered": { name: len(f_list) for name, f_list in self._events.items() }
     }
-
+  
+  # Add event handler
   def add_event(self, event: str, handler) -> None:
     if event not in self._events:
       self._events[event] = []
     self._events[event].append(handler)
 
+  # Emit events in order
   async def emit_order(self, event: str, *args) -> None:
     handlers = self._events.get(event, [])
     for handler in handlers:
@@ -50,7 +53,8 @@ class Events:
         await handler(*call_args)
       else:
         handler(*call_args)
-
+  
+  # Emit event
   async def emit(self, event: str, *args) -> None:
     handlers = self._events.get(event, [])
     tasks = []
@@ -66,10 +70,12 @@ class Events:
     if tasks:
       await asyncio.gather(*tasks)
 
+  # Emit async
   async def emit_async(self, event: str, *args, callback=None) -> None:
     task = asyncio.create_task(self.emit(event, *args))
     task.add_done_callback(callback or self._handle_task_result)
-
+  
+  # Handle async emit handler results
   def _handle_task_result(self, task):
     if task.cancelled():
       return

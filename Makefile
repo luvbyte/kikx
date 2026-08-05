@@ -24,7 +24,7 @@ run: venv/.installed
 # 	cd kikx && ../$(PY_PATH) cli.py
 
 dev: venv/.installed
-	cd kikx && ../$(PY_PATH) -m uvicorn core.kikx:kikx_app --reload --timeout-graceful-shutdown 5
+	cd kikx && ../$(PY_PATH) -m uvicorn kikx:kikx_app --reload --timeout-graceful-shutdown 5
 
 setup: venv/.installed
 	cd kikx && ../$(PY_PATH) setup.py

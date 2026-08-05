@@ -18,7 +18,7 @@ class AppsListModel(BaseModel):
 def get_apps_list(data: AppsListModel, core = Depends(get_core)):
   client = core.clients.get(data.client_id)
   if client is None:
-    raise HTTPException(status_code=401, detail="Client not found")
+    raise HTTPException(401, "Client not found")
     
   return core.get_installed_apps()
 

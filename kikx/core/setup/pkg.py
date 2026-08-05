@@ -7,7 +7,6 @@ import shutil
 from pathlib import Path
 from urllib.parse import urlparse
 
-from lib.utils import joinpath
 from lib.hash import hash_file
 
 

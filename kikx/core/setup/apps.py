@@ -10,7 +10,7 @@ PRE_INSTALL_APPS = {
   # Required
   "com.kikx.appstore": (
     "https://github.com/luvbyte/kikx-appstore-app",
-    "v0.0.4", True
+    "v0.0.5", True
   ),
   # Optional
   "com.kikx.sessions": (
@@ -20,12 +20,12 @@ PRE_INSTALL_APPS = {
   # Optional
   "com.kikx.explorer": (
     "https://github.com/luvbyte/kikx-explorer-app",
-    "v0.1.0", False
+    "v0.1.1", False
   ),
   # Optional
   "com.kikx.florix": (
     "https://github.com/luvbyte/kikx-florix-app",
-    "v0.1.3", False
+    "v0.1.4", False
   )
 }
 

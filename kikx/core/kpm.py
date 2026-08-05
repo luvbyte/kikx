@@ -367,7 +367,7 @@ class AppUninstaller:
 
     return resolved_path
 
-  def uninstall(self, no_data: bool = False):
+  def uninstall(self, keep_data: bool = False):
     if not self.is_app_installed:
       raise Exception("App is not installed")
 
@@ -402,7 +402,7 @@ class AppUninstaller:
       safe_config_path.unlink()
 
     # Remove app data directory (optional)
-    if not no_data and self.data_path.exists():
+    if not keep_data and self.data_path.exists():
       self.set_status("Removing app data directory")
 
       safe_data_path = self._ensure_safe_path(

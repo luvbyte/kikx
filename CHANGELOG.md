@@ -77,3 +77,15 @@
 - Updated ui
 - Live update alerts
 - UI updates
+
+## [0.3.1]
+### Added
+
+### Fixed
+- Bug Fixes
+
+### Changed
+
+### MUI
+- Option to keep app data on uninstall
+- Better error information

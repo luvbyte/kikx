@@ -8,6 +8,7 @@ from core.models.ui_models import UIConfigModel
 from lib.utils import joinpath
 from lib.parser import parse_config
 
+from fastapi import HTTPException
 
 
 class User:

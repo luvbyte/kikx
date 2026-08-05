@@ -241,12 +241,12 @@ async def cancel_install(temp_id: str, _ = Depends(check_permisson)):
 
 # ------------- Uninstall App
 @router.delete("/uninstall")
-async def uninstall_app_route(app_name: str, core = Depends(check_permisson)):
+async def uninstall_app_route(app_name: str, keep_data: bool = False, core = Depends(check_permisson)):
   srv = router.get_srv()
 
   try:
-    AppUninstaller(core, app_name).uninstall()
-    
+    AppUninstaller(core, app_name).uninstall(keep_data)
+
     # async Broadcast to all clients
     asyncio.create_task(core.broadcast_to_clients("app:uninstalled", {
       "name": app_name
