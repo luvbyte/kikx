@@ -12,7 +12,7 @@ from lib.utils import generate_uuid, joinpath
 from lib.parser import parse_config
 from lib.service import create_service
 
-from typing import List, Any, Dict
+from typing import Any
 from pydantic import BaseModel
 
 
@@ -48,21 +48,21 @@ class SafeDict(dict):
     return '{' + key + '}'
 
 class MService:
-  def __init__(self, name: str, app):
-    self.name = name
+  def __init__(self, name: str, app: Any) -> None:
+    self.name: str = name
     self.options: ServiceConfig = parse_config(joinpath(app.get_app_path() / "micro", f"{self.name}.json"), ServiceConfig)
 
-    self.app_id = app.id
-    self.sudo = app.is_sudo
-    self.app_name = app.name
+    self.app_id: str = app.id
+    self.sudo: bool = app.is_sudo
+    self.app_name: str = app.name
 
-    self.uid = generate_uuid()
+    self.uid: str = generate_uuid()
 
-    self.output = []
-    self.error_text = None
+    self.output: list[str] = []
+    self.error_text: str = None
     self.started: bool = False
     self.completed: bool = False
-    self._cleaned = False
+    self._cleaned: bool = False
 
     self.env: dict[str, str] = os.environ.copy()
 
@@ -95,7 +95,7 @@ class MService:
     self.sid: int | None = None
     self.pgid: int | None = None
 
-  def info(self):
+  def info(self) -> dict:
     return {
       "uid": self.uid,
       "app": {
@@ -122,7 +122,7 @@ class MService:
     return None if self.process is None else self.process.returncode
 
   @property
-  def shell(self):
+  def shell(self) -> bool:
     return self.options.shell
 
   @property
@@ -170,11 +170,8 @@ class MService:
         limit=10 * 1024 * 1024 # 10 mb
       )
 
-  # start service
+  # Start
   async def run(self) -> None:
-    # if self.started and not self.completed:
-    #   raise Exception("Task still running")
-
     self.process = await self._create_process()
     self.started = True
     self._cleaned = False
@@ -202,7 +199,7 @@ class MService:
     
     return self.uid
   
-  def get_output(self):
+  def get_output(self) -> list[str]:
     return self.output
   
   async def send(self, data: str) -> None:
@@ -212,7 +209,7 @@ class MService:
     self.process.stdin.write(data.encode() + b'\n')
     await self.process.stdin.drain()
 
-  def _force_kill(self):
+  def _force_kill(self) -> None:
     if (
       self.process is None
       or self.process.returncode is not None
@@ -235,7 +232,7 @@ class MService:
 
 
 class MicroServices:
-  def __init__(self):
+  def __init__(self) -> None:
     self._active: dict[str, MService] = {}
   
   # Get service or raise
@@ -247,14 +244,14 @@ class MicroServices:
     return service
 
   # Get services by name
-  def get_active_services(self, app_name: str):
+  def get_active_services(self, app_name: str) -> list[dict]:
     return [s.info() for s in self._active.values() if s.app_name == app_name]
 
-  def _task_done(self, uid: str):
+  def _task_done(self, uid: str) -> None:
     pass
 
   # Start service
-  async def start_sevice(self, app, name: str):
+  async def start_sevice(self, app: Any, name: str) -> dict:
     service = next(
       (s for s in self._active.values() if s.name == name),
       None,
@@ -274,7 +271,7 @@ class MicroServices:
     return service.info()
   
   # Stop service
-  def stop_service(self, uid: str):
+  def stop_service(self, uid: str) -> None:
     service = self._active.pop(uid, None)
     if service:
       service.clean()
@@ -282,7 +279,7 @@ class MicroServices:
       logger.info(f"Micro(Stopped) {uid}, {service.app_name}")
 
   # Stop services by app_name
-  def stop_services(self, app_name: str, force: bool = False):
+  def stop_services(self, app_name: str, force: bool = False) -> None:
     services = [s for s in self._active.values() if s.app_name == app_name]
     for s in services:
       # If forever tasks
@@ -291,11 +288,11 @@ class MicroServices:
       self.stop_service(s.uid)
 
   # on app close
-  def on_close_app(self, app_id: str, app_name: str):
+  def on_close_app(self, app_id: str, app_name: str) -> None:
     self.stop_services(app_name)
 
   # Stop services on shutdown
-  def on_close(self):
+  def on_close(self) -> None:
     for s in self._active.values():
       s.clean()
 
@@ -304,11 +301,11 @@ micro = MicroServices()
 
 
 @srv.on("startup")
-def startup(core):
+def startup(core) -> None:
   core.events.add_event("app:close", micro.on_close_app)
 
 @srv.on("shutdown")
-def shutdown(_):
+def shutdown(_) -> None:
   micro.on_close()
 
 # -------------- ROUTES

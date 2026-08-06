@@ -87,6 +87,7 @@ class Config:
 
   @property
   def home_path(self) -> Path:
+    """Returns home path (storage://home)."""
     return ensure_dir(self.resolve_path("storage://home"))
 
   @property
@@ -96,7 +97,7 @@ class Config:
 
   @property
   def files_path(self) -> Path:
-    """Returns home-level shared files path (home://share)."""
+    """Returns shared files path (home://share)."""
     return ensure_dir(self.resolve_path("home://share"))
 
   @property

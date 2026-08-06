@@ -4,6 +4,7 @@ from typing import Any
 from core.models.app_models import AppManifestModel
 
 from lib.parser import parse_config
+from lib.utils import is_safe_path
 
 
 
@@ -11,17 +12,17 @@ from lib.parser import parse_config
 def load_app_manifest(core: Any, name: str, raw: bool = False, both: bool = False) -> Any:
   manifest_path = (core.config.apps_path / name / "app.json").resolve()
   
-  if not manifest_path.exists():
-    raise HTTPException(status_code=404, detail="File not found")
+  if not manifest_path.is_file():
+    raise HTTPException(404, "App manifest not found")
 
-  # checking relative paths
-  if not manifest_path.is_relative_to(core.config.apps_path):
-    raise HTTPException(status_code=403, detail="Forbidden path")
+  # Safe checking
+  if not is_safe_path(core.config.apps_path / name, manifest_path):
+    raise HTTPException(403, "Forbidden path")
 
   manifest = parse_config(manifest_path, AppManifestModel)
 
   if name != manifest.name:
-    raise HTTPException(status_code=404, detail="App manifest mismatch name")
+    raise HTTPException(404, "App manifest name mismatch")
 
   info = {
     "name": name,
@@ -36,7 +37,7 @@ def load_app_manifest(core: Any, name: str, raw: bool = False, both: bool = Fals
   # Parsing file
   if raw:
     return manifest
-  
+
   return info
 
 # Full core info 

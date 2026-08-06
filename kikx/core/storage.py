@@ -12,7 +12,7 @@ class Storage:
 
     if not self.storage_path.is_dir():
       raise Exception("Storage path must be a directory")
-    
+
     # Pre-create important subdirectories if not exists
     precreate = [
       "home", "apps", "share",

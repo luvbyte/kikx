@@ -5,7 +5,11 @@ from pydantic import BaseModel, ValidationError
 
 from typing import Generic, TypeVar
 
+
+
 T = TypeVar("T", bound=BaseModel)
+
+
 
 def parse_file(
   file: IO,

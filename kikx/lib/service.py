@@ -16,14 +16,15 @@ class KikxService:
     self.config: dict = {}
     # Fastapi Router
     self.router: APIRouter = APIRouter()
-    # Dict set by Service init
+    # Dict set by Service
     self._includes: dict[str, Any] = {}
+    # Sub routes
     self._include_routes: dict[APIRouter, str] = {}
     # Service events
     self._events: Events = Events()
     # Health Api route
-    self.router.add_api_route("/health", lambda: {"res": "ok"})
-  
+    self.router.add_api_route("/health", lambda: self.ok())
+
   # Service start
   async def on_start(self, core: Any) -> None:
     await self._events.emit("startup", core)

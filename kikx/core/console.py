@@ -52,33 +52,35 @@ class Color:
 
 
 class Console:
-  def __init__(self, width=None) -> None:
+  def __init__(self, width: int | None = None) -> None:
     # Auto-detect terminal width if not provided
-    self.width = width or shutil.get_terminal_size().columns
+    self.width: int = width or shutil.get_terminal_size().columns
 
-  # ------------ utils
-  def clear(self):
+  # Clear screen
+  def clear(self) -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
-  def _time(self):
+  # Time
+  def _time(self) -> Any:
     return datetime.now().strftime("%H:%M:%S")
 
-  def color(self, text, *styles):
+  # Color Text
+  def color(self, text: Any, *styles) -> str:
     return "".join(styles) + str(text) + Color.RESET
 
-  def newline(self, n=1):
+  # Print new lines
+  def newline(self, n: int = 1) -> None:
     self.print("\n" * n, end="")
-  
-  def exit(self, code=0):
-    exit(code)
 
-  # ------------ print
+  # Print
   def print(self, *args, **kwargs) -> None:
     print(*args, **kwargs)
 
-  def write(self, *text):
+  # Write
+  def write(self, *text) -> None:
     self.print(*text, end="", flush=True)
 
+  # Print text center
   def print_center(self, text: Any) -> None:
     if not isinstance(text, str):
       text = str(text)
@@ -86,42 +88,50 @@ class Console:
     lines = text.split("\n")
     for line in lines:
       print(line.center(self.width))
-
-  def title(self, text: str):
+  
+  # Print center title
+  def title(self, text: str) -> None:
     self.print_center(f"\n[ ======== [ {text} ] ======== ]\n")
 
+  # Print banner
   def print_banner(self) -> None:
     self.print_center(B1)
 
-  # ------------ logging
-  def log(self, *text, sep=" ", end="\n", timestamp=False):
+  # Log
+  def log(self, *text, sep: str = " ", end: str = "\n", timestamp: bool = False) -> None:
     if timestamp:
       self.print(self.color(f"[{self._time()}]", Color.BRIGHT_BLACK), end=" ")
     self.print(*text, sep=sep, end=end)
   
-  def info(self, *text):
+  # Log Info
+  def info(self, *text) -> None:
     self.print(self.color("[-]", Color.CYAN, Color.BOLD), *text)
 
-  def success(self, *text):
+  # Log Success
+  def success(self, *text) -> None:
     self.print(self.color("[+]", Color.GREEN, Color.BOLD), *text)
 
-  def warning(self, *text):
+  # Log Warning
+  def warning(self, *text) -> None:
     self.print(self.color("[*]", Color.YELLOW, Color.BOLD), *text)
 
-  def error(self, *text):
+  # Log Error
+  def error(self, *text) -> None:
     self.print(self.color("[x]", Color.RED, Color.BOLD), *text)
 
-  def debug(self, *text):
+  # Log Debug
+  def debug(self, *text) -> None:
     self.print(self.color("[#]", Color.MAGENTA), *text)
 
-  # ------------ Input
-  def ask(self, prompt="> ", default=None):
+  # Ask Input
+  def ask(self, prompt: str = "> ", default: Any | None = None) -> str | Any:
     value = input(self.color(prompt + (f" ({default}) " if default is not None else ""), Color.GREEN))
     if value == "" and default is not None:
       return default
     return value
   
-  def ask_yes_or_no(self, prompt):
+  # Ask Input (y/n)
+  def ask_yes_or_no(self, prompt: str) -> bool:
     while True:
       result = self.ask(prompt + " (Y/n) ").strip().lower()
       if result in ["yes", "y"]:

@@ -1,5 +1,7 @@
 from typing import Any
 
+
+
 class KVStorage:
   def __init__(self) -> None:
     self.__storage: dict[str, Any] = {}

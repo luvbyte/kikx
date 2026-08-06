@@ -3,7 +3,6 @@ import asyncio
 import logging
 from datetime import datetime
 
-from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -61,7 +60,7 @@ async def lifespan(app: FastAPI):
   yield # 
 
   await core.on_close()
-  core.scr.title("KIKX SHUTDOWN")
+  core.scr.title("KIKX STOPPED")
 
 # Create FastAPI instance
 def __create_app():
@@ -149,10 +148,12 @@ class OpenAppModel(BaseModel):
 # -------------------------------------
 @kikx_app.get("/login", tags=["Auth"])
 def login_page():
+  """Get login page"""
   return file_response("web/auth", "login.html")
 
 @kikx_app.post("/login", tags=["Auth"])
 async def login(access: str = Form(...), ui: str = Form(...)):
+  """Login using access and ui"""
   access_token = core.auth.generate_access_token(access, ui)
 
   response = JSONResponse(content={"message": "Login successful"})
@@ -161,6 +162,7 @@ async def login(access: str = Form(...), ui: str = Form(...)):
 
 @kikx_app.get("/lazy-login", tags=["Auth"])
 def lazy_login(key: str, ui: str):
+  """Set access_token cookie"""
   access_token = core.auth.generate_access_token(key, ui)
 
   response = RedirectResponse("/")
@@ -168,16 +170,18 @@ def lazy_login(key: str, ui: str):
   
   return response
 
+@kikx_app.get("/generate", tags=["Auth"])
+def generate(key: str, ui: str):
+  """Generate access token"""
+  access_token = core.auth.generate_access_token(key, ui)
+  return {"access_token": access_token}
+
 @kikx_app.get("/logout", tags=["Auth"])
 def logout():
+  """Logout and delete access_token cookie"""
   response = RedirectResponse("/login")
   response.delete_cookie("access_token")
   return response
-
-@kikx_app.get("/generate", tags=["Auth"])
-def generate(key: str, ui: str):
-  access_token = core.auth.generate_access_token(key, ui)
-  return {"access_token": access_token}
 
 # -------------------------------------
 # App Lifecycle
@@ -185,35 +189,48 @@ def generate(key: str, ui: str):
 
 @kikx_app.post("/open-app")
 async def open_app(app_model: OpenAppModel):
-  info, manifest = load_app_manifest(core, app_model.name, both=True)
-
-  app = await core.open_app(app_model.client_id, app_model.name, manifest, app_model.options)
-
-  return {
-    "id": app.id,
-    "url": f"/app/{app.id}/index.html?starting=true",
-    "iframe": app.config.iframe.get_dict(),
-
-    "manifest": info, # Simple info for ui
-
-    "isSudo": app.is_sudo
-  }
+  """Open app using name"""
+  try:
+    info, manifest = load_app_manifest(core, app_model.name, both=True)
+  
+    app = await core.open_app(app_model.client_id, app_model.name, manifest, app_model.options)
+  
+    return {
+      "id": app.id,
+      "url": f"/app/{app.id}/index.html?starting=true",
+      "iframe": app.config.iframe.get_dict(),
+  
+      "manifest": info, # Simple info for ui
+  
+      "isSudo": app.is_sudo
+    }
+  except HTTPException:
+    raise
+  except Exception as e:
+    raise HTTPException(500, str(e))
 
 @kikx_app.post("/close-app")
 async def close_app(app_model: CloseAppModel):
-  client, app = core.get_client_app_by_id(app_model.app_id)
-  if not client or not app:
-    raise HTTPException(401, "Unauthorized")
-
-  asyncio.create_task(core.close_app(client, app))
-  return { "res": "ok" }
+  """Close app using app id"""
+  try:
+    client, app = core.get_client_app_by_id(app_model.app_id)
+    if not client or not app:
+      raise HTTPException(401, "Unauthorized")
+  
+    asyncio.create_task(core.close_app(client, app))
+    return { "res": "ok" }
+  except HTTPException:
+    raise
+  except Exception as e:
+    raise HTTPException(500, str(e))
 
 # -------------------------------------
 # File Routes
 # -------------------------------------
 
 @kikx_app.get("/app/{app_id}/{path:path}")
-def app_web(app_id: str, path: str, starting: bool = False):
+def app_file(app_id: str, path: str, starting: bool = False):
+  """Get app file"""
   client, app = core.get_client_app_by_id(app_id)
   if not client or not app:
     raise HTTPException(401, "App not found")
@@ -221,7 +238,8 @@ def app_web(app_id: str, path: str, starting: bool = False):
   return file_response(app.app_path, (path.replace("_app/", "") if path.startswith("_app/") else f"www/{path}"))
 
 @kikx_app.get("/app-data/{app_id}/{path:path}")
-def app_data(app_id: str, path: str, starting: bool = False):
+def app_data_file(app_id: str, path: str, starting: bool = False):
+  """Get app data file"""
   client, app = core.get_client_app_by_id(app_id)
   if not client or not app:
     raise HTTPException(401, "App not found")
@@ -229,9 +247,10 @@ def app_data(app_id: str, path: str, starting: bool = False):
   return file_response(app.get_app_data_path(), path)
 
 @kikx_app.get("/ui/{ui_name}/{path:path}")
-def home_page(request: Request, ui_name: str, path: str):
+def ui_file(request: Request, ui_name: str, path: str):
+  """Get ui file"""
   path = "index.html" if not path.strip() else path
-  # Require access for index page
+  # Require access token for accessing ui files
   if path == "index.html":
     token = request.cookies.get("access_token")
     if not core.auth.check_access_token(token):
@@ -243,7 +262,8 @@ def home_page(request: Request, ui_name: str, path: str):
   return file_response(core.config.uis_path, ui_name, "www", path)
 
 @kikx_app.get("/")
-def root_page(request: Request):
+def root_page():
+  """Root page redirects to ui"""
   return RedirectResponse("/ui/" + core.auth.user_config.default_ui)
 
 # -------------------------------------
@@ -253,19 +273,24 @@ def root_page(request: Request):
 @kikx_app.websocket("/app/{app_id}")
 async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
   await websocket.accept()
+  
+  # Find client, app using app id
   client, app = core.get_client_app_by_id(app_id)
 
   try:
+    logger.info(f"WebSocket(App) Connect Attempt (ID: {app_id})")
+
     event_name: str = "reconnected"
 
-    # Unauthorized
+    # Unauthorized (app not found)
     if not client or not app:
       raise PermissionError("Unauthorized")
-    
-    # new connection
+
+    # For new connection
     if app.connection.new_connection:
       event_name = "connected"
-
+    
+    # Connect websocket for app
     await app.connect_websocket(websocket)
 
     # Sending connected / reconnected event with app config
@@ -273,33 +298,37 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
       "config": client.get_app_config(app)
     })
   except PermissionError as e:
-    await websocket.close(code=1008, reason=str(e))
-    return
+    logger.exception(f"WebSocket(App) Connect Permission Error: {str(e)}")
+    try:
+      await websocket.close(code=1008, reason=str(e))
+    finally:
+      return
   except Exception as e:
-    logger.info(f"WebSocket App Connect Error: {str(e)}")
-    await websocket.close(reason=str(e))
-    return
+    logger.exception(f"WebSocket(App) Connect Error: {str(e)}")
+    try:
+      await websocket.close(reason=str(e))
+    finally:
+      return
 
-  logger.info(f"WebSocket: App connected {app.id} (Client: {client.id})")
+  logger.info(f"WebSocket(App) Connected (App: {app.id}) (Client: {client.id})")
 
   while True:
     try:
-      print(websocket, websocket.client_state, websocket.application_state)
-      
       data = await websocket.receive_json()
-      logger.debug(f"WebSocket Data (App {app.id}): {data}")
+      logger.debug(f"WebSocket(App) Data (App {app.id}): {data}")
 
       await core.on_app_data(client, app, data)
     except WebSocketDisconnect:
-      logger.info(f"WebSocket: App disconnected {app.id}")
+      logger.info(f"WebSocket(App) Disconnected (ID: {app.id})")
       break
     except RuntimeError as e:
-      logger.exception(f"Runtime error app {client.id}: {e}")
+      logger.exception(f"WebSocket(App) Runtime Error (ID: {app.id}): {e}")
       break
     except Exception as e:
-      logger.exception(f"WebSocket receive error {app.id}: {e}")
+      logger.exception(f"WebSocket(App) Exception (ID: {app.id}): {e}")
       break
 
+  # Finally try closing connection
   await app.connection.close(websocket)
 
 @kikx_app.websocket("/client")
@@ -307,50 +336,65 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
   await websocket.accept()
 
   try:
-    logger.info(f"Cliend Connect Attempt (ID: {client_id}) (Access: {access_token})")
+    logger.info(f"WebSocket(Client) Connect Attempt (ID: {client_id}) (Access: {access_token})")
+
     event_name = "reconnected"
-    # if client found then no need for access_token
+    
+    # Get client by client id
     client = core.clients.get(client_id)
-    # if no client found then created one based on access_token
+    
+    # if client not found then created one based on access_token
     if not client:
-      # If access token already exists then disconnect previous client based on that
-      # ----- no need access token for already connected session
+      # Raise if access token not found
       if core.auth.pop_access_token(access_token) is None:
         raise PermissionError("Unauthorized")
-  
+
+      # Get ui from access token
       ui = access_token.split("_")[1]
-      # move this above to check even client reconnect
+
+      # Create client object
       client = Client(core.user, core.config.resolve_path, access_token, ui)
       core.clients[client.id] = client
+
+      # Change event name to connected
       event_name = "connected"
 
-    # This is reconnect attempt
+    # Connect client websocket
     await client.connect_websocket(websocket)
+    
+    # Send connection event
     await client.send_event(event_name, {
       "client_id": client.id
     })
   except PermissionError as e:
-    await websocket.close(code=1008, reason=str(e))
-    return
+    logger.exception(f"WebSocket(Client) Connect Permission Error: {str(e)}")
+    try:
+      await websocket.close(code=1008, reason=str(e))
+    finally:
+      return
   except Exception as e:
-    logger.exception(f"WebSocket Client Connect Error: {str(e)}")
-    await websocket.close(reason=str(e))
-    return
+    logger.exception(f"WebSocket(Client) Connect Error: {str(e)}")
+    try:
+      await websocket.close(reason=str(e))
+    finally:
+      return
 
-  logger.info(f"WebSocket: Client connected (ID: {client.id})")
+  logger.info(f"WebSocket(Client) Connected (ID: {client.id})")
 
   while True:
     try:
       data = await websocket.receive_json()
+      logger.debug(f"WebSocket(Client) Data (ID {client.id}): {data}")
+
       await core.on_client_data(client, data)
     except WebSocketDisconnect:
-      logger.info(f"Client {client.id} disconnected")
+      logger.info(f"WebSocket(Client) Disconnected (ID: {client.id})")
       break
     except RuntimeError as e:
-      logger.exception(f"Runtime error client {client.id}: {e}")
+      logger.exception(f"WebSocket(Client) Runtime Error (ID: {client.id}): {e}")
       break
     except Exception as e:
-      logger.exception(f"Error handling client {client.id}: {e}")
+      logger.exception(f"WebSocket(Client) Exception (ID: {client.id}): {e}")
       break
 
   # Try closing

@@ -82,5 +82,5 @@ class Events:
 
     try:
       task.result()
-    except Exception as e:
-      print(f"Task failed in Events: {e}")
+    except Exception:
+      pass

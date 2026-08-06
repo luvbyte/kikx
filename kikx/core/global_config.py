@@ -1,6 +1,8 @@
 from os import environ
 from pathlib import Path
 
+
+
 class KikxGConfig:
   def __init__(self) -> None:
     self.dev_mode: bool = True

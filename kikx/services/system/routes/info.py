@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 
 
 class ServiceRouter(APIRouter):
-  def __init__(self):
+  def __init__(self) -> None:
     super().__init__()
     self._srv = None
   
@@ -12,7 +12,7 @@ class ServiceRouter(APIRouter):
 router = ServiceRouter()
 
 @router.get("/sessions")
-async def get_sessions(request: Request):
+async def get_sessions(request: Request, full: bool = True):
   srv = router.get_srv()
   core = srv.get_core()
 
@@ -21,12 +21,18 @@ async def get_sessions(request: Request):
     srv.exception(403, "Require 'sessions' and 'sudo' permission")
 
   def sessions_details(client):
+    if full:
+      return client.info()
+
     return {
       "id": client.id,
-      "apps_count": len(client.running_apps)
+      "name": client.name,
+      "created_at": client.created_at,
+      "apps_count": client.apps_count
     }
 
   sessions = [sessions_details(v) for k, v in core.clients.items() if k != client.id]
+
   # ---- fetch client info
   return {
     "sessions": sessions,

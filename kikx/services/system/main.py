@@ -1,8 +1,4 @@
-import asyncio
-from uuid import uuid4
-from typing import Literal, Optional
-
-from fastapi import Request, HTTPException
+from fastapi import Request
 
 from core.func.func import FuncXModel
 
@@ -10,7 +6,7 @@ from lib.utils import get_timestamp, generate_uuid
 from lib.service import create_service
 
 from .routes import info, app
-from .models import UserSettingsModel, AlertModel, ClientAppEventModel, InvokeModel
+from .models import AlertModel, ClientAppEventModel, InvokeModel
 
 
 
@@ -46,7 +42,7 @@ async def close_app(request: Request) -> None:
     "name": app.name
   })
 
-  return { "res": "ok" }
+  return srv.ok()
 
 # Client logout by itself
 @srv.router.post("/client-logout")
@@ -54,7 +50,7 @@ async def client_logout(request: Request) -> None:
   client = srv.get_client(request)
   await srv.get_core().close_client(client.id)
 
-  return { "res": "ok" }
+  return srv.ok()
 
 # ------ Client to app event 
 @srv.router.post("/client-app-event")
@@ -119,9 +115,9 @@ async def invoke(payload: InvokeModel, request: Request):
       srv.exception(404, "App not found")
 
     limit = app.data.get("invoke-app-limit", 0)
-    if limit >= 6:
+    if limit >= 20:
       srv.exception(403, "Invoke limit reached")
-    
+
     request_sudo = payload.payload.get("sudo", False)
     
     # If app is not opened as sudo and requests sudo app opening
@@ -148,7 +144,7 @@ async def invoke(payload: InvokeModel, request: Request):
       "payload": payload.payload
     })
 
-  return { "res": "ok" }
+  return srv.ok()
 
 # ------ SYSTEM / SESSIONS
 srv.include(info.router, prefix="/info", tags=["SystemService-Info"])

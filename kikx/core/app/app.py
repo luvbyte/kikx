@@ -57,9 +57,11 @@ class App(FuncX):
 
     # Start loading app modules
     self.load_modules()
+    
+    logger.info(f"App Running ({self.name}) (ID: {self.id}) (Client: {self.client_id})")
 
+  # App info object
   def info(self) -> dict[str, Any]:
-    """Get App info dict"""
     return {
       "id": self.id,
       "name": self.name,
@@ -81,7 +83,6 @@ class App(FuncX):
 
   @property
   def connected(self) -> bool:
-    """Check if WebSocket is still connected."""
     return self.connection.is_connected
 
   @property
@@ -91,16 +92,18 @@ class App(FuncX):
   # Saving app config
   def save_config(self) -> None:
     logger.info(f"Saving app config: {self.name} (ID: {self.id})")
+    
     self.user.save_app_config(self.name, self.config)
 
+  # Load app dynamic modules
   def load_modules(self) -> None:
-    """Dynamically load app modules from config."""
     modules_list = self.config.modules.keys()
+    
     for module_name in modules_list:
       try:
         module = dynamic_import(
           f"app_{module_name}",
-          f"./core/apps/modules/{module_name}.py"
+          f"./core/app/modules/{module_name}.py"
         )
         module_class = getattr(module, module_name.capitalize())
         module_obj = module_class(self, self.config.modules[module_name])
@@ -115,28 +118,31 @@ class App(FuncX):
       except Exception as e:
         logger.exception(f"Failed to load module '{module_name}': {e}")
 
+  # Get app path
   def get_app_path(self) -> Path:
     return self.app_path
 
+  # Get home path
   def get_home_path(self) -> Path:
     return self.user.home_path
-
+  
+  # Get app data path
   def get_app_data_path(self) -> Path:
-    """Return or create the app's data directory."""
     return ensure_dir(joinpath(self.user.data_path, "data", self.name))
-
+  
+  # Connect websocket
   async def connect_websocket(self, websocket: WebSocket) -> None:
-    """Bind a WebSocket connection to the app."""
     await self.connection.connect(websocket)
+    
     logger.info(f"WebSocket connected for app: {self.name}")
 
+  # Send event
   async def send_event(self, event: str, payload: Any) -> None:
-    """Send event to frontend."""
     await self.connection.send_event(event, payload)
-
+  
+  # On before closing cleanup
   async def on_close(self) -> None:
-    """Clean up all modules on app close."""
-    logger.info(f"Closing app: {self.name} (ID: {self.id})")
+    logger.info(f"App Closing ({self.name}) (ID: {self.id})")
   
     await super().on_close()
 

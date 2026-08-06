@@ -5,11 +5,9 @@ import logging
 import mimetypes
 
 from PIL import Image
-from typing import Any
 from queue import Queue
 from pathlib import Path
 from threading import Thread
-from itertools import islice
 from datetime import datetime
 
 from fastapi import Request, UploadFile, File

@@ -31,7 +31,7 @@ class Service:
     self.main._includes["core"] = core
     await self.main.on_start(core)
 
-  async def on_close(self, core) -> None:
+  async def on_close(self, core: Any) -> None:
     await self.main.on_close(core)
 
   @property
@@ -58,23 +58,28 @@ class Services:
 
   async def load(self, core: Any, app: Any) -> None:
     for name in self.get_enabled_services():
-      service_path = core.config.resolve_path("services")
+      try:
+        service_path = core.config.resolve_path("services")
+  
+        service = Service(name, service_path, core)
+        
+        app.include_router(
+          service.router,
+          prefix=f"/service/{name}",
+          tags=[f"Service {name.capitalize()}"]
+        )
+  
+        self.active_services[name] = service
+  
+        await service.on_start(core)
+        
+        core.scr.success(f"Service: {name}")
 
-      service = Service(name, service_path, core)
-      app.include_router(
-        service.router,
-        prefix=f"/service/{name}",
-        tags=[f"Service {name.capitalize()}"]
-      )
-
-      self.active_services[name] = service
-
-      await service.on_start(core)
-
-      core.scr.success(f"Loaded Service: {name}")
+      except Exception as e:
+        core.scr.error(f"Service: {name} -> {e}")
 
   async def on_close(self, core: Any) -> None:
     for name, service in self.active_services.items():
       await service.on_close(core)
 
-    logger.info("All services closed.")
+    logger.info("Services Closed.")

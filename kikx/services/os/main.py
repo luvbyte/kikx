@@ -1,11 +1,13 @@
-import os
+#import os
 import logging
+
+from typing import Any
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Request, Depends
 
 from lib.service import create_service
 
-from typing import List, Any, Dict
-from pydantic import BaseModel
 
 
 logger = logging.getLogger(__name__)
@@ -30,8 +32,8 @@ srv = create_service(__file__)
 # -------------- Models
 class OSCommandModel(BaseModel):
   name: str
-  args: List[Any]
-  options: Dict[str, Any]
+  args: list[Any]
+  options: dict[str, Any]
 
 
 # -------------- OSC
@@ -44,7 +46,7 @@ class OSC:
 
   # --------------
   
-  def _run(self, name: str, args, options):
+  def _run(self, name: str, args, options) -> Any:
     func = getattr(self, f"ex_{name}", None)
     if func is None:
       srv.exception(404, "Func not found")
@@ -54,10 +56,10 @@ class OSC:
     except Exception as e:
       srv.exception(500, e)
 
-  def run_client(self, client, payload):
+  def run_client(self, client: Any, payload: OSCommandModel) -> Any:
     return self._run(payload.name, payload.args, payload.options)
 
-  def run_app(self, app, payload):
+  def run_app(self, app: Any, payload: OSCommandModel) -> Any:
     return self._run(payload.name, payload.args, payload.options)
 
 
@@ -68,7 +70,7 @@ osc = OSC()
 @srv.router.post("/run")
 def run(payload: OSCommandModel, request: Request, core = Depends(check_permisson)):
   client, app = srv.get_client_or_app(request)
-  
+
   if app:
     return osc.run_app(app, payload)
   else:

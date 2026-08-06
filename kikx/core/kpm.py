@@ -18,27 +18,27 @@ class AppInstallManifest(AppManifestModel):
 
 # ------------- Installers
 class AppInstaller:
-  def __init__(self, core, src_path: str | Path):
+  def __init__(self, core, src_path: str | Path) -> None:
     self.core = core # Kikx core
 
-    self.status_history = ["Installer initializing"]
-    self.src_path = Path(src_path).resolve()
+    self.status_history: list[str] = ["Installer initializing"]
+    self.src_path: Path = Path(src_path).resolve()
     
-    app_manifest_path = (self.src_path / "app.json").resolve()
+    app_manifest_path: Path = (self.src_path / "app.json").resolve()
     if not app_manifest_path.is_file():
       raise Exception("app.json not found")
 
     try:
-      self.manifest = parse_config(app_manifest_path, AppInstallManifest)
+      self.manifest: AppInstallManifest = parse_config(app_manifest_path, AppInstallManifest)
     except Exception:
       raise Exception("Error parsing app.json")
 
     # apps/<name>
     # Target app path
-    self.target_path = (self.core.config.apps_path / self.manifest.name).resolve()
-    self.apps_base_path = self.core.config.apps_path.resolve()
+    self.target_path: Path = (self.core.config.apps_path / self.manifest.name).resolve()
+    self.apps_base_path: Path = self.core.config.apps_path.resolve()
     # data/app
-    self.apps_data_base_path = self.core.config.apps_data_path.resolve()
+    self.apps_data_base_path: Path = self.core.config.apps_data_path.resolve()
     
     # Status
     self.set_status("Manifest loaded")
@@ -46,19 +46,17 @@ class AppInstaller:
   @property # Return new app name
   def app_name(self) -> str:
     return self.manifest.name.strip()
-  
+
   @property # If app path exists
   def is_app_installed(self) -> bool:
-    # TODO: solid check
     return self.target_path.exists()
 
   @property # Check kikx version match
-  def is_compatible(self):
+  def is_compatible(self) -> bool:
     return is_version_match(self.core.version, self.manifest.kikx_version)
 
-  # If its an update / obj / None
   @property # If app has update
-  def is_update(self):
+  def is_update(self) -> bool | dict:
     if not self.is_app_installed:
       return False
 
@@ -82,7 +80,7 @@ class AppInstaller:
       }
 
     return False
-  
+
   # Get source 
   def get_source(self):
     return self.manifest.source
@@ -90,7 +88,7 @@ class AppInstaller:
   # State tracking
   def set_status(self, text: str) -> None:
     self.status_history.append(text)
-  
+
   # Get src app manifest based on keys to include
   def get_manifest(self, keys_to_include=None) -> dict:
     manifest = self.manifest.model_dump()
@@ -102,7 +100,7 @@ class AppInstaller:
       }
 
     return manifest
-  
+
   # Extract App config from manifest
   def get_app_config(self) -> dict:
     return self.get_manifest(list(AppModel.model_fields.keys()))
@@ -111,8 +109,8 @@ class AppInstaller:
   def get_app_manifest(self) -> dict:
     return self.get_manifest(list(AppManifestModel.model_fields.keys()))
 
-  # local / github 
-  def install(self, source) -> bool:
+  # Install from local or github
+  def install(self, source):
     if not self.is_compatible:
       raise Exception("App is not compatible")
 
@@ -133,9 +131,9 @@ class AppInstaller:
       self.set_status(f"Install failed: {e}")
       self._rollback()
       raise
-  
+
   # Check source if missmatch raise
-  def _source_check(self, current, latest):
+  def _source_check(self, current, latest) -> bool:
     # If both local matched
     if current == "local" and latest == "local":
       return True
@@ -216,7 +214,7 @@ class AppInstaller:
       raise
 
   # ------------- Install steps
-  def _create_app_directory(self):
+  def _create_app_directory(self) -> None:
     self.set_status("Creating app folder")
 
     self.target_path.mkdir(parents=True, exist_ok=False)
@@ -226,7 +224,7 @@ class AppInstaller:
     if not resolved_target.is_relative_to(self.apps_base_path):
       raise ValueError("Unsafe target path detected")
 
-  def _copy_include_files(self):
+  def _copy_include_files(self) -> None:
     self.set_status("Copying include files")
 
     base_path = self.src_path.resolve()
@@ -249,7 +247,7 @@ class AppInstaller:
       else:
         shutil.copy2(resolved_src, dst)
 
-  def _create_manifest_file(self, source):
+  def _create_manifest_file(self, source) -> None:
     self.set_status("Creating app manifest file")
 
     manifest_path = self.target_path / "app.json"
@@ -260,7 +258,7 @@ class AppInstaller:
     with manifest_path.open("w", encoding="utf-8") as file:
       json.dump(manifest, file, indent=2)
 
-  def _create_config_file(self):
+  def _create_config_file(self) -> None:
     self.set_status("Creating app config file")
 
     self.apps_data_base_path.mkdir(parents=True, exist_ok=True)
@@ -271,7 +269,7 @@ class AppInstaller:
       json.dump(self.get_app_config(), file, indent=2)
 
   # Rollback (if install fails)
-  def _rollback(self):
+  def _rollback(self) -> None:
     self.set_status("Rolling back installation")
 
     if self.target_path.exists():
@@ -289,11 +287,11 @@ class AppInstaller:
 
     self.set_status("Rollback completed")
 
-  def get_status(self):
+  def get_status(self) -> list[str]:
     return self.status_history
 
 class UIInstaller:
-  def __init__(self, core, name: str, src_path: Path):
+  def __init__(self, core, name: str, src_path: Path) -> None:
     self.core = core
     self.name: str = name
     self.src_path: Path = src_path
@@ -301,7 +299,7 @@ class UIInstaller:
     self.target_path: Path = joinpath(self.core.config.uis_path, name)
 
   # If already
-  def install(self, force=False):
+  def install(self, force: bool = False) -> None:
     if self.target_path.exists() and not force:
       raise Exception("UI already exists.")
 
@@ -335,30 +333,30 @@ class UIInstaller:
 
 # ------------- Uninstallers
 class AppUninstaller:
-  def __init__(self, core, app_name: str):
+  def __init__(self, core, app_name: str) -> None:
     self.core = core
-    self.app_name = app_name
-    self.status_history = ["Uninstaller initialized"]
+    self.app_name: str = app_name
+    self.status_history: list[str] = ["Uninstaller initialized"]
 
     # Paths
-    self.app_path = self.core.config.apps_path / app_name
-    self.config_path = self.core.config.apps_data_path / f"{app_name}.json"
-    self.data_path = self.core.config.data_path / "data" / app_name
+    self.app_path: Path = self.core.config.apps_path / app_name
+    self.config_path: Path = self.core.config.apps_data_path / f"{app_name}.json"
+    self.data_path: Path = self.core.config.data_path / "data" / app_name
 
     self.set_status("Uninstaller initialized")
 
-  def set_status(self, text: str):
+  def set_status(self, text: str) -> None:
     self.status_history.append(text)
   
   @property
-  def admin_apps(self):
+  def admin_apps(self) -> list[str]:
     return self.core.config.admin_apps
 
   @property
   def is_app_installed(self) -> bool:
     return self.app_path.exists()
 
-  def _ensure_safe_path(self, path, base_path, error_message):
+  def _ensure_safe_path(self, path: Path, base_path: Path, error_message: str) -> Path:
     resolved_path = path.resolve()
     resolved_base = base_path.resolve()
 
@@ -367,7 +365,7 @@ class AppUninstaller:
 
     return resolved_path
 
-  def uninstall(self, keep_data: bool = False):
+  def uninstall(self, keep_data: bool = False) -> None:
     if not self.is_app_installed:
       raise Exception("App is not installed")
 
@@ -415,16 +413,16 @@ class AppUninstaller:
 
     self.set_status("Uninstall completed")
     return True
-  
-  def get_status(self):
+
+  def get_status(self) -> list[str]:
     return self.status_history
 
 class UIUninstaller:
   def __init__(self, core, ui_name: str):
     self.core = core
-    self.ui_name = ui_name
+    self.ui_name: str = ui_name
     
-    self.ui_path = joinpath(core.user.uis_path / ui_name)
+    self.ui_path: Path = joinpath(core.user.uis_path / ui_name)
   
   def uninstall(self):
     if not self.ui_path.exists():
@@ -449,4 +447,5 @@ class UIUninstaller:
 
     # Save configuration
     self.core.auth.save()
+    return True
 

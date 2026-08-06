@@ -26,14 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 class TaskKVStorage(KVStorage):
-  def __init__(self):
-    pass
-
   async def func(self, name, options):
     if name not in ["set", "pop", "reset"]:
       raise Exception("Invalid func name")
-
-    print(name, options)
 
 
 class SafeDict(dict):
@@ -43,32 +38,40 @@ class SafeDict(dict):
 
 class QTask:
   def __init__(self, cmd: str, env: dict[str, str], shell: bool, cwd: str, sudo: bool) -> None:
+    # Task ID
     self.id: str = uuid4().hex
-
-    self.cwd: str = cwd       # Task working directory
-    self.sudo: bool = sudo    # Sudo task
-    self.shell: bool = shell  # Subprocess Shell
-    self.cmd: str = cmd       # command to run
-    # Task env dict
+    # Task working directory
+    self.cwd: str = cwd
+    # Sudo task
+    self.sudo: bool = sudo
+    # Subprocess Shell
+    self.shell: bool = shell
+    # Run Command
+    self.cmd: str = cmd 
+    # Task env
     self.env: dict[str, str] = env
-
+    # Task process
     self.process: asyncio.subprocess.Process | None = None
-    
+    self.sid: int | None = None
+    self.pgid: int | None = None
+
+    # Task stdio
     self.stdout = asyncio.subprocess.PIPE
     self.stdin = asyncio.subprocess.PIPE
     self.stderr = asyncio.subprocess.PIPE
-
+    
+    # Task states
     self._cleaned = False
-    self.sid: int | None = None
-    self.pgid: int | None = None
 
   @property
   def returncode(self) -> int | None:
     return None if self.process is None else self.process.returncode
-
+  
+  # Get user for task
   def get_user(self) -> str:
     return "root" if self.sudo else "nobody"
-
+  
+  # Demote user
   def demote(self, user_name: str) -> Callable:
     def result():
       pw = pwd.getpwnam(user_name)
@@ -76,7 +79,7 @@ class QTask:
       os.setuid(pw.pw_uid)
     return result
 
-  # Returns Coro
+  # Create Process
   def _create_process(self) -> asyncio.subprocess.Process:
     if self.sudo:
       preexec = None  # stay root
@@ -125,8 +128,8 @@ class QTask:
       "stderr": stderr,
     }
     
-  # Force kill with sigint fastest
-  async def _force_kill(self):
+  # Force kill task with sigint fastest
+  async def _force_kill(self) -> None:
     if (
       self.process is None
       or self.process.returncode is not None
@@ -140,7 +143,7 @@ class QTask:
     except ProcessLookupError:
       pass
 
-  # Kill task
+  # Kill task and clean
   async def clean(self) -> None:
     if self._cleaned:
       return
@@ -151,18 +154,20 @@ class QTask:
 class Task(QTask):
   def __init__(self, cmd: str, env: dict[str, str], shell: bool, cwd: str, sudo: bool, allow_commands: bool, output_mode: str) -> None:
     super().__init__(cmd, env, shell, cwd, sudo)
-
+    
+    # Task States
     self.started: bool = False
     self.completed: bool = False
 
+    # Stdout waiting timeout
     self.stdout_timeout: int = 3
-
-    self._cleaned: bool = False
     
+    # Allow task commands
     self.allow_commands: bool = allow_commands
 
     # Save output
     self._output_mode: str = output_mode # send | save | *
+    # Task output storing
     self.task_output: dict[str, dict] = {}
 
     # Error text
@@ -190,48 +195,42 @@ class Task(QTask):
       "is_shell": self.shell,
       "started": self.started,
       "completed": self.completed,
-      
       "error_text": self.error_text,
-
       "output_index": self.output_index,
       "output_count": len(self.task_output),
-      
       "output_mode": self._output_mode,
       "allow_commands": self.allow_commands,
-
       "stdout_timeout": self.stdout_timeout,
-      
       "sudo": self.sudo,
-      
       "cleaned": self._cleaned,
-      
       "returncode": self.returncode
     }
-  
+
+  # Get task output list
   def get_task_output(self, index: int | None = None) -> list:
     if index is None:
       return list(self.task_output.values())
 
     return [self.task_output.get(f"i_{index}", None)]
 
+  # Clear task output
   def clear_output(self) -> None:
     self.task_output.empty()
 
+  # Send Input to process
   async def send(self, data: str) -> None:
-    """Send input to the subprocess."""
     if not self.process or self.process.returncode is not None:
       raise Exception("No active process")
 
     self.process.stdin.write(data.encode() + b'\n')
     await self.process.stdin.drain()
   
-  # Task command : !_KIKX_!{ 'event': 'something', 'payload': {} }
+  # Task command : !_KIKX_!{ 'event': 'something', 'payload': {} } (development)
   async def _on_command(self, event: str, payload: dict) -> Any:
-    print("Task command: ", event, payload)
-    
     if event == "kv":
       return await self.kv_storage.func(payload["name"], payload["options"])
-
+  
+  # On task command
   async def on_command(self, command) -> Any:
     try:
       event, payload = json.loads(command).values()
@@ -242,6 +241,7 @@ class Task(QTask):
     except Exception as e:
       logger.info(f"Task ({self.id}) command Exception:", e)
   
+  # On task output
   async def on_output(self, handler: Handler, decoded_line: str) -> None:
     data = {
       "index": self.output_index,
@@ -254,9 +254,9 @@ class Task(QTask):
       self.task_output[f"i_{self.output_index}"] = data
 
     self.output_index += 1
-
+  
+  # Run
   async def run(self, handler: Handler | None) -> str:
-    """Start the subprocess and handle its output."""
     if self.started or self.process:
       handler and await handler.error("Can't re-run task, Its already running")
       raise Exception("Can't re-run task, Its already running")

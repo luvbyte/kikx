@@ -1,8 +1,7 @@
 import logging
+from typing import Any, Callable
 
 from fastapi import WebSocket
-
-from typing import Any, Callable
 
 from lib.utils import send_event, is_websocket_connected
 
@@ -12,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class MessageEvent:
-  def __init__(self, event: str, payload: Any) -> None:
+  def __init__(self, event: str, payload: dict) -> None:
     self.event: str = event
-    self.payload: Any = payload
+    self.payload: dict = payload
 
 
 class Connection:

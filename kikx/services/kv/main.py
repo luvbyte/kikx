@@ -3,13 +3,13 @@ import logging
 
 from fastapi import Request, Depends
 
-from lib.service import create_service
-from lib.utils import generate_uuid, ensure_dir
-
+from typing import Any
 from pathlib import Path
 from pydantic import BaseModel
 
-from typing import Any
+from lib.service import create_service
+from lib.utils import generate_uuid, ensure_dir
+
 
 
 logger = logging.getLogger(__name__)
@@ -31,20 +31,20 @@ def check_permisson(request: Request):
 
 
 class Collection:
-  def __init__(self, app_name, app_id, dfile_path: Path):
-    self.id = generate_uuid()
-    self.app_name = app_name
-    self.app_id = app_id
+  def __init__(self, app_name: str, app_id: str, dfile_path: Path):
+    self.id: str = generate_uuid()
+    self.app_name: str = app_name
+    self.app_id: str = app_id
 
     self.dfile_path: Path = dfile_path
     # object of k: v / {}
-    self._kv = self.load(self.dfile_path)
+    self._kv: dict = self.load(self.dfile_path)
   
-    self.__closed = False
-  
+    self.__closed: bool = False
+
   # Load dfile
-  def load(self, dfile, default: dict | None = None):
-    default = default or {}
+  def load(self, dfile: Path) -> dict:
+    default = {}
     
     if not dfile.is_file():
       return default
@@ -53,35 +53,35 @@ class Collection:
         return json.load(file)
     except Exception:
       return default
-  
+
   # Save dfile
-  def save(self):
+  def save(self) -> None:
     try:
       with open(self.dfile_path, "w") as file:
         json.dump(self._kv, file)
-    except Exception:
-      pass
+    except Exception as e:
+      logger.exception(f"Service(KV) Error saving datafile: {e}")
   
   # Reset
-  def reset(self):
+  def reset(self) -> bool:
     self._kv = {}
     self.save()
     
     return True
 
   # Get key or fallback (None)
-  def get(self, key, fallback=None):
+  def get(self, key: str, fallback: Any | None = None) -> Any | None:
     return self._kv.get(key, fallback)
 
   # Set key
-  def set(self, key, value):
+  def set(self, key: str, value: Any) -> None:
     self._kv[key] = value
   
   # Get or set key: value
-  def get_or_set(self, key, value):
+  def get_or_set(self, key: str, value: Any) -> Any:
     if not self.has(key):
       self.set(key, value)
-    
+
     return self.get(key)
   
   # Check if has key
@@ -89,36 +89,36 @@ class Collection:
     return key in self._kv
   
   # Remove key
-  def pop(self, key):
+  def pop(self, key) -> Any:
     if not self.has(key):
       raise KeyError("Key not found")
     return self._kv.pop(key)
 
   # Config collection
-  def config(self, command):
+  def config(self, command: str) -> None:
     pass
 
-  def info(self):
+  def info(self) -> dict:
     return {
       "dfile_path": str(self.dfile_path),
       "length": len(self._kv.keys())
     }
   
-  def _close(self):
+  def _close(self) -> None:
     self.save()
 
-  def close(self):
+  def close(self) -> None:
     if self.__closed:
       return
     self._close()
     self.__closed = True
 
 class KVM:
-  def __init__(self):
+  def __init__(self) -> None:
     # AppName: Collection
     self._collections: dict[str, Collection] = {}
-
-  def get_collection(self, core, app) -> Collection:
+  
+  def get_collection(self, core: Any, app: Any) -> Collection:
     collection = self._collections.get(app.name, None)
     if collection is not None:
       return collection
@@ -131,7 +131,7 @@ class KVM:
     return collection
 
   # --------------- LIFECYCLE
-  async def on_close_app(self, app_id: str, app_name: str):
+  async def on_close_app(self, app_id: str, app_name: str) -> None:
     core = srv.get_core()
 
     if app_name not in self._collections:
@@ -141,20 +141,20 @@ class KVM:
       self._collections.pop(app_name).close()
       logger.info(f"KV: Collection closed for {app_name}")
 
-  def on_shutdown(self):
+  def on_shutdown(self) -> None:
     for c in self._collections.values():
       c.close()
     
-    logger.info("KV: Closed all collections")
+    logger.info("Service(KV) Collections Closed.")
 
 kvm = KVM()
 
 @srv.on("startup")
-def startup(core):
+def startup(core: Any) -> None:
   core.events.add_event("app:close", kvm.on_close_app)
 
 @srv.on("shutdown")
-def shutdown(core):
+def shutdown(core: Any) -> None:
   kvm.on_shutdown()
 
 class SetCollectionModel(BaseModel):

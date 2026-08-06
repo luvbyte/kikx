@@ -1,7 +1,6 @@
 import sys
 import base64
 import inspect
-import asyncio
 
 from uuid import uuid4
 from pathlib import Path
@@ -179,10 +178,10 @@ def file_response(base: str | Path, *paths) -> Path:
 
   # built-in safe check
   if not full_path.is_relative_to(base):
-    raise HTTPException(status_code=403, detail="Forbidden path")
+    raise HTTPException(403, "Forbidden path")
   
   if not full_path.is_file():
-    raise HTTPException(status_code=404, detail="File not found")
+    raise HTTPException(404, "File not found")
 
   return FileResponse(full_path)
 
@@ -191,7 +190,7 @@ def joinpath(base: str | Path, *parts) -> Path:
   target = base.joinpath(*parts).resolve()
 
   if not target.is_relative_to(base):
-    raise HTTPException(status_code=401, detail="Path traversal detected")
+    raise HTTPException(401, "Path traversal detected")
 
   return target
 

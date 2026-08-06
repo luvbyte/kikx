@@ -8,7 +8,6 @@ from core.models.ui_models import UIConfigModel
 from lib.utils import joinpath
 from lib.parser import parse_config
 
-from fastapi import HTTPException
 
 
 class User:
@@ -56,9 +55,9 @@ class User:
 
   # storage/bin path
   def get_path_env(self) -> str:
-    return (self.storage_path / 'bin').as_posix()
+    return str(self.storage_path / 'bin')
 
-  # App config in /data/<name>.json or error
+  # App config in /data/<name>.json
   def get_app_config_file_path(self, app_name: str) -> Path:
     app_config_path = joinpath(self.apps_data_path, f"{app_name}.json")
     if not app_config_path.is_file():
@@ -66,21 +65,23 @@ class User:
 
     return app_config_path
   
-  # Save
+  # Save app config
   def save_app_config(self, app_name: str, config: AppModel | dict, indent: int = 2) -> None:
     obj = config if isinstance(config, AppModel) else AppModel(**config)
     self.get_app_config_file_path(app_name).write_text(obj.model_dump_json(indent=indent))
-
+  
+  # Load app config
   def load_app_config(self, app_name: str) -> AppModel:
     return parse_config(self.get_app_config_file_path(app_name), AppModel)
   
+  # Load ui config
   def load_ui_config(self, ui_name: str) -> UIConfigModel:
     return parse_config(
       joinpath(self.uis_path, ui_name, "ui.json"),
       UIConfigModel
     )
 
-  # Return installed apps in list
+  # Return installed apps list
   def get_installed_apps(self, raw: bool = False, both: bool = False) -> list[str]:
     return [p.name for p in self.apps_path.iterdir() if p.is_dir()]
 

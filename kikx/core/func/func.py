@@ -2,9 +2,9 @@ import asyncio
 import logging
 import functools
 
-from uuid import uuid4
 from typing import Any
 
+from lib.utils import generate_uuid
 from .models import FuncXConfig, FuncXModel
 
 
@@ -67,7 +67,7 @@ class FuncX:
   # wrapper function for funcx task core logic
   async def _run_func(self, func: Any, config: FuncXConfig) -> Any:
     """Run a registered async function with optional timeout."""
-    task_id = uuid4().hex
+    task_id = generate_uuid()
     task = asyncio.create_task(func(*config.args, **config.options), name=task_id)
     task.add_done_callback(self.__on_funcx_task_complete)
     self.__funcx_tasks.append(task)

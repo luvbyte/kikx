@@ -79,13 +79,17 @@
 - UI updates
 
 ## [0.3.1]
-### Added
-
 ### Fixed
 - Bug Fixes
-
-### Changed
 
 ### MUI
 - Option to keep app data on uninstall
 - Better error information
+
+## [0.3.2]
+### Fixed
+- Bug Fixes
+- Added types hints, comments, code cleaning
+
+### MUI
+- Added Errors store

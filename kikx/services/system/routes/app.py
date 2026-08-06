@@ -5,7 +5,6 @@ import asyncio
 import tempfile
 
 from pathlib import Path
-from typing import Optional
 from pydantic import BaseModel
 
 from lib.hash import hash_file
@@ -20,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 class AppInstallRoute(BaseModel):
-  uri: Optional[str] = None 
+  uri: str | None = None 
 
 class ServiceRouter(APIRouter):
-  def __init__(self):
+  def __init__(self) -> None:
     super().__init__()
     self._srv = None
 
@@ -34,7 +33,7 @@ class ServiceRouter(APIRouter):
 router = ServiceRouter()
 
 
-# Check authorization & rerurn code
+# Check authorization & rerurn core
 def check_permisson(request: Request):
   srv = router.get_srv()
   core = srv.get_core()
@@ -58,7 +57,7 @@ def get_or_extract(raw_temp: Path, temp_dir: Path) -> Path:
   return extract_package(raw_temp, temp_dir)
 
 @router.get("/installed-apps")
-async def get_installed_apps(app_name: Optional[str] = None, core = Depends(check_permisson)):
+async def get_installed_apps(app_name: str | None = None, core = Depends(check_permisson)):
   return core.get_installed_apps(raw=True)
 
 # ------------- Prepare Local Install By UploadFile
