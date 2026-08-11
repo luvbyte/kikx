@@ -185,9 +185,9 @@ class Core:
     await self.events.emit_order("kikx:close", self)
 
   # Force close client connection
-  async def close_client(self, client: str) -> None:
-    client = self.clients.get(client)
-    if not client:
+  async def close_client(self, client_id: str) -> None:
+    client = self.get_client(client_id)
+    if client is None:
       raise Exception("Client not found")
 
     # close all apps and remove client

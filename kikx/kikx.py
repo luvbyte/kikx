@@ -194,19 +194,23 @@ async def open_app(app_model: OpenAppModel):
     info, manifest = load_app_manifest(core, app_model.name, both=True)
   
     app = await core.open_app(app_model.client_id, app_model.name, manifest, app_model.options)
-  
+
     return {
       "id": app.id,
       "url": f"/app/{app.id}/index.html?starting=true",
       "iframe": app.config.iframe.get_dict(),
+
+      "splash": app.config.iframe,
   
       "manifest": info, # Simple info for ui
   
       "isSudo": app.is_sudo
     }
   except HTTPException:
+    logger.exception(f"Error opening app ({app_model.name})")
     raise
   except Exception as e:
+    logger.exception(f"Error opening app ({app_model.name}) {e}")
     raise HTTPException(500, str(e))
 
 @kikx_app.post("/close-app")
@@ -220,8 +224,10 @@ async def close_app(app_model: CloseAppModel):
     asyncio.create_task(core.close_app(client, app))
     return { "res": "ok" }
   except HTTPException:
+    logger.exception(f"Error closing app ({app_model.app_id})")
     raise
   except Exception as e:
+    logger.exception(f"Error closing app ({app_model.app_id}) {e}")
     raise HTTPException(500, str(e))
 
 # -------------------------------------

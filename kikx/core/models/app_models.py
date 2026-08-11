@@ -180,7 +180,7 @@ class AppIframeModel(BaseModel):
       "sandbox": " ".join(self.sandbox),
       "allow": "; ".join(self.allow),
       "loading": self.loading,
-      "referrerpolicy": self.referrerpolicy,
+      "referrerpolicy": self.referrerpolicy
     }
 
 # APP config model in data/data/app
@@ -214,7 +214,7 @@ class AppModel(BaseModel):
 
   # App modules to use
   modules: dict[APP_MODULE, dict[str, Any]] = Field(default_factory=dict, description="App modules to use")
-
+  
   # Service permissions
   os: bool = False
   kv: bool = False
@@ -241,6 +241,9 @@ class AppOptionsModel(BaseModel):
 # App manifest app.json in app root fs
 class AppManifestModel(AppModel):
   icon: str = "icon.png"
+
+  splash: str | None = Field(None, description="Splash screen image")
+
   category: str | None = Field(None, description="App Category")
   author: str | None = Field(None, description="App Author")
   description: str | None = Field(None, description="App Description")

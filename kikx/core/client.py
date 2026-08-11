@@ -50,6 +50,10 @@ class Client(FuncX):
   def name(self) -> str:
     return self.ui.name
 
+  @property
+  def apps_count(self) -> str:
+    return len(self.running_apps)
+
   # Get running app
   def get_app(self, app_id: str) -> App:
     app = self.running_apps.get(app_id, None)
@@ -74,7 +78,7 @@ class Client(FuncX):
       "created_at": self.created_at,
       "access_token": self.access_token,
       "connection": self.connection.info(),
-      "apps_count": len(self.running_apps),
+      "apps_count": self.apps_count,
       "apps": [app.info() for app in self.running_apps.values()]
     }
 
@@ -142,4 +146,4 @@ class Client(FuncX):
     logger.info(f"Client Closed ({self.id})")
 
   def __str__(self) -> str:
-    return f"Client (ID: {self.id}) (UI: {self.ui.name}) (Apps: {len(self.running_apps)})"
+    return f"Client (ID: {self.id}) (UI: {self.ui.name}) (Apps: {self.apps_count})"

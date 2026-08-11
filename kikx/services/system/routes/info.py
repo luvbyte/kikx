@@ -12,7 +12,7 @@ class ServiceRouter(APIRouter):
 router = ServiceRouter()
 
 @router.get("/sessions")
-async def get_sessions(request: Request, full: bool = True):
+async def get_sessions(request: Request, full: bool = False):
   srv = router.get_srv()
   core = srv.get_core()
 
@@ -28,7 +28,8 @@ async def get_sessions(request: Request, full: bool = True):
       "id": client.id,
       "name": client.name,
       "created_at": client.created_at,
-      "apps_count": client.apps_count
+      "apps_count": client.apps_count,
+      "active": client.connection.is_connected
     }
 
   sessions = [sessions_details(v) for k, v in core.clients.items() if k != client.id]
@@ -49,9 +50,9 @@ async def close_session(request: Request, session_id: str):
   core = srv.get_core()
 
   try:
-    result = await core.close_client(session_id)
+    await core.close_client(session_id)
 
-    return { "res": result }
+    return srv.ok()
   except Exception:
     srv.exception(404, "Session not found")
 

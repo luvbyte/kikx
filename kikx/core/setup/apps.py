@@ -15,7 +15,7 @@ PRE_INSTALL_APPS = {
   # Optional
   "com.kikx.sessions": (
     "https://github.com/luvbyte/kikx-sessions-app",
-    "v0.1.2", False
+    "v0.1.3", False
   ),
   # Optional
   "com.kikx.explorer": (

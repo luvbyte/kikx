@@ -93,3 +93,10 @@
 
 ### MUI
 - Added Errors store
+
+## [0.3.3]
+### Fixed
+- Bug Fixes
+
+### Updates
+- System service info updates
