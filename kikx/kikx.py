@@ -307,13 +307,13 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
     logger.exception(f"WebSocket(App) Connect Permission Error: {str(e)}")
     try:
       await websocket.close(code=1008, reason=str(e))
-    finally:
+    except Exception:
       return
   except Exception as e:
     logger.exception(f"WebSocket(App) Connect Error: {str(e)}")
     try:
       await websocket.close(reason=str(e))
-    finally:
+    except Exception:
       return
 
   logger.info(f"WebSocket(App) Connected (App: {app.id}) (Client: {client.id})")
@@ -376,13 +376,13 @@ async def websocket_client_endpoint(websocket: WebSocket, client_id: Optional[st
     logger.exception(f"WebSocket(Client) Connect Permission Error: {str(e)}")
     try:
       await websocket.close(code=1008, reason=str(e))
-    finally:
+    except Exception:
       return
   except Exception as e:
     logger.exception(f"WebSocket(Client) Connect Error: {str(e)}")
     try:
       await websocket.close(reason=str(e))
-    finally:
+    except Exception:
       return
 
   logger.info(f"WebSocket(Client) Connected (ID: {client.id})")

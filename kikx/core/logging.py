@@ -30,6 +30,7 @@ def setup_logging(logs_path: str = "logs", log_file: str = "kikx.log") -> None:
   root.addHandler(console_handler)
 
   # Silence noisy third-party libraries
+  logging.getLogger("httpx").setLevel(logging.WARNING)
   logging.getLogger("multipart").setLevel(logging.WARNING)
   logging.getLogger("python_multipart").setLevel(logging.WARNING)
   logging.getLogger("uvicorn.access").setLevel(logging.INFO)

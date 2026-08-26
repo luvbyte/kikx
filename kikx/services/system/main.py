@@ -87,10 +87,9 @@ async def alert(request: Request, payload: AlertModel) -> None:
 
     "icon": f"/public/app/{app.name}/{app.manifest.icon}",
 
-    "msg": payload.message,
+    "message": payload.message,
     "type": payload.type,
     "extra": payload.extra,
-    "delay": payload.delay,
     "priority": payload.priority,
     
     # Add timestamp (ISO 8601, UTC)

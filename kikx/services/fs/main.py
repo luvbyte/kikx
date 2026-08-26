@@ -138,7 +138,7 @@ def resolve_app_path(app, path: str, read: bool) -> Path:
 
     "home": app.get_home_path()
   }
-  
+
   if protocol in ["osr", "root"] and not app.is_sudo:
     srv.exception(404, "Sudo permission require to access root / osr")
 
@@ -713,6 +713,8 @@ def move_item(request: Request, payload: CopyMoveRequest) -> dict:
 @srv.router.get("/info")
 def path_info(request: Request, path: str):
   file_path = resolve_path(request, path, True)
+  
+  print(path, file_path)
 
   if not file_path.exists():
     srv.exception(404, "File not found")

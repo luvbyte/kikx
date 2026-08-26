@@ -6,7 +6,6 @@ class AlertModel(BaseModel):
   uid: str | None = None
   type: Literal['info', 'warning', 'success', 'error'] = "info"
   message: str
-  delay: int = 0
   extra: dict = Field(default_factory=dict)
   priority: Literal['less', 'high', 'normal'] = 'normal'
   silent: bool = False

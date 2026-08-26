@@ -168,6 +168,9 @@ class AppIframeModel(BaseModel):
     "no-referrer", description="Controls referrer information"
   )
 
+  # can go back
+  canGoBack: bool = False
+
   # Remove duplicates during validation
   @field_validator("sandbox", "allow")
   @classmethod
@@ -180,7 +183,8 @@ class AppIframeModel(BaseModel):
       "sandbox": " ".join(self.sandbox),
       "allow": "; ".join(self.allow),
       "loading": self.loading,
-      "referrerpolicy": self.referrerpolicy
+      "referrerpolicy": self.referrerpolicy,
+      "canGoBack": self.canGoBack
     }
 
 # APP config model in data/data/app

@@ -51,12 +51,12 @@ class Config:
     """Resolves custom protocol paths to absolute storage paths."""
     if "://" not in line:
       return Path(line)
-    
+
     protocol, path = line.split("://", 1)
 
     match protocol:
       case "root":
-        return "/" if not path else joinpath("/", path)
+        return self.storage.join(path)
       case "storage":
         return self.storage.join(path)
       case "share":
@@ -69,6 +69,10 @@ class Config:
         return self.storage.join("home", path)
       case "kikx":
         return joinpath(get_root_path(), path)
+      case "os":
+        return joinpath(Path.home(), path)
+      case "osr":
+        return joinpath(Path.cwd().anchor, path)
       case _:
         return Path(line)
 

@@ -1,6 +1,6 @@
 
 __title__ = "kikx"
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 __author__ = "luvbyte"
 __email__ = "lovemelong@protonmail.com"
 

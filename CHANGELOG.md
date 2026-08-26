@@ -100,3 +100,14 @@
 
 ### Updates
 - System service info updates
+
+## [0.3.4]
+### Added
+- Added back navigation app option
+
+### Fixed
+- Fixed fs service client resolve path
+
+### Updates
+- Changed app tasks module kikx env variables works without shell option
+

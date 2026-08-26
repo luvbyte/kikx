@@ -318,8 +318,8 @@ class Tasks:
     # If not sandbox then copies program env
     self.task_env: dict[str, str] = {} if self.config.sandbox else os.environ.copy()
 
-    # Include kikx_env variables must shell True
-    if self.config.kikx_env and self.config.shell:
+    # Include kikx_env variables
+    if self.config.kikx_env:
       self.task_env.update({
         "KIKX_APP_ID": app.id,
         "KIKX_APP_NAME": app.name,
