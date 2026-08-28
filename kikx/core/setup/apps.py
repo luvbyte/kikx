@@ -20,12 +20,12 @@ PRE_INSTALL_APPS = {
   # Optional
   "com.kikx.explorer": (
     "https://github.com/luvbyte/kikx-explorer-app",
-    "v0.1.3", False
+    "v0.1.5", False
   ),
   # Optional
   "com.kikx.florix": (
     "https://github.com/luvbyte/kikx-florix-app",
-    "v0.1.3", False
+    "v0.1.5", False
   )
 }
 

@@ -33,6 +33,10 @@ class ServiceConfig(BaseModel):
   cwd: str = "{data}"
   forever: bool = False
 
+class ServiceInputModel(BaseModel):
+  uid: str
+  data: str
+
 def get_app(request: Request):
   _, app = srv.get_client_app(request)
 
@@ -50,7 +54,9 @@ class SafeDict(dict):
 class MService:
   def __init__(self, name: str, app: Any) -> None:
     self.name: str = name
-    self.options: ServiceConfig = parse_config(joinpath(app.get_app_path() / "micro", f"{self.name}.json"), ServiceConfig)
+    self.micro_service_path = joinpath(app.get_app_path() / "micro", self.name)
+    
+    self.options: ServiceConfig = parse_config(self.micro_service_path / "micro.json", ServiceConfig)
 
     self.app_id: str = app.id
     self.sudo: bool = app.is_sudo
@@ -74,9 +80,11 @@ class MService:
       srv.exception(404, "Working directory not found")
 
     self.cmd: str = self.options.cmd.format_map(SafeDict({
-      "data": str(app.get_app_data_path()),
+      "app": str(app.get_app_path()),
+      "micro": str(self.micro_service_path),
+      "data": str(app.get_app_data_path())
     }))
-    
+
     self.env.update({
       "KIKX_APP_ID": app.id,
       "KIKX_APP_NAME": app.name,
@@ -230,7 +238,6 @@ class MService:
     self._force_kill()
     self._cleaned = True
 
-
 class MicroServices:
   def __init__(self) -> None:
     self._active: dict[str, MService] = {}
@@ -273,10 +280,11 @@ class MicroServices:
   # Stop service
   def stop_service(self, uid: str) -> None:
     service = self._active.pop(uid, None)
-    if service:
-      service.clean()
-      
-      logger.info(f"Micro(Stopped) {uid}, {service.app_name}")
+    if service is None:
+      return None
+    service.clean()
+
+    logger.info(f"Micro(Stopped) {uid}, {service.app_name}")
 
   # Stop services by app_name
   def stop_services(self, app_name: str, force: bool = False) -> None:
@@ -296,9 +304,7 @@ class MicroServices:
     for s in self._active.values():
       s.clean()
 
-
 micro = MicroServices()
-
 
 @srv.on("startup")
 def startup(core) -> None:
@@ -325,13 +331,9 @@ def stop_service(request: Request, uid: str, _ = Depends(get_app)):
 
   return srv.ok()
 
-class ServiceInputModel(BaseModel):
-  uid: str
-  data: str
-
-@srv.router.post("/send")
-async def send_service_input(request: Request, uid: str, payload: ServiceInputModel, _ = Depends(get_app)):
-  await micro.get_service(payload.uid).send(payload.data)
+@srv.router.get("/stop-all")
+def stop_all_service(request: Request, app = Depends(get_app)):
+  micro.stop_services(app.name, True)
 
   return srv.ok()
 
@@ -339,8 +341,9 @@ async def send_service_input(request: Request, uid: str, payload: ServiceInputMo
 def get_service_output(request: Request, uid: str, _ = Depends(get_app)):
   return micro.get_service(uid).get_output()
 
-@srv.router.get("/stop-all")
-def stop_all_service(request: Request, app = Depends(get_app)):
-  micro.stop_services(app.name, True)
+@srv.router.post("/send")
+async def send_service_input(request: Request, uid: str, payload: ServiceInputModel, _ = Depends(get_app)):
+  await micro.get_service(payload.uid).send(payload.data)
 
   return srv.ok()
+

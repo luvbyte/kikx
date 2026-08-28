@@ -347,7 +347,7 @@ def thumbnail(request: Request, filename: str):
       thumbnail_path,
       media_type="application/octet-stream"
     )
-  
+
   return FileResponse(
     path,
     media_type="application/octet-stream"
@@ -356,11 +356,12 @@ def thumbnail(request: Request, filename: str):
 @srv.router.get("/list")
 def list_files(
   request: Request,
-  directory: str,
-  offset: int = 0,
-  limit: int = 50,
+  directory: str,       # Files directory
+  offset: int = 0,      # start offset
+  limit: int = -1,      # limit files
   sort: str = "name",   # name | size | modified
-  asc: bool = True,
+  asc: bool = True,     # files sorting order
+  thumbnails=True       # Generate thumbnails
 ):
   dir_path = Path(resolve_path(request, directory, True))
 
@@ -368,7 +369,7 @@ def list_files(
     srv.exception(404, "Directory not found")
 
   offset = max(0, offset)
-  limit = max(1, min(limit, 500))
+  limit = max(1, min(limit, 500)) if limit > 0 else None
 
   try:
     entries = list(dir_path.iterdir())
@@ -398,12 +399,13 @@ def list_files(
 
     files = []
     
-    for path in entries[offset:offset + limit]:
+    for path in entries[offset:offset + limit] if limit else entries:
       try:
         files.append(get_path_info(path))
         # If its image then generate thumbnail
         if (
-          path.is_file()
+          thumbnail
+          and path.is_file()
           and path.suffix.lower() in IMAGE_EXTENSIONS
         ):
           thumb = joinpath(path.parent / ".thumbnails", path.name)
@@ -423,7 +425,7 @@ def list_files(
       "limit": limit,
       "count": len(files),
       "total": total,
-      "has_more": offset + len(files) < total,
+      "has_more": offset + len(files) < total if limit else False,
       "sort": sort,
       "asc": asc,
       "files": files,

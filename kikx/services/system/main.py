@@ -87,10 +87,13 @@ async def alert(request: Request, payload: AlertModel) -> None:
 
     "icon": f"/public/app/{app.name}/{app.manifest.icon}",
 
+    "label": payload.label if payload.label and len(payload.label) > 0 else None,
     "message": payload.message,
     "type": payload.type,
     "extra": payload.extra,
     "priority": payload.priority,
+    
+    "sticky": payload.sticky,
     
     # Add timestamp (ISO 8601, UTC)
     "createdAt": get_timestamp() #  datetime.now(timezone.utc).isoformat()

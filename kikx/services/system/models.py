@@ -1,13 +1,17 @@
 from typing import Literal, Any
 from pydantic import BaseModel, Field
 
+EXTRATYPES = str | int | float | bool | list[str]
 
 class AlertModel(BaseModel):
+  message: str
+
   uid: str | None = None
   type: Literal['info', 'warning', 'success', 'error'] = "info"
-  message: str
-  extra: dict = Field(default_factory=dict)
+  label: str | None = None
+  extra: dict[str, EXTRATYPES] = Field(default_factory=dict)
   priority: Literal['less', 'high', 'normal'] = 'normal'
+  sticky: bool = False
   silent: bool = False
 
 class UserSettingsModel(BaseModel):

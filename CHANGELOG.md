@@ -111,3 +111,9 @@
 ### Updates
 - Changed app tasks module kikx env variables works without shell option
 
+## [0.3.5]
+### Added
+- Alert label, sticky
+
+### Updates
+- FS list files update limit can be set to < 0 for all files and thumbnail generate option

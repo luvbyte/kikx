@@ -12,7 +12,7 @@ PRE_INSTALL_UI = {
   # MUI
   "mui": (
     "https://github.com/luvbyte/kikx-mui",
-    "v0.3.4",
+    "v0.3.5",
     True
   ),
 }
