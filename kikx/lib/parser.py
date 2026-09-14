@@ -1,28 +1,33 @@
 import json
+
 from pathlib import Path
-from typing import IO, Any, Optional, Type, Union
+from typing import IO, Any, Optional, Type, Union, Generic, TypeVar
+
 from pydantic import BaseModel, ValidationError
-
-from typing import Generic, TypeVar
-
 
 
 T = TypeVar("T", bound=BaseModel)
 
 
-
-def parse_file(
-  file: IO,
-  model: Optional[Type[BaseModel]] = None,
-  parse_type: str = "json"
-) -> Any:
+def load_or_create_config(path: Path, model: Type[T]) -> T:
   try:
-    if parse_type == "json":
-      data = json.load(file)
-    else:
-      raise ValueError(f"Unsupported parse type: {parse_type}")
+    data = path.read_json()
+    return model.model_validate(data)
+
+  except Exception:
+    config = model()
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
+
+    return config
+
+
+def parse_file(file: IO, model: Optional[Type[BaseModel]] = None) -> Any:
+  try:
+    data = json.load(file)
   except Exception as e:
-    raise ValueError(f"Failed to parse file as {parse_type}") from e
+    raise ValueError("Failed to parse file") from e
 
   if model is None:
     return data
@@ -33,44 +38,50 @@ def parse_file(
     raise ValueError(f"Invalid structure for model {model.__name__}") from e
 
 
-def parse_config(
-  file_path: Union[str, Path],
-  model: Optional[Type[BaseModel]] = None,
-  parse_type: str = "json"
-) -> Any:
+def parse_config(file_path: Union[str, Path], model: Optional[Type[BaseModel]] = None) -> Any:
   file_path = Path(file_path)
 
   try:
-    mode = "rb" if parse_type == "toml" else "r"
-    with open(file_path, mode) as file:
-      return parse_file(file, model, parse_type)
+    with open(file_path, "r") as file:
+      return parse_file(file, model)
 
   except FileNotFoundError as e:
     raise FileNotFoundError(f"Config file not found: {file_path}") from e
 
   except json.JSONDecodeError as e:
-    raise ValueError(f"Invalid {parse_type.upper()} format in {file_path}") from e
+    raise ValueError(f"Invalid Json format in {file_path}") from e
 
   except Exception as e:
     raise RuntimeError(f"Unexpected error parsing {file_path}") from e
 
 
 class ParseConfig(Generic[T]):
-  def __init__(self, path: Path, model: type[T]) -> None:
+  def __init__(self, path: Path, model: type[T], lorc=False) -> None:
     self.path = path
     self.model = model
-    self._data: T = self.load()
+
+    try:
+      self.load()
+    except Exception:
+      if not lorc:
+        raise
+      self.set_default_config()
 
   @property
   def data(self) -> T:
     return self._data
+
+  @property
+  def data_obj(self) -> dict:
+    return self.data.model_dump()
+
+  def set_default_config(self):
+    self._data = self.model()
+    self.save()
 
   def load(self) -> T:
     self._data = parse_config(self.path, self.model)
     return self._data
 
   def save(self) -> None:
-    self.path.write_text(
-      self._data.model_dump_json(indent=2),
-      encoding="utf-8",
-    )
+    self.path.write_text(self.data.model_dump_json(indent=2), encoding="utf-8")

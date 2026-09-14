@@ -1,5 +1,4 @@
-from core.models.ui_models import UIConfigModel
-
+from core.models.ui import UIConfigModel
 
 
 class ClientUI:

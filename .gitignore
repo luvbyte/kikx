@@ -88,6 +88,4 @@ private/
 backup/
 
 # FS
-tempfs/
-kikxfs/
-devfs/
+volumes/

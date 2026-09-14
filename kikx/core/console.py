@@ -1,20 +1,24 @@
 import os
 import shutil
-from typing import Any
+
 from datetime import datetime
+from typing import Any
 
 
 B1 = r"""
-.-. .-')          .-. .-') ) (`-.      
-\  ( OO )         \  ( OO ) ( OO ).    
-,--. ,--.  ,-.-') ,--. ,--.(_/.  \_)-. 
-|  .'   /  |  |OO)|  .'   / \  `.'  /  
-|      /,  |  |  \|      /,  \     /\  
-|     ' _) |  |(_/|     ' _)  \   \ |  
-|  .   \  ,|  |_.'|  .   \   .'    \_) 
-|  |\   \(_|  |   |  |\   \ /  .'.  \  
-`--' '--'  `--'   `--' '--''--'   '--' """
+.-. .-')          .-. .-') ) (`-.
+\  ( OO )         \  ( OO ) ( OO ).
+,--. ,--.  ,-.-') ,--. ,--.(_/.  \_)-.
+|  .'   /  |  |OO)|  .'   / \  `.'  /
+|      /,  |  |  \|      /,  \     /\
+|     ' _) |  |(_/|     ' _)  \   \ |
+|  .   \  ,|  |_.'|  .   \   .'    \_)
+|  |\   \(_|  |   |  |\   \ /  .'.  \
+`--' '--'  `--'   `--' '--''--'   '--'
+"""
 
+
+# ---------------------- Colors
 class Color:
   RESET = "\033[0m"
 
@@ -34,7 +38,7 @@ class Color:
   CYAN = "\033[36m"
   WHITE = "\033[37m"
 
-  # Bright Foreground
+  # Bright foreground
   BRIGHT_BLACK = "\033[90m"
   BRIGHT_RED = "\033[91m"
   BRIGHT_GREEN = "\033[92m"
@@ -51,92 +55,92 @@ class Color:
   BG_YELLOW = "\033[43m"
 
 
+# ---------------------- Console
 class Console:
   def __init__(self, width: int | None = None) -> None:
-    # Auto-detect terminal width if not provided
     self.width: int = width or shutil.get_terminal_size().columns
 
-  # Clear screen
+  # ---------------------- Output
   def clear(self) -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
-  # Time
-  def _time(self) -> Any:
+  def _time(self) -> str:
     return datetime.now().strftime("%H:%M:%S")
 
-  # Color Text
   def color(self, text: Any, *styles) -> str:
     return "".join(styles) + str(text) + Color.RESET
 
-  # Print new lines
   def newline(self, n: int = 1) -> None:
     self.print("\n" * n, end="")
 
-  # Print
   def print(self, *args, **kwargs) -> None:
     print(*args, **kwargs)
 
-  # Write
   def write(self, *text) -> None:
     self.print(*text, end="", flush=True)
 
-  # Print text center
   def print_center(self, text: Any) -> None:
     if not isinstance(text, str):
       text = str(text)
 
-    lines = text.split("\n")
-    for line in lines:
+    for line in text.split("\n"):
       print(line.center(self.width))
-  
-  # Print center title
+
   def title(self, text: str) -> None:
     self.print_center(f"\n[ ======== [ {text} ] ======== ]\n")
 
-  # Print banner
   def print_banner(self) -> None:
     self.print_center(B1)
 
-  # Log
-  def log(self, *text, sep: str = " ", end: str = "\n", timestamp: bool = False) -> None:
+  # ---------------------- Logs
+  def log(
+    self,
+    *text,
+    sep: str = " ",
+    end: str = "\n",
+    timestamp: bool = False,
+  ) -> None:
     if timestamp:
-      self.print(self.color(f"[{self._time()}]", Color.BRIGHT_BLACK), end=" ")
+      self.print(
+        self.color(f"[{self._time()}]", Color.BRIGHT_BLACK),
+        end=" ",
+      )
+
     self.print(*text, sep=sep, end=end)
-  
-  # Log Info
+
   def info(self, *text) -> None:
     self.print(self.color("[-]", Color.CYAN, Color.BOLD), *text)
 
-  # Log Success
   def success(self, *text) -> None:
     self.print(self.color("[+]", Color.GREEN, Color.BOLD), *text)
 
-  # Log Warning
   def warning(self, *text) -> None:
     self.print(self.color("[*]", Color.YELLOW, Color.BOLD), *text)
 
-  # Log Error
   def error(self, *text) -> None:
     self.print(self.color("[x]", Color.RED, Color.BOLD), *text)
 
-  # Log Debug
   def debug(self, *text) -> None:
     self.print(self.color("[#]", Color.MAGENTA), *text)
 
-  # Ask Input
+  # ---------------------- Input
   def ask(self, prompt: str = "> ", default: Any | None = None) -> str | Any:
-    value = input(self.color(prompt + (f" ({default}) " if default is not None else ""), Color.GREEN))
+    suffix = f" ({default}) " if default is not None else ""
+    value = input(self.color(prompt + suffix, Color.GREEN))
+
     if value == "" and default is not None:
       return default
+
     return value
-  
-  # Ask Input (y/n)
+
   def ask_yes_or_no(self, prompt: str) -> bool:
     while True:
       result = self.ask(prompt + " (Y/n) ").strip().lower()
+
       if result in ["yes", "y"]:
         return True
-      elif result in ["no", "n"]:
+
+      if result in ["no", "n"]:
         return False
-      else:
-        self.print("Please enter yes or no (y/n).")
+
+      self.print("Please enter yes or no (y/n).")

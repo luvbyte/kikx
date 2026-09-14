@@ -3,14 +3,12 @@
 ⚠️ Note: KIKX is currently under active development. Features may change, break, or be incomplete as the project evolves.
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)
+![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
 ## 🚀 Overview
 
-**Kikx** is a web-based virtual operating system server built with modern frontend technologies and a Python-powered backend.
-
-It acts as an application runtime environment where apps (built using HTML, CSS, and JavaScript) run inside isolated iframes, while the Kikx UI connects as a client to manage and launch them.
+**Kikx** is as an application runtime environment where apps (built using HTML, CSS, and JavaScript) run inside isolated iframes, while the Kikx UI connects as a client to manage and launch them.
 
 ## 🌟 Screenshots
 
@@ -35,38 +33,9 @@ cd kikx
 make setup
 
 # Start
-sudo make run
+make run
 
 ```
-
----
-
-## 🏗️ Architecture
-
-Kikx provides a service-oriented backend architecture powered by **FastAPI**.  
-Apps communicate securely with the server through structured services such as:
-
-- **fs** – File system operations
-- **system** – System-level interactions
-- **proxy** – External request handling
-- **kv** – App key, value storage
-- **micro** – App micro services
-- **os** – OS service
-
-These services are implemented using FastAPI `APIRouter` modules for modularity and scalability.
-
----
-
-## 🧩 Server-Side Modules
-
-Apps can also use server-side modules, such as a **tasks module**, which allows them to execute Python functions exposed using decorators (e.g., `@func`).
-
-Through this system, apps can:
-
-- Call backend Python functions  
-- Run scripts dynamically  
-- Execute long-running tasks  
-- Receive real-time output via WebSockets  
 
 ---
 
@@ -74,7 +43,6 @@ Through this system, apps can:
 
 - 🖥️ Virtual OS-like interface in the browser  
 - ⚡ FastAPI backend for high-performance Python scripting  
-- 🧠 Runs Web Apps using ui with fs, system, proxy services ...
 - ✨ Frontend (MUI) built using Vue, TailwindCSS and DaisyUI
 
 ---
@@ -82,12 +50,13 @@ Through this system, apps can:
 ## 🚀 Technologies Used
 
 - **Backend:** Python 3, FastAPI  
-- **Frontend:** Vue, TailwindCSS, DaisyUI, HTML, CSS, jQuery
+- **Frontend:** Vue, TailwindCSS, DaisyUI
 
 ---
 
 ## 🔗 Related Projects
 
+- [KIKX-DOCS](https://github.com/luvbyte/kikx-docs)
 - [KIKX-APP-SDK](https://github.com/luvbyte/kikx-sdk)
 - [KIKX-MUI](https://github.com/luvbyte/kikx-mui)
 

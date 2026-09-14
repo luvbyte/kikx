@@ -117,3 +117,20 @@
 
 ### Updates
 - FS list files update limit can be set to < 0 for all files and thumbnail generate option
+
+## [0.4.0]
+### Added
+- Tasker service
+- OS service functions
+- FS serve expose routes
+
+### Updates
+- App manifest model changes
+- Moved every config to kikx.json file
+- Removed funcx, app modules
+- Moved app tasks -> tasker service
+- Moved system sub service app -> kpm
+- FS, KV, Micro, Proxy, System services Updates
+
+### Fixed
+- Bugs

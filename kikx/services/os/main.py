@@ -1,78 +1,125 @@
-#import os
 import logging
 
 from typing import Any
-from pydantic import BaseModel
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from lib.service import create_service
 
 
-
 logger = logging.getLogger(__name__)
 
+srv = create_service(__file__)
 
-def check_permisson(request: Request):
+
+# ---------------------- Permission
+def check_permission(request: Request):
   core = srv.get_core()
 
   client, app = srv.get_client_or_app(request)
-  if app is None: # allow access for clients
+
+  # Clients are allowed to access the service.
+  if app is None:
     return core
 
-  # If app - check os exists in app config
-  if not app.config.os:
-    srv.exception(403, "Require 'os' permission")
+  # Apps must have the OS service enabled.
+  if not app.config.has_service("os"):
+    srv.exception(403, "Service 'os' not found in config")
 
   return core
 
 
-srv = create_service(__file__)
-
-# -------------- Models
+# ---------------------- Models
 class OSCommandModel(BaseModel):
   name: str
-  args: list[Any]
-  options: dict[str, Any]
+  args: list[Any] = Field(default_factory=list)
+  options: dict[str, Any] = Field(default_factory=dict)
 
 
-# -------------- OSC
-
+# ---------------------- OSC
 class OSC:
+  @property
+  def os(self):
+    return srv.get_core().os
 
-  # -------------- Funcs ex_<name>
-  def ex_echo(self, *args, **options):
-    return { "args": args, "options": options }
+  # ---------------------- Functions
+  def ex_username(self) -> str:
+    return self.os.get_username()
 
-  # --------------
-  
-  def _run(self, name: str, args, options) -> Any:
+  def ex_getenv(self, key: str, default=None) -> Any:
+    return self.os.getenv(key, default)
+
+  def ex_setenv(self, key, value) -> None:
+    return self.os.setenv(key, value)
+
+  def ex_unsetenv(self, key) -> Any:
+    return self.os.unsetenv(key)
+
+  def ex_environment(self) -> dict:
+    return self.os.environment
+
+  def ex_info(self) -> dict:
+    os = self.os
+
+    return {
+      "username": os.username,
+      "path": {
+        "home": os.home,
+        "cwd": os.cwd,
+      },
+      "info": os.info,
+      "environment": os.environment,
+    }
+
+  # ---------------------- Execute
+  def get_func(self, name: str):
     func = getattr(self, f"ex_{name}", None)
+
     if func is None:
       srv.exception(404, "Func not found")
 
-    try:
-      return func(*args, **options)
-    except Exception as e:
-      srv.exception(500, e)
+    return func
 
-  def run_client(self, client: Any, payload: OSCommandModel) -> Any:
+  def _run(
+    self,
+    name: str,
+    args: list[Any],
+    options: dict[str, Any],
+  ) -> Any:
+    func = self.get_func(name)
+    return func(*args, **options)
+
+  def run_client(
+    self,
+    client: Any,
+    payload: OSCommandModel,
+  ) -> Any:
     return self._run(payload.name, payload.args, payload.options)
 
-  def run_app(self, app: Any, payload: OSCommandModel) -> Any:
+  def run_app(
+    self,
+    app: Any,
+    payload: OSCommandModel,
+  ) -> Any:
     return self._run(payload.name, payload.args, payload.options)
 
 
-# -------------- ROUTES
-
+# ---------------------- Routes
 osc = OSC()
 
+
 @srv.router.post("/run")
-def run(payload: OSCommandModel, request: Request, core = Depends(check_permisson)):
+def run(
+  payload: OSCommandModel,
+  request: Request,
+  core=Depends(check_permission),
+):
   client, app = srv.get_client_or_app(request)
 
-  if app:
-    return osc.run_app(app, payload)
-  else:
-    return osc.run_client(client, payload)
-  
+  try:
+    return osc.run_app(app, payload) if app else osc.run_client(client, payload)
+  except HTTPException:
+    raise
+  except Exception as e:
+    srv.exception(500, e)

@@ -2,7 +2,6 @@ import hashlib
 from pathlib import Path
 
 
-
 # Hash file
 def hash_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
   hasher = hashlib.sha256()

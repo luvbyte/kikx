@@ -1,7 +1,7 @@
 import sys
+
 from os import getcwd
 from subprocess import Popen, PIPE
-
 
 
 class Process:
@@ -19,6 +19,7 @@ class Process:
     if self._process.stdout:
       output = self._process.stdout.read().decode("utf-8").strip()
       return output
+
     return ""
 
   @property
@@ -55,6 +56,7 @@ class ProcessBuilder:
       self.stdin = sys.stdin
       self.stdout = sys.stdout
       self.stderr = sys.stderr
+
     return self._run()
 
   def _run(self) -> Process:
@@ -66,6 +68,7 @@ class ProcessBuilder:
       stdout=self.stdout,
       stderr=self.stderr,
     )
+
     return Process(proc)
 
 

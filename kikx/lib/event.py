@@ -3,6 +3,7 @@ import asyncio
 
 from typing import Any
 
+
 def _filtered_args(handler, args):
   sig = inspect.signature(handler)
 
@@ -16,65 +17,74 @@ def _filtered_args(handler, args):
   ]
 
   # If handler accepts *args, pass everything
-  has_varargs = any(
-    p.kind == inspect.Parameter.VAR_POSITIONAL
-    for p in sig.parameters.values()
-  )
+  has_varargs = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
 
   if has_varargs:
     return args
 
   return args[:len(positional)]
 
-# Events
+
+# ---------------------- Events
+
 class Events:
   def __init__(self) -> None:
     self._events: dict[str, Any] = {}
-  
+
   # Registered Events Info
   def info(self) -> dict[str, Any]:
     return {
-      "registered": { name: len(f_list) for name, f_list in self._events.items() }
+      "registered": {name: len(f_list) for name, f_list in self._events.items()}
     }
-  
+
   # Add event handler
   def add_event(self, event: str, handler) -> None:
     if event not in self._events:
       self._events[event] = []
+
     self._events[event].append(handler)
 
   # Emit events in order
-  async def emit_order(self, event: str, *args) -> None:
+  async def emit_order(self, event: str, *args, ignore_errors: bool = True) -> None:
     handlers = self._events.get(event, [])
+
     for handler in handlers:
       call_args = _filtered_args(handler, args)
-      
-      if inspect.iscoroutinefunction(handler):
-        await handler(*call_args)
-      else:
-        handler(*call_args)
-  
+
+      try:
+        if inspect.iscoroutinefunction(handler):
+          await handler(*call_args)
+        else:
+          handler(*call_args)
+      except Exception as e:
+        if not ignore_errors:
+          raise e
+
   # Emit event
-  async def emit(self, event: str, *args) -> None:
+  async def emit(self, event: str, *args, ignore_errors: bool = True) -> None:
     handlers = self._events.get(event, [])
     tasks = []
 
     for handler in handlers:
       call_args = _filtered_args(handler, args)
-      
+
       if inspect.iscoroutinefunction(handler):
         tasks.append(handler(*call_args))
       else:
-        handler(*call_args)
+        try:
+          handler(*call_args)
+        except Exception as e:
+          if not ignore_errors:
+            raise e
 
     if tasks:
-      await asyncio.gather(*tasks)
+      await asyncio.gather(*tasks, return_exceptions=ignore_errors)
 
   # Emit async
   async def emit_async(self, event: str, *args, callback=None) -> None:
     task = asyncio.create_task(self.emit(event, *args))
     task.add_done_callback(callback or self._handle_task_result)
-  
+
   # Handle async emit handler results
   def _handle_task_result(self, task):
     if task.cancelled():

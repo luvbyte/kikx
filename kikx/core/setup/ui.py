@@ -1,36 +1,24 @@
-import shutil
-
-from lib.utils import joinpath
+from config.setup import PRE_INSTALL_UI
 from core.kpm import UIInstaller
 
 from .pkg import fetch_from_github, is_outdated
 
 
-
-# name: (repo, tag, required: bool)
-PRE_INSTALL_UI = {
-  # MUI
-  "mui": (
-    "https://github.com/luvbyte/kikx-mui",
-    "v0.3.5",
-    True
-  ),
-}
-
-# Install UI
+# ---------------------- UI Actions
 async def install_ui(core, url, name, tag):
-  # Install
   def install(extracted_path, source):
     UIInstaller(core, name, extracted_path).install(force=True)
 
   await fetch_from_github(url, name, install, tag=tag)
 
+
 def get_ui_version(core, name) -> str:
   return core.user.load_ui_config(name).version
 
-# Precheck UI
+
+# ---------------------- Precheck
 async def pre_check_ui(core) -> None:
-  installed = set(core.auth.user_config.ui)
+  installed = core.user.get_installed_uis()
 
   for name, (url, tag, required) in PRE_INSTALL_UI.items():
     is_installed = name in installed
@@ -43,11 +31,9 @@ async def pre_check_ui(core) -> None:
           continue
 
         core.scr.warning(f"UI: {name} outdated. Updating...")
-        
         action = "Updated"
       else:
         core.scr.warning(f"UI: {name} not found. Installing...")
-
         version = None
         action = "Installed"
 
@@ -57,6 +43,7 @@ async def pre_check_ui(core) -> None:
         core.scr.success(f"UI {action}: ({name}) {version} -> {tag}")
       else:
         core.scr.success(f"UI {action}: ({name}) {tag}")
+
     except Exception as e:
       operation = "Updating" if is_installed else "Installing"
       core.scr.error(f"Error {operation} UI ({name}): {e}")
@@ -65,5 +52,7 @@ async def pre_check_ui(core) -> None:
         core.scr.info("Quitting...")
         raise SystemExit
 
+
+# ---------------------- Setup
 async def setup_ui(core) -> None:
   await pre_check_ui(core)

@@ -1,18 +1,17 @@
 
-
 def main() -> None:
   from core.global_config import GlobalConfig
-  
+
   gconfig = GlobalConfig()
 
   print("Starting kikx...")
 
   gconfig.kikx.dev_mode = False
 
-  from kikx import kikx_app, core
+  from kikx import kikx_app
   import uvicorn
 
-  server_config = core.config.kikx.server
+  server_config = kikx_app.core.config.server
 
   config = uvicorn.Config(
     app=kikx_app,
@@ -20,18 +19,21 @@ def main() -> None:
     port=server_config.port,
     workers=1,
     log_level=server_config.log_level,
-    timeout_graceful_shutdown=server_config.timeout_graceful_shutdown
+    access_log=server_config.access_log,
+    timeout_graceful_shutdown=server_config.timeout
   )
 
-  core.scr.print_banner()
-  core.scr.title(f"ᥫ᭡ {core.author} - v{core.version}")
+  kikx_app.core.scr.print_banner()
+  kikx_app.core.scr.title(f"ᥫ᭡ {kikx_app.core.author} - v{kikx_app.core.version}")
 
   server = uvicorn.Server(config)
 
   try:
     server.run()
   except KeyboardInterrupt:
-    core.scr.print("\nBye :)")
+    pass
+  except Exception:
+    raise
 
 
 if __name__ == "__main__":

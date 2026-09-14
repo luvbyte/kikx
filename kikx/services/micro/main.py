@@ -1,89 +1,82 @@
 import os
-import pwd
 import sys
-import logging
-import asyncio
-import shlex
+import pwd
 import signal
-from pathlib import Path
-from fastapi import APIRouter, Request, Depends
+import asyncio
+import logging
 
-from lib.utils import generate_uuid, joinpath
-from lib.parser import parse_config
-from lib.service import create_service
-
-from typing import Any
+from fastapi import Depends, Query, Request
 from pydantic import BaseModel
 
+from lib.os import get_username
+from lib.service import create_service
+from lib.utils import generate_uuid, joinpath
+
+from core.models.services import MicroConfigModel
 
 
 logger = logging.getLogger(__name__)
 
+srv = create_service(__file__, "Micro services for apps")
 
-srv = create_service(__file__, "Micro services")
 
-# -------------- Models
-
-class ServiceModel(BaseModel):
-  name: str
-
-class ServiceConfig(BaseModel):
-  cmd: str
-  shell: bool = False
-  cwd: str = "{data}"
-  forever: bool = False
-
+# ---------------------- Models
 class ServiceInputModel(BaseModel):
-  uid: str
+  name: str
   data: str
 
+
+# ---------------------- Utils
 def get_app(request: Request):
   _, app = srv.get_client_app(request)
 
-  if not app.config.micro:
-    srv.exception(403, "Permission denied.")
+  if not app.config.has_service("micro"):
+    srv.exception(403, "Service 'micro' not found in config")
 
   return app
 
-# -------------- Services
 
-class SafeDict(dict):
-  def __missing__(self, key: str) -> str:
-    return '{' + key + '}'
+# ---------------------- Micro Service
+class Micro:
+  def __init__(
+    self,
+    name: str,
+    config: MicroConfigModel,
+    app,
+  ) -> None:
+    self.name = name
+    self.config = config
 
-class MService:
-  def __init__(self, name: str, app: Any) -> None:
-    self.name: str = name
-    self.micro_service_path = joinpath(app.get_app_path() / "micro", self.name)
-    
-    self.options: ServiceConfig = parse_config(self.micro_service_path / "micro.json", ServiceConfig)
+    self.script_path = joinpath(
+      app.get_app_path() / "micro",
+      self.name,
+      self.config.main,
+    )
 
-    self.app_id: str = app.id
-    self.sudo: bool = app.is_sudo
-    self.app_name: str = app.name
+    if not self.script_path.is_file():
+      raise FileNotFoundError("main file not found")
 
-    self.uid: str = generate_uuid()
+    self.app_id = app.id
+    self.app_name = app.name
+    self.sudo = app.is_sudo
 
     self.output: list[str] = []
-    self.error_text: str = None
-    self.started: bool = False
-    self.completed: bool = False
-    self._cleaned: bool = False
+    self.error_text: str | None = None
+    self.started = False
+    self.completed = False
+
+    self.task: asyncio.Task | None = None
+    self.started_event = asyncio.Event()
 
     self.env: dict[str, str] = os.environ.copy()
 
-    self.cwd: str = self.options.cwd.format_map(SafeDict({
-      "data": str(app.get_app_data_path())
-    }))
+    self.cmd: list[str] = [
+      sys.executable,
+      *([] if self.config.stdout else ["-u"]),
+      str(self.script_path),
+    ]
 
-    if not Path(self.cwd).is_dir():
-      srv.exception(404, "Working directory not found")
-
-    self.cmd: str = self.options.cmd.format_map(SafeDict({
-      "app": str(app.get_app_path()),
-      "micro": str(self.micro_service_path),
-      "data": str(app.get_app_data_path())
-    }))
+    self.cwd = str(app.get_app_data_path())
 
     self.env.update({
       "KIKX_APP_ID": app.id,
@@ -91,12 +84,8 @@ class MService:
       "KIKX_STORAGE_PATH": str(app.user.storage_path),
       "KIKX_APP_PATH": str(app.get_app_path()),
       "KIKX_APP_DATA_PATH": str(app.get_app_data_path()),
-      "KIKX_HOME_PATH": str(app.get_home_path())
-    })
-    
-    self.env.update({
-      # 1. app/bin | 2. storage/bin | 3. kikx path
-      "PATH": f'{str(app.app_path / "bin")}:{app.user.get_path_env()}:{str(Path(sys.executable).parent)}:{self.env.get("PATH", "")}'
+      "KIKX_APP_CACHE_PATH": str(app.get_app_cache_path()),
+      "KIKX_HOME_PATH": str(app.get_home_path()),
     })
 
     self.process: asyncio.subprocess.Process | None = None
@@ -105,24 +94,23 @@ class MService:
 
   def info(self) -> dict:
     return {
-      "uid": self.uid,
       "app": {
         "id": self.app_id,
         "name": self.app_name,
-        "sudo": self.sudo
+        "sudo": self.sudo,
       },
       "status": {
         "started": self.started,
-        "completed": self.completed
+        "running": self.is_running,
+        "completed": self.completed,
       },
       "process": {
         "cmd": self.cmd,
         "cwd": self.cwd,
-        "shell": self.shell,
         "returncode": self.returncode,
-        "error": self.error_text
+        "error": self.error_text,
       },
-      "is_forever": self.is_forever
+      "config": self.config,
     }
 
   @property
@@ -130,220 +118,354 @@ class MService:
     return None if self.process is None else self.process.returncode
 
   @property
-  def shell(self) -> bool:
-    return self.options.shell
+  def is_running(self) -> bool:
+    return (
+      self.process is not None
+      and self.process.returncode is None
+      and self.pgid is not None
+    )
 
   @property
-  def is_forever(self) -> bool:
-    return self.options.forever
+  def is_persistent(self) -> bool:
+    return self.config.persistent
 
   def get_user(self) -> str:
-    return "root" if self.sudo else "nobody"
+    # Use the original user when running through sudo.
+    username = os.environ.get("SUDO_USER", get_username())
 
+    if username == "root":
+      return "root" if self.sudo else "nobody"
+
+    return username
+
+  # ---------------------- Process
   def demote(self, user_name: str):
     def result():
       pw = pwd.getpwnam(user_name)
       os.setgid(pw.pw_gid)
       os.setuid(pw.pw_uid)
+
     return result
 
   def _create_process(self) -> asyncio.subprocess.Process:
-    if self.sudo:
-      preexec = None  # stay root
-    else:
-      preexec = self.demote(self.get_user())
+    return asyncio.create_subprocess_exec(
+      *self.cmd,
+      env=self.env,
+      stdout=asyncio.subprocess.PIPE if self.config.stdout else None,
+      stdin=asyncio.subprocess.PIPE,
+      stderr=asyncio.subprocess.PIPE,
+      cwd=self.cwd,
+      start_new_session=True,
+      preexec_fn=self.demote(self.get_user()),
+      limit=10 * 1024 * 1024,  # 10 MB
+    )
 
-    if self.shell:
-      return asyncio.create_subprocess_shell(
-        self.cmd,
-        env=self.env,
-        stdout=asyncio.subprocess.PIPE,
-        stdin=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=self.cwd,
-        start_new_session=True,
-        preexec_fn=preexec,
-        limit=10 * 1024 * 1024 # 10 mb
-      )
-    else:
-      return asyncio.create_subprocess_exec(
-        *shlex.split(self.cmd),
-        env=self.env,
-        stdout=asyncio.subprocess.PIPE,
-        stdin=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=self.cwd,
-        start_new_session=True,
-        preexec_fn=preexec,
-        limit=10 * 1024 * 1024 # 10 mb
-      )
+  async def wait_for_complete(self) -> None:
+    if self.config.stdout and self.process.stdout:
+      while True:
+        try:
+          stdout_line = await asyncio.wait_for(
+            self.process.stdout.readline(),
+            timeout=30,
+          )
 
-  # Start
-  async def run(self) -> None:
-    self.process = await self._create_process()
-    self.started = True
-    self._cleaned = False
-    self.sid = os.getsid(self.process.pid)
-    self.pgid = os.getpgid(self.process.pid)
-  
-    while True:
-      try:
-        stdout_line = await asyncio.wait_for(self.process.stdout.readline(), timeout=30)
-        if not stdout_line:
-          break
+          if not stdout_line:
+            break
 
-        self.output.append(stdout_line.decode())
-      except asyncio.TimeoutError:
-        if self.process.returncode is not None:
-          break
+          self.output.append(stdout_line.decode())
+
+        except asyncio.TimeoutError:
+          if self.process.returncode is not None:
+            break
 
     await self.process.wait()
 
-    stderr = await self.process.stderr.read()
-    if stderr:
-      self.error_text = stderr.decode()
+    if self.process.stderr:
+      stderr = await self.process.stderr.read()
 
-    self.completed = True
-    
-    return self.uid
-  
+      if stderr:
+        self.error_text = stderr.decode()
+
+  # ---------------------- Run
+  async def run(self) -> None:
+    try:
+      self.process = await self._create_process()
+
+      self.started = True
+      self.sid = os.getsid(self.process.pid)
+      self.pgid = os.getpgid(self.process.pid)
+
+      self.started_event.set()
+
+      await self.wait_for_complete()
+
+    except Exception as e:
+      self.error_text = str(e)
+      logger.exception("Micro service '%s' failed", self.name)
+      self.started_event.set()
+
+    finally:
+      self.completed = True
+
+  # ---------------------- Output
   def get_output(self) -> list[str]:
     return self.output
-  
-  async def send(self, data: str) -> None:
-    if not self.process or self.process.returncode is not None:
-      return
 
-    self.process.stdin.write(data.encode() + b'\n')
+  # ---------------------- Input
+  async def send(self, data: str) -> None:
+    if not self.is_running or self.process.stdin is None:
+      raise RuntimeError("Task not running")
+
+    self.process.stdin.write(data.encode() + b"\n")
     await self.process.stdin.drain()
 
-  def _force_kill(self) -> None:
-    if (
-      self.process is None
-      or self.process.returncode is not None
-      or self.pgid is None
-    ):
-      logger.info(f"Task {self.id} already finished or not fully started")
+  # ---------------------- Kill
+  async def _force_kill(self) -> None:
+    if not self.is_running:
+      logger.info(
+        "Micro service '%s' already finished or not fully started",
+        self.name,
+      )
       return
 
     try:
       os.killpg(self.pgid, signal.SIGKILL)
+      logger.info("Micro service '%s' force killed", self.name)
     except ProcessLookupError:
       pass
 
-  # Kill task
-  def clean(self) -> None:
-    if self._cleaned:
+  async def _kill(self, wait: int = 3) -> None:
+    if not self.is_running:
+      logger.info(
+        "Micro service '%s' already finished or not fully started",
+        self.name,
+      )
       return
-    self._force_kill()
-    self._cleaned = True
 
+    try:
+      os.killpg(self.pgid, signal.SIGTERM)
+    except ProcessLookupError:
+      return
+
+    try:
+      await asyncio.wait_for(self.process.wait(), timeout=wait)
+      logger.info(
+        "Micro service '%s' gracefully stopped",
+        self.name,
+      )
+    except asyncio.TimeoutError:
+      await self._force_kill()
+
+  # ---------------------- Clean
+  async def clean(self) -> None:
+    await self._kill()
+
+
+# ---------------------- Service Manager
 class MicroServices:
   def __init__(self) -> None:
-    self._active: dict[str, MService] = {}
-  
-  # Get service or raise
-  def get_service(self, uid: str) -> MService:
-    service = self._active.get(uid)
-    if not service:
-      srv.exception(404, "Service not found")
+    self._active: dict[str, dict[str, Micro]] = {}
 
-    return service
+  def get_active_services(self, app_name: str) -> dict[str, dict]:
+    app_services = self._active.get(app_name, {})
 
-  # Get services by name
-  def get_active_services(self, app_name: str) -> list[dict]:
-    return [s.info() for s in self._active.values() if s.app_name == app_name]
+    return {
+      name: service.info()
+      for name, service in app_services.items()
+    }
 
-  def _task_done(self, uid: str) -> None:
-    pass
+  def get_service(
+    self,
+    app_name: str,
+    name: str,
+  ) -> Micro | None:
+    return self._active.get(app_name, {}).get(name)
 
-  # Start service
-  async def start_sevice(self, app: Any, name: str) -> dict:
-    service = next(
-      (s for s in self._active.values() if s.name == name),
-      None,
-    )
-    if service:
+  # ---------------------- Start
+  async def start_service(self, app, name: str) -> dict:
+    app_services = self._active.setdefault(app.name, {})
+
+    # Return the existing service if already active.
+    service = app_services.get(name)
+
+    if service is not None:
       return service.info()
 
-    service = MService(name, app)
-    
-    self._active[service.uid] = service
+    micro_config = app.config.get_service_config("micro")
+    config = micro_config.get(name) if micro_config else MicroConfigModel()
 
-    task = asyncio.create_task(service.run())
-    task.add_done_callback(self._task_done)
+    service = Micro(name, config, app)
+    app_services[name] = service
 
-    logger.info(f"Micro({app.name}) start with {service.info()}")
+    service.task = asyncio.create_task(service.run())
+
+    await service.started_event.wait()
 
     return service.info()
-  
-  # Stop service
-  def stop_service(self, uid: str) -> None:
-    service = self._active.pop(uid, None)
+
+  # ---------------------- Stop
+  async def stop_service(self, app, name: str) -> None:
+    services = self._active.get(app.name, {})
+    service = services.get(name)
+
     if service is None:
-      return None
-    service.clean()
+      raise RuntimeError(
+        f"Service {name} is not running; cannot stop it."
+      )
 
-    logger.info(f"Micro(Stopped) {uid}, {service.app_name}")
+    await service.clean()
+    del services[name]
 
-  # Stop services by app_name
-  def stop_services(self, app_name: str, force: bool = False) -> None:
-    services = [s for s in self._active.values() if s.app_name == app_name]
-    for s in services:
-      # If forever tasks
-      if s.is_forever and not force:
+    if not services:
+      del self._active[app.name]
+
+  # ---------------------- Stop All
+  async def stop_all(self, app_name: str) -> None:
+    services = self._active.get(app_name)
+
+    if not services:
+      return
+
+    for name, service in list(services.items()):
+      await service.clean()
+      del services[name]
+
+    del self._active[app_name]
+
+  # ---------------------- App Close
+  async def on_close_app(
+    self,
+    _,
+    app_name: str,
+    force: bool = False,
+  ) -> None:
+    core = srv.get_core()
+
+    # Other instances of this app are still active.
+    if core.get_apps_by_name(app_name):
+      return
+
+    services = self._active.get(app_name)
+
+    if not services:
+      return
+
+    # Keep persistent services unless forced.
+    for name, service in list(services.items()):
+      if service.is_persistent and not force:
         continue
-      self.stop_service(s.uid)
 
-  # on app close
-  def on_close_app(self, app_id: str, app_name: str) -> None:
-    self.stop_services(app_name)
+      await service.clean()
+      del services[name]
 
-  # Stop services on shutdown
-  def on_close(self) -> None:
-    for s in self._active.values():
-      s.clean()
+    if not services:
+      del self._active[app_name]
+
+  # ---------------------- Shutdown
+  async def on_close(self) -> None:
+    services = [
+      service
+      for app_services in self._active.values()
+      for service in app_services.values()
+    ]
+
+    await asyncio.gather(
+      *(service.clean() for service in services),
+      return_exceptions=True,
+    )
+
+    self._active.clear()
+
 
 micro = MicroServices()
 
+
+# ---------------------- Lifecycle
 @srv.on("startup")
 def startup(core) -> None:
   core.events.add_event("app:close", micro.on_close_app)
 
+
 @srv.on("shutdown")
-def shutdown(_) -> None:
-  micro.on_close()
+async def shutdown(_) -> None:
+  await micro.on_close()
 
-# -------------- ROUTES
 
+# ---------------------- Routes
 @srv.router.get("/list")
-def get_active_services(request: Request, app = Depends(get_app)):
-  return micro.get_active_services(app.name)
+def get_active_services(
+  request: Request,
+  app=Depends(get_app),
+):
+  try:
+    return micro.get_active_services(app.name)
+  except Exception as e:
+    srv.exception(500, e)
 
-@srv.router.post("/start")
-async def start_service(request: Request, payload: ServiceModel, app = Depends(get_app)):
-  # Get App / Client
-  return await micro.start_sevice(app, payload.name)
+
+@srv.router.get("/start")
+async def start_service(
+  name: str = Query(...),
+  app=Depends(get_app),
+):
+  try:
+    return await micro.start_service(app, name)
+  except Exception as e:
+    srv.exception(500, e)
+
 
 @srv.router.get("/stop")
-def stop_service(request: Request, uid: str, _ = Depends(get_app)):
-  micro.stop_service(uid)
+async def stop_service(
+  request: Request,
+  name: str,
+  app=Depends(get_app),
+):
+  try:
+    await micro.stop_service(app, name)
+    return srv.ok()
+  except Exception as e:
+    srv.exception(500, e)
 
-  return srv.ok()
 
 @srv.router.get("/stop-all")
-def stop_all_service(request: Request, app = Depends(get_app)):
-  micro.stop_services(app.name, True)
+async def stop_all_service(
+  request: Request,
+  app=Depends(get_app),
+):
+  try:
+    await micro.stop_all(app.name)
+    return srv.ok()
+  except Exception as e:
+    srv.exception(500, e)
 
-  return srv.ok()
 
 @srv.router.get("/output")
-def get_service_output(request: Request, uid: str, _ = Depends(get_app)):
-  return micro.get_service(uid).get_output()
+def get_service_output(
+  request: Request,
+  name: str,
+  app=Depends(get_app),
+):
+  service = micro.get_service(app.name, name)
+
+  if service is None:
+    srv.exception(404, "Service not found")
+
+  return service.get_output()
+
 
 @srv.router.post("/send")
-async def send_service_input(request: Request, uid: str, payload: ServiceInputModel, _ = Depends(get_app)):
-  await micro.get_service(payload.uid).send(payload.data)
+async def send_service_input(
+  request: Request,
+  payload: ServiceInputModel,
+  app=Depends(get_app),
+):
+  service = micro.get_service(app.name, payload.name)
 
-  return srv.ok()
+  if service is None:
+    srv.exception(404, "Service not found")
 
+  try:
+    await service.send(payload.data)
+    return srv.ok()
+  except Exception as e:
+    srv.exception(500, e)

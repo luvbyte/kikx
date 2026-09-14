@@ -1,17 +1,16 @@
 from typing import Any
 
-
-
+# remove forever
 class KVStorage:
   def __init__(self) -> None:
     self.__storage: dict[str, Any] = {}
-  
+
   def get(self, key: str, fallback: Any | None = None) -> Any | None:
     return self.__storage.get(key, fallback)
-  
+
   def set(self, key: str, value: Any) -> None:
     self.__storage[key] = value
-  
+
   def has(self, key: str) -> bool:
     return key in self.__storage
 
@@ -22,7 +21,7 @@ class KVStorage:
     return self.get(key)
 
   def pop(self, key: str, raise_error: bool = True) -> Any | None:
-    self.__storage.pop(key) if raise_error else self.__storage.pop(key, None)
+    return self.__storage.pop(key) if raise_error else self.__storage.pop(key, None)
 
   def reset(self) -> None:
     self.__storage = {}

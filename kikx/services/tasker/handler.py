@@ -1,34 +1,44 @@
-import asyncio
-import functools
-
-from typing import Any, Callable
+from typing import Any
 
 
 class Handler:
-  """Handler that manages event messages and statuses."""
+  """Handle task event messages and status updates."""
 
-  def __init__(self, handler_id: str | None, send_event: Any) -> None:
-    self.id: str | None = handler_id
+  def __init__(
+    self,
+    handler_id: str | None,
+    send_event: Any,
+  ) -> None:
+    self.id = handler_id
     self.send_event = send_event
 
+  # ---------------------- Send
   async def _send(self, data: Any) -> None:
     if self.id is None:
       return
-    try:
-      await self.send_event("handler-data", {
-        "id": self.id,
-        "data": data
-      })
-    except Exception:
-      pass  # Fail silently
 
-  async def send(self, status: str, output: Any) -> None:
-    """Send data with a specific status."""
+    try:
+      await self.send_event(
+        "tasker-data",
+        {
+          "id": self.id,
+          "data": data,
+        },
+      )
+    except Exception:
+      pass  # Handler errors should not affect the task.
+
+  async def send(
+    self,
+    status: str,
+    output: Any,
+  ) -> None:
     await self._send({
       "status": status,
       "output": output,
     })
 
+  # ---------------------- Status
   async def started(self, message: Any) -> None:
     await self.send("started", message)
 
@@ -44,6 +54,10 @@ class Handler:
   async def ended(self, message: Any) -> None:
     await self.send("ended", message)
 
-def create_handler(handler_id: str | None, send_event: Any) -> Handler:
-  """Factory method to create a handler."""
+
+# ---------------------- Factory
+def create_handler(
+  handler_id: str | None,
+  send_event: Any,
+) -> Handler:
   return Handler(handler_id, send_event)

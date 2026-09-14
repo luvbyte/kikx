@@ -20,10 +20,10 @@ venv/.installed: requirements.txt | venv
 run: venv/.installed
 	cd kikx && $(PY_PATH) main.py
 
-# cli: venv/.installed
-# 	cd kikx && ../$(PY_PATH) cli.py
+# manager: venv/.installed
+# 	cd kikx && $(PY_PATH) -m uvicorn kikx_manager:manager --reload --port 8012 --timeout-graceful-shutdown 5
 
-dev: venv/.installed
+_dev: venv/.installed
 	cd kikx && $(PY_PATH) -m uvicorn kikx:kikx_app --reload --timeout-graceful-shutdown 5
 
 setup: venv/.installed

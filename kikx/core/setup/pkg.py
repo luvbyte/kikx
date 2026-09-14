@@ -1,14 +1,13 @@
-import httpx
-import zipfile
-import tempfile
-import aiofiles
 import shutil
-
+import tempfile
+import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
-from lib.hash import hash_file
+import aiofiles
+import httpx
 
+from lib.hash import hash_file
 
 
 GITHUB_API = "https://api.github.com/repos"
@@ -29,7 +28,8 @@ HEADERS = {
   ),
 }
 
-# -------------- Parsing
+
+# ---------------------- Parsing
 def parse_github_repo(repo_url: str) -> tuple[str, str]:
   parsed = urlparse(repo_url)
 
@@ -37,21 +37,23 @@ def parse_github_repo(repo_url: str) -> tuple[str, str]:
     raise Exception("Invalid GitHub URL")
 
   parts = parsed.path.strip("/").split("/")
+
   if len(parts) < 2:
     raise Exception("Invalid GitHub repository URL")
 
   return parts[0], parts[1]
 
-# -------------- Unziping
+
+# ---------------------- Extracting
 def extract_package(uri: str | Path, temp_dir: Path) -> Path:
   path = Path(uri).resolve()
 
   if not path.exists():
     raise FileNotFoundError("Package not found")
-  
+
   if path.suffix != ".kikx":
     raise ValueError("Only .kikx packages are supported")
-  
+
   if not temp_dir.exists():
     raise RuntimeError("Failed to create temp directory")
 
@@ -72,12 +74,13 @@ def extract_package(uri: str | Path, temp_dir: Path) -> Path:
 
   return extracted_dirs[0]
 
-# -------------- Fetching
+
+# ---------------------- Fetching
 async def fetch_release_package(
   raw_temp_dir: Path,
   owner: str,
   repo: str,
-  tag: str | None
+  tag: str | None,
 ) -> tuple[dict, Path]:
   url = (
     f"{GITHUB_API}/{owner}/{repo}/releases/tags/{tag}"
@@ -89,7 +92,6 @@ async def fetch_release_package(
     timeout=TIMEOUT,
     follow_redirects=True,
   ) as client:
-
     resp = await client.get(url, headers=HEADERS)
 
     if resp.status_code == 403:
@@ -106,26 +108,30 @@ async def fetch_release_package(
     if tag and release_tag != tag:
       raise Exception(f"Requested tag {tag}, but got {release_tag}")
 
-    ui_asset = next(
-      (a for a in release.get("assets", [])
-       if a["name"].endswith(".kikx")),
-      None
+    package_asset = next(
+      (
+        asset
+        for asset in release.get("assets", [])
+        if asset["name"].endswith(".kikx")
+      ),
+      None,
     )
 
-    if not ui_asset:
+    if not package_asset:
       raise Exception("No .kikx asset found in release")
 
-    download_url = ui_asset["browser_download_url"]
-    raw_temp = raw_temp_dir / ui_asset["name"]
+    download_url = package_asset["browser_download_url"]
+    raw_temp = raw_temp_dir / package_asset["name"]
 
-    async with client.stream("GET", download_url) as r:
-      r.raise_for_status()
+    async with client.stream("GET", download_url) as response:
+      response.raise_for_status()
 
-      async with aiofiles.open(raw_temp, "wb") as f:
-        async for chunk in r.aiter_bytes(chunk_size=1024 * 1024):
-          await f.write(chunk)
+      async with aiofiles.open(raw_temp, "wb") as file:
+        async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):
+          await file.write(chunk)
 
     return release, raw_temp
+
 
 async def fetch_from_github(
   repo_url: str,
@@ -139,7 +145,12 @@ async def fetch_from_github(
   extract_temp_dir = Path(tempfile.mkdtemp())
 
   try:
-    release, raw_temp = await fetch_release_package(raw_temp_dir, owner, repo, tag)
+    release, raw_temp = await fetch_release_package(
+      raw_temp_dir,
+      owner,
+      repo,
+      tag,
+    )
 
     file_hash = hash_file(raw_temp)
 
@@ -151,13 +162,15 @@ async def fetch_from_github(
       "hash": file_hash,
     }
 
-    # Extracted path
-    func(extract_package(raw_temp, extract_temp_dir), source)
+    extracted_path = extract_package(raw_temp, extract_temp_dir)
+    func(extracted_path, source)
+
   finally:
     shutil.rmtree(raw_temp_dir, ignore_errors=True)
     shutil.rmtree(extract_temp_dir, ignore_errors=True)
 
-# -------------- Validations
+
+# ---------------------- Validation
 def is_outdated(current: str, required: str) -> bool:
   def parse(version: str):
     version = version.removeprefix("v")

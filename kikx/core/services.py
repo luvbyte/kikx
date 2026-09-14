@@ -4,11 +4,8 @@ import logging
 from typing import Any
 from pathlib import Path
 
-from core.models.kikx_models import ServicesConfigModel
-
-from lib.parser import parse_config
+from core.models.kikx import ServicesConfigModel
 from lib.utils import import_relative_module
-
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +16,7 @@ class Service:
     self.name: str = name
     self.path: Path = service_path
     self.module = import_relative_module(f"services.{name}.main", f"kikx_service_{name}")
-  
+
   def info(self) -> dict[str, Any]:
     return {
       "name": self.name,
@@ -42,16 +39,15 @@ class Service:
   def router(self) -> Any:
     return self.main.router
 
+
 class Services:
-  def __init__(self, services_config_path) -> None:
-    self.config: ServicesConfigModel = parse_config(services_config_path, ServicesConfigModel)
+  def __init__(self, kikx_config) -> None:
+    self.kikx_config = kikx_config
     self.active_services: dict[str, Service] = {}
 
-  def info(self) -> dict[str, Any]:
-    return {
-      "config": self.config.model_dump(),
-      "active": { name: s.info() for name, s in self.active_services.items() }
-    }
+  @property
+  def config(self) -> ServicesConfigModel:
+    return self.kikx_config.services
 
   def get_enabled_services(self) -> list[str]:
     return [name for name in os.listdir("services") if name not in self.config.disabled and not name.startswith("_")]
@@ -60,19 +56,14 @@ class Services:
     for name in self.get_enabled_services():
       try:
         service_path = core.config.resolve_path("services")
-  
         service = Service(name, service_path, core)
-        
-        app.include_router(
-          service.router,
-          prefix=f"/service/{name}",
-          tags=[f"Service {name.capitalize()}"]
-        )
-  
+
+        app.include_router(service.router, prefix=f"/service/{name}", tags=[f"Service {name.capitalize()}"])
+
         self.active_services[name] = service
-  
+
         await service.on_start(core)
-        
+
         core.scr.success(f"Service: {name}")
 
       except Exception as e:
