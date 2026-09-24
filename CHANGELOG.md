@@ -134,3 +134,7 @@
 
 ### Fixed
 - Bugs
+
+## [0.4.1]
+### Fixed
+- Fixed tasker cmd parsing

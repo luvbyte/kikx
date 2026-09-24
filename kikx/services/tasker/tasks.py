@@ -455,7 +455,9 @@ class Tasks:
       raise ValueError("Command not found")
 
     cmd_name = split_cmd[0]
-    cmd_args = " ".join(split_cmd[1:])
+
+    # Preserve original arguments, including quotes
+    cmd_args = cmd[len(cmd_name):].strip()
 
     return self.task_template.format_map(
       SafeDict({

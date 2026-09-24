@@ -24,7 +24,7 @@ run: venv/.installed
 # 	cd kikx && $(PY_PATH) -m uvicorn kikx_manager:manager --reload --port 8012 --timeout-graceful-shutdown 5
 
 _dev: venv/.installed
-	cd kikx && $(PY_PATH) -m uvicorn kikx:kikx_app --reload --timeout-graceful-shutdown 5
+	cd kikx && $(PY_PATH) -m uvicorn kikx:kikx_app --reload --host 0.0.0.0 --timeout-graceful-shutdown 5
 
 setup: venv/.installed
 	cd kikx && $(PY_PATH) setup.py

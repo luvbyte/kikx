@@ -93,8 +93,6 @@ class KikxApp:
 
     await self.core.on_close()
 
-    self.core.scr.title("KIKX STOPPED")
-
   async def __call__(self, scope, receive, send):
     await self.router(scope, receive, send)
 

@@ -39,7 +39,7 @@ KIKX_CONFIG = {
 PRE_INSTALL_APPS = {
   "com.kikx.appstore": (
     "https://github.com/luvbyte/kikx-appstore-app",
-    "v0.0.7", True
+    "v0.0.9", True
   ),
   "com.kikx.sessions": (
     "https://github.com/luvbyte/kikx-sessions-app",
@@ -47,11 +47,11 @@ PRE_INSTALL_APPS = {
   ),
   "com.kikx.explorer": (
     "https://github.com/luvbyte/kikx-explorer-app",
-    "v0.1.6", True
+    "v0.1.7", True
   ),
   "com.kikx.florix": (
     "https://github.com/luvbyte/kikx-florix-app",
-    "v0.1.6", False
+    "v0.1.7", False
   )
 }
 

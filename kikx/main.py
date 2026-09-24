@@ -31,7 +31,7 @@ def main() -> None:
   try:
     server.run()
   except KeyboardInterrupt:
-    pass
+    kikx_app.core.scr.title("KIKX STOPPED")
   except Exception:
     raise
 
