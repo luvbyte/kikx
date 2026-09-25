@@ -76,6 +76,14 @@ class QTask:
   def demote(self, user_name: str) -> Callable:
     def result():
       pw = pwd.getpwnam(user_name)
+
+      # See services/micro/main.py's Micro.demote for why this check exists:
+      # some sandboxed environments deny setuid/setgid even for a target
+      # identity that is already the one running, so the syscalls are only
+      # attempted when they would actually change something.
+      if pw.pw_uid == os.getuid() and pw.pw_gid == os.getgid():
+        return
+
       os.setgid(pw.pw_gid)
       os.setuid(pw.pw_uid)
 
