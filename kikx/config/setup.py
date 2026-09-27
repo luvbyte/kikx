@@ -63,7 +63,7 @@ PRE_INSTALL_UI = {
   # Default UI
   "mui": (
     "https://github.com/luvbyte/kikx-mui",
-    "v0.4.0",
+    "v0.4.2",
     True
   ),
 }

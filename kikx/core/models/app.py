@@ -153,15 +153,15 @@ class AppModel(StrictBaseModel):
   # org.author.name
   name: str = Field(
     ...,
-    min_length=1,
-    max_length=20,
-    description="App name",
+    min_length=3,
+    max_length=100,
+    description="App name or ID",
   )
 
   title: str = Field(
     ...,
     min_length=1,
-    max_length=20,
+    max_length=30,
     description="App title",
   )
 
