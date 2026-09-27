@@ -134,7 +134,7 @@
 
 ### Fixed
 - Bugs
-
-## [0.4.1]
-### Fixed
 - Fixed tasker cmd parsing
+- Skip a self-referential setuid/setgid privilege drop that Android's per-app
+  SELinux policy denies outright even as a no-op, breaking every micro service
+  and quick task under Termux

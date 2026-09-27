@@ -142,6 +142,15 @@ class Micro:
   def demote(self, user_name: str):
     def result():
       pw = pwd.getpwnam(user_name)
+
+      # Some sandboxed environments (Android's per-app SELinux policy under
+      # Termux, in particular) deny setuid/setgid outright even when the
+      # target identity is the one already running -- a pure no-op
+      # everywhere else. Skip the call when nothing would actually change,
+      # rather than failing a privilege change that was never needed.
+      if pw.pw_uid == os.getuid() and pw.pw_gid == os.getgid():
+        return
+
       os.setgid(pw.pw_gid)
       os.setuid(pw.pw_uid)
 
