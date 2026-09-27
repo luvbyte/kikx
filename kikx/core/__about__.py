@@ -1,5 +1,5 @@
 __title__ = "kikx"
-__version__ = "0.4.1"
+__version__ = "0.4.0"
 __author__ = "luvbyte"
 __email__ = "lovemelong@protonmail.com"
 
