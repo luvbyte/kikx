@@ -145,3 +145,36 @@
 - Skip a self-referential setuid/setgid privilege drop that Android's per-app
   SELinux policy denies outright even as a no-op, breaking every micro service
   and quick task under Termux
+
+## [0.4.3]
+### Changes
+- Fs list files optimized speed
+
+### Fixes
+- Proxy Service response headers
+- Fixed micro service stdout bug
+
+## Added
+- Added more 'FS Service' routes (
+  search,
+  exists,
+  list-simple,
+  stat,
+  touch,
+  disk-usage,
+  tree,
+  mime,
+  hash,
+  checksum,
+  chmod,
+  batch,
+  trash,
+  restore,
+  compress,
+  extract,
+  watch,
+  convert-path
+)
+- Added new fields for FS Service list files
+- Added Kikx-App route to system/info
+- Added more info for App Micro Service and manager for client UI

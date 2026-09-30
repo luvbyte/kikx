@@ -45,6 +45,15 @@ class FileCreateRequest(BaseModel):
   filename: str
 
 
+# ---------------------- Batch
+class BatchOperation(BaseModel):
+  action: str
+  path: str | None = None
+  source: str | None = None
+  dest: str | None = None
+  new_name: str | None = None
+
+
 # ---------------------- Expose
 class ExposeRouteModel(BaseModel):
   path: str

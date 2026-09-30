@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from lib.os import get_username
 from lib.service import create_service
-from lib.utils import generate_uuid, joinpath
+from lib.utils import generate_uuid, joinpath, get_timestamp
 
 from core.models.services import MicroConfigModel
 
@@ -46,6 +46,7 @@ class Micro:
   ) -> None:
     self.name = name
     self.config = config
+    self.created_at = get_timestamp()
 
     self.script_path = joinpath(
       app.get_app_path() / "micro",
@@ -58,6 +59,8 @@ class Micro:
 
     self.app_id = app.id
     self.app_name = app.name
+    self.app_title = app.title
+    self.app_icon = app.manifest.icon
     self.sudo = app.is_sudo
 
     self.output: list[str] = []
@@ -94,10 +97,13 @@ class Micro:
 
   def info(self) -> dict:
     return {
+      "name": self.name,
       "app": {
         "id": self.app_id,
         "name": self.app_name,
-        "sudo": self.sudo,
+        "title": self.app_title,
+        "icon": self.app_icon,
+        "sudo": self.sudo
       },
       "status": {
         "started": self.started,
@@ -111,6 +117,7 @@ class Micro:
         "error": self.error_text,
       },
       "config": self.config,
+      "created_at": self.created_at
     }
 
   @property
@@ -138,6 +145,10 @@ class Micro:
 
     return username
 
+  # ---------------------- output
+  def on_output(self, data):
+    self.output.append(data)
+
   # ---------------------- Process
   def demote(self, user_name: str):
     def result():
@@ -160,7 +171,7 @@ class Micro:
     return asyncio.create_subprocess_exec(
       *self.cmd,
       env=self.env,
-      stdout=asyncio.subprocess.PIPE if self.config.stdout else None,
+      stdout=asyncio.subprocess.PIPE if self.config.stdout else asyncio.subprocess.DEVNULL,
       stdin=asyncio.subprocess.PIPE,
       stderr=asyncio.subprocess.PIPE,
       cwd=self.cwd,
@@ -180,8 +191,8 @@ class Micro:
 
           if not stdout_line:
             break
-
-          self.output.append(stdout_line.decode())
+          
+          self.on_output(stdout_line.decode())
 
         except asyncio.TimeoutError:
           if self.process.returncode is not None:
@@ -223,7 +234,7 @@ class Micro:
   # ---------------------- Input
   async def send(self, data: str) -> None:
     if not self.is_running or self.process.stdin is None:
-      raise RuntimeError("Task not running")
+      raise RuntimeError("Micro Service not running")
 
     self.process.stdin.write(data.encode() + b"\n")
     await self.process.stdin.drain()
@@ -275,7 +286,15 @@ class MicroServices:
   def __init__(self) -> None:
     self._active: dict[str, dict[str, Micro]] = {}
 
-  def get_active_services(self, app_name: str) -> dict[str, dict]:
+  def get_active_services(self) -> dict[str, dict]:
+    return {
+      app_name: [
+        service.info() for service in services.values()
+      ]
+      for app_name, services in self._active.items()
+    }
+
+  def get_app_active_services(self, app_name: str) -> dict[str, dict]:
     app_services = self._active.get(app_name, {})
 
     return {
@@ -313,8 +332,8 @@ class MicroServices:
     return service.info()
 
   # ---------------------- Stop
-  async def stop_service(self, app, name: str) -> None:
-    services = self._active.get(app.name, {})
+  async def stop_service(self, app_name: str, name: str) -> None:
+    services = self._active.get(app_name, {})
     service = services.get(name)
 
     if service is None:
@@ -326,7 +345,7 @@ class MicroServices:
     del services[name]
 
     if not services:
-      del self._active[app.name]
+      del self._active[app_name]
 
   # ---------------------- Stop All
   async def stop_all(self, app_name: str) -> None:
@@ -342,16 +361,14 @@ class MicroServices:
     del self._active[app_name]
 
   # ---------------------- App Close
-  async def on_close_app(
-    self,
-    _,
-    app_name: str,
-    force: bool = False,
-  ) -> None:
+  async def remove_app_services(
+    self, app_name: str,
+    force: bool = False
+  ):
     core = srv.get_core()
 
     # Other instances of this app are still active.
-    if core.get_apps_by_name(app_name):
+    if core.get_apps_by_name(app_name) and not force:
       return
 
     services = self._active.get(app_name)
@@ -369,6 +386,9 @@ class MicroServices:
 
     if not services:
       del self._active[app_name]
+
+  async def on_close_app(self, _, app_name: str) -> None:
+    await self.remove_app_services(app_name)
 
   # ---------------------- Shutdown
   async def on_close(self) -> None:
@@ -402,12 +422,12 @@ async def shutdown(_) -> None:
 
 # ---------------------- Routes
 @srv.router.get("/list")
-def get_active_services(
+def list_app_active_services(
   request: Request,
   app=Depends(get_app),
 ):
   try:
-    return micro.get_active_services(app.name)
+    return micro.get_app_active_services(app.name)
   except Exception as e:
     srv.exception(500, e)
 
@@ -430,7 +450,7 @@ async def stop_service(
   app=Depends(get_app),
 ):
   try:
-    await micro.stop_service(app, name)
+    await micro.stop_service(app.name, name)
     return srv.ok()
   except Exception as e:
     srv.exception(500, e)
@@ -478,3 +498,25 @@ async def send_service_input(
     return srv.ok()
   except Exception as e:
     srv.exception(500, e)
+
+# ---------------------- Micor Manager Routes
+@srv.router.get("/manager/list")
+def manager_list_services(request: Request):
+  srv.get_client(request)
+
+  return micro.get_active_services()
+
+@srv.router.get("/manager/remove-app-services")
+async def remove_app_services(
+  request: Request,
+  app_name: str,
+  service_name: str | None = None
+):
+  srv.get_client(request)
+
+  if service_name is None:
+    await micro.remove_app_services(app_name, force=True)
+  else:
+    await micro.stop_service(app_name, service_name)
+  
+  return srv.ok()

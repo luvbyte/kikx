@@ -1,33 +1,53 @@
-import mimetypes
+import os
 import stat
-
-from datetime import datetime
-from pathlib import Path
+import mimetypes
 
 from PIL import Image
+from pathlib import Path
+from datetime import datetime
 
 from lib.utils import joinpath
+from .config import IMAGE_EXTENSIONS, FORMAT_MAP
 
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
-
-FORMAT_MAP = {
-  ".jpg": "JPEG",
-  ".jpeg": "JPEG",
-  ".png": "PNG",
-  ".gif": "GIF",
-  ".webp": "WEBP",
-  ".bmp": "BMP",
-}
 
 
 def to_list(value):
   return value if isinstance(value, list) else [value]
 
-
 # ---------------------- Path Info
-def get_path_info(path: Path) -> dict:
-  stat_result = path.stat()
+
+def get_path_info(path: Path, kikxpath: str) -> dict:
+  try:
+    stat_result = path.stat()
+  except OSError:
+    return {
+      "name": path.name,
+      "stem": path.stem,
+      "suffix": path.suffix,
+      "directory": None,
+      "items_count": None,
+      "absolute_path": str(path.absolute()),
+      "kikxpath": kikxpath,
+      "size_bytes": None,
+      "created": None,
+      "modified": None,
+      "accessed": None,
+      "owner": None,
+      "group": None,
+      "permissions": None,
+      "exists": None,
+      "is_file": None,
+      "is_symlink": None,
+      "image_type": path.suffix.lower() in IMAGE_EXTENSIONS,
+      "mime_type": None,
+      "encoding": None,
+    }
+
+  mode = stat_result.st_mode
+  is_dir = stat.S_ISDIR(mode)
+  is_file = stat.S_ISREG(mode)
+  is_symlink = stat.S_ISLNK(mode)
 
   try:
     owner = path.owner()
@@ -39,42 +59,44 @@ def get_path_info(path: Path) -> dict:
   except (KeyError, OSError):
     group = str(stat_result.st_gid)
 
-  is_dir = path.is_dir()
-
   items_count = None
 
   if is_dir:
     try:
-      items_count = sum(1 for _ in path.iterdir())
-    except (PermissionError, OSError):
+      with os.scandir(path) as entries:
+        items_count = sum(1 for _ in entries)
+    except OSError:
       items_count = 0
 
-  mime_type, encoding = mimetypes.guess_type(str(path))
+  suffix = path.suffix
+  mime_type, encoding = mimetypes.guess_type(path.name)
 
   return {
     "name": path.name,
     "stem": path.stem,
-    "suffix": path.suffix,
+    "suffix": suffix,
     "directory": is_dir,
     "items_count": items_count,
-    "absolute_path": str(path.resolve()),
+    "absolute_path": str(path.absolute()),
+    "kikxpath": kikxpath,
     "size_bytes": stat_result.st_size,
     "created": datetime.fromtimestamp(stat_result.st_ctime).isoformat(),
     "modified": datetime.fromtimestamp(stat_result.st_mtime).isoformat(),
     "accessed": datetime.fromtimestamp(stat_result.st_atime).isoformat(),
     "owner": owner,
     "group": group,
-    "permissions": oct(stat.S_IMODE(stat_result.st_mode)),
-    "exists": path.exists(),
-    "is_file": path.is_file(),
-    "is_symlink": path.is_symlink(),
-    "image_type": path.suffix.lower() in IMAGE_EXTENSIONS,
+    "permissions": oct(stat.S_IMODE(mode)),
+    "exists": True,
+    "is_file": is_file,
+    "is_symlink": is_symlink,
+    "image_type": suffix.lower() in IMAGE_EXTENSIONS,
     "mime_type": mime_type,
     "encoding": encoding,
   }
 
 
 # ---------------------- Unique Path
+
 def get_unique_path(path: str | Path) -> Path:
   path = Path(path)
 
@@ -140,6 +162,7 @@ def generate_thumbnail(
 
 
 # ---------------------- Delete Thumbnail
+
 def delete_thumbnail(path: Path) -> bool:
   if not path.exists() or not path.is_file():
     return False

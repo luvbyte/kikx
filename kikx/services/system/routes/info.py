@@ -12,6 +12,12 @@ class ServiceRouter(APIRouter):
 
 router = ServiceRouter()
 
+def kikx_info(core):
+  return {
+    "version": core.version,
+    "author": core.author,
+    "dev_mode": core.is_dev_mode,
+  }
 
 # ---------------------- Sessions
 @router.get("/sessions")
@@ -115,8 +121,17 @@ def get_kikx_info(request: Request):
 
   core = srv.get_core()
 
+  return kikx_info(core)
+
+# ---------------------- Info app, kikx
+@router.get("/kikx-app")
+def get_kikx_app_info(request: Request):
+  srv = router.get_srv()
+  _, app = srv.get_client_app(request)
+  
+  core = srv.get_core()
+
   return {
-    "version": core.version,
-    "author": core.author,
-    "dev_mode": core.is_dev_mode,
+    "app": app.info(),
+    "kikx": kikx_info(core)
   }

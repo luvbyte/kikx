@@ -25,6 +25,8 @@ def load_app_manifest(core: Any, name: str, raw: bool = False, both: bool = Fals
   meta = {
     "name": name,
     "title": manifest.title,
+    "version": manifest.version,
+    "author": manifest.author,
     "icon": f"/public/app/{name}/{manifest.icon}",
     "splash": f"/public/app/{name}/{manifest.splash}" if manifest.splash else None,
     "theme": manifest.theme,

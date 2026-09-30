@@ -49,11 +49,14 @@ async def _forward_request(
           content=body,
         )
 
-    # Don't forward transfer-encoding because httpx handles it.
     response_headers = {
       key: value
       for key, value in response.headers.items()
-      if key.lower() != "transfer-encoding"
+      if key.lower() not in {
+        "transfer-encoding",
+        "content-encoding",
+        "content-length",
+      }
     }
 
     # Add CORS headers for browser requests.

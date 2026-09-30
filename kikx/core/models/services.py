@@ -1,6 +1,8 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import StrictBaseModel
 
 
 # ---------------------- Storage
@@ -8,7 +10,7 @@ StorageName = Literal["root", "home", "os", "osr"]
 StorageType = Literal["none", "read", "write", "read-write"]
 
 
-class FSConfigModel(BaseModel):
+class FSConfigModel(StrictBaseModel):
   root: StorageType = Field(
     default="none",
     description="Root storage permission",
@@ -31,7 +33,7 @@ class FSConfigModel(BaseModel):
 
 
 # ---------------------- Tasker
-class TaskerConfigModel(BaseModel):
+class TaskerConfigModel(StrictBaseModel):
   shell: bool = False
 
   # KIKX_ environment variables
@@ -51,7 +53,7 @@ class TaskerConfigModel(BaseModel):
 
 
 # ---------------------- Micro
-class MicroConfigModel(BaseModel):
+class MicroConfigModel(StrictBaseModel):
   main: str = "main.py"
 
   # Capture stdout and save
@@ -60,9 +62,8 @@ class MicroConfigModel(BaseModel):
   # Make persistent
   persistent: bool = False
 
-
 # ---------------------- Service Config
-class ServiceConfigModel(BaseModel):
+class ServiceConfigModel(StrictBaseModel):
   tasker: TaskerConfigModel | None = None
   fs: FSConfigModel | None = None
   micro: dict[str, MicroConfigModel] | None = None

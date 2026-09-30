@@ -143,6 +143,28 @@ class AppFrameModel(StrictBaseModel):
     }
 
 
+# ---------------------- App share options
+class AppShareOptions(StrictBaseModel):
+  message: str | None = Field(
+    None,
+    max_length=30,
+    description="Share panel display message",
+  )
+  types: list[Literal["*", "file", "link", "text"]] | None = None
+  accept: list[str] | None = Field(
+    None,
+    description="Accepted file extensions, e.g. .png, .jpg, .pdf",
+  )
+
+  @field_validator("types", "accept")
+  @classmethod
+  def deduplicate(
+    cls,
+    value: list[str],
+  ) -> list[str]:
+    return list(dict.fromkeys(value))
+
+
 # ---------------------- Connection
 class ConnectionModel(StrictBaseModel):
   tracking: bool = True
@@ -197,6 +219,9 @@ class AppModel(StrictBaseModel):
     default_factory=AppSystemPermissionsModel,
     description="System permissions",
   )
+  
+  # App share options
+  share: AppShareOptions | None = None
 
   # Connection config
   connection: ConnectionModel = Field(default_factory=ConnectionModel)
