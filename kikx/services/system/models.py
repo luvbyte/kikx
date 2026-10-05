@@ -36,3 +36,4 @@ class ClientAppEventModel(BaseModel):
 class InvokeModel(BaseModel):
   action: str
   payload: dict[str, Any]
+  res_id: str | None = None

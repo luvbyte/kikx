@@ -74,6 +74,7 @@ class App:
       "title": self.title,
       "options": self.options.model_dump(),
       "manifest": self.manifest.model_dump(),
+      "user": self.user.user_data.model_dump(),
       "config": self.config.model_dump(),
       "sudo": self.is_sudo,
       "created_at": self.created_at,

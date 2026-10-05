@@ -39,15 +39,11 @@ KIKX_CONFIG = {
 PRE_INSTALL_APPS = {
   "com.kikx.appstore": (
     "https://github.com/luvbyte/kikx-appstore-app",
-    "v0.0.9", True
-  ),
-  "com.kikx.sessions": (
-    "https://github.com/luvbyte/kikx-sessions-app",
-    "v0.1.4", True
+    "v0.1.0", True
   ),
   "com.kikx.explorer": (
     "https://github.com/luvbyte/kikx-explorer-app",
-    "v0.1.7", True
+    "v0.1.8", True
   ),
   "com.kikx.florix": (
     "https://github.com/luvbyte/kikx-florix-app",
@@ -63,7 +59,7 @@ PRE_INSTALL_UI = {
   # Default UI
   "mui": (
     "https://github.com/luvbyte/kikx-mui",
-    "v0.4.3",
+    "v0.4.4",
     True
   ),
 }
@@ -73,7 +69,6 @@ PRE_INSTALL_UI = {
 # ----------------------------------
 ADMIN_APPS = [
   "com.kikx.appstore",
-  "com.kikx.sessions",
   "com.kikx.explorer"
 ]
 

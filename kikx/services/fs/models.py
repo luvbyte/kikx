@@ -58,3 +58,7 @@ class BatchOperation(BaseModel):
 class ExposeRouteModel(BaseModel):
   path: str
   expires: float | None = None
+
+class BatchExposeRouteModel(BaseModel):
+  paths: list[ExposeRouteModel | str]
+  expires: float | None = None

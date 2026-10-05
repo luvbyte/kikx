@@ -45,6 +45,7 @@ class ExposedPaths:
   # ---------------------- Add
   def add(
     self,
+    kikxpath: str,
     path: Path,
     _id: str,
     _type: str,
@@ -55,6 +56,7 @@ class ExposedPaths:
     self._exposed[uid] = {
       "id": _id,
       "root": path,
+      "kikxpath": kikxpath,
       "type": _type,
       "expires": time.time() + expires * 60 if expires is not None else None,
     }
@@ -93,5 +95,13 @@ class ExposedPaths:
   def get_path(self, uid: str, path: str | None = None) -> Path:
     ex = self.get_expose(uid)
     root = ex["root"]
+  
+    kikxpath = ex["kikxpath"]
 
-    return joinpath(root, path) if path else root
+    if path:
+      if kikxpath.endswith("://"):
+        kikxpath = f"{kikxpath}{path.lstrip('/')}"
+      else:
+        kikxpath = f"{kikxpath.rstrip('/')}/{path.lstrip('/')}"
+
+    return kikxpath, root / path if path else root

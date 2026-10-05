@@ -100,16 +100,15 @@ async def alert(
 
 # ---------------------- Invoke
 @srv.router.post("/invoke")
-async def invoke(
-  payload: InvokeModel,
-  request: Request,
-):
+async def invoke(request: Request, payload: InvokeModel):
   client, app = srv.get_client_app(request)
 
   if not app.config.system.check("invoke"):
     srv.exception(403, "Require 'invoke' permission")
 
   core = srv.get_core()
+
+  res_id = payload.res_id or generate_uuid()
 
   if payload.action == "openApp":
     app_name = payload.payload.get("name")
@@ -135,6 +134,7 @@ async def invoke(
       "invoker": {
         "id": app.id,
         "name": app.name,
+        "res_id": res_id
       },
     })
 
@@ -144,9 +144,13 @@ async def invoke(
       "invoker": {
         "id": app.id,
         "name": app.name,
+        "res_id": res_id
       },
       "payload": payload.payload,
     })
+  
+  else:
+    srv.exception(404, "Invoke action not found")
 
   return srv.ok()
 

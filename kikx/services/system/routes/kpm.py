@@ -125,17 +125,12 @@ def check_permission(request: Request):
 
 # ---------------------- Installed Apps
 @router.get("/installed-apps")
-def get_installed_apps(
-  core=Depends(check_permission),
-):
+def get_installed_apps(core=Depends(check_permission)):
   return core.get_installed_apps(raw=True)
 
 
 @router.get("/app-info")
-def get_app_info(
-  name: str,
-  core=Depends(check_permission),
-):
+def get_app_info(name: str, core=Depends(check_permission)):
   srv = router.get_srv()
 
   meta, manifest = load_app_manifest(
@@ -236,8 +231,8 @@ async def prepare_install_storage_app(
   srv = router.get_srv()
 
   try:
-    if not path.startswith("home://"):
-      srv.exception(400, f"Invalid path: {path}")
+    # if not path.startswith("home://") || path.startswith("os://") || path.startswith("osr"):
+    #   srv.exception(400, f"Invalid path: {path}")
 
     source = core.config.resolve_path(path)
 

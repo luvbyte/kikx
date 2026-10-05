@@ -32,6 +32,7 @@ from .models import (
   DeleteListModel,
   FileCreateRequest,
   ExposeRouteModel,
+  BatchExposeRouteModel,
   BatchOperation
 )
 from .utils import (
@@ -2137,6 +2138,7 @@ def expose_path(request: Request, payload: ExposeRouteModel):
   client, app = srv.get_client_or_app(request)
 
   uid = expose.add(
+    payload.path,
     path,
     app.id if app else client.id,
     "app" if app else "client",
@@ -2147,7 +2149,70 @@ def expose_path(request: Request, payload: ExposeRouteModel):
 
   return {
     "uid": uid,
+    "path": path,
+    "kikxpath": payload.path,
+    "expires": payload.expires
   }
+
+@srv.router.post("/expose-batch")
+def batch_expose(request: Request, payload: BatchExposeRouteModel):
+  client, app = srv.get_client_or_app(request)
+
+  owner_id = app.id if app else client.id
+  owner_type = "app" if app else "client"
+
+  items = []
+
+  # Validate everything first
+  for item in payload.paths:
+    if isinstance(item, str):
+      item_path = item
+      expires = payload.expires
+    else:
+      item_path = item.path
+      expires = item.expires
+
+    path = resolve_path(request, item_path, True)
+
+    if not path.exists():
+      srv.exception(404, f"Path not found: {item_path}")
+
+    items.append({
+      "path": path,
+      "item_path": item_path,
+      "path_string": item_path,
+      "expires": expires,
+    })
+
+  # Only expose after every path has been validated
+  exposed = []
+
+  for item in items:
+    expires = item["expires"]
+    kikxpath = item["item_path"]
+    
+    uid = expose.add(
+      kikxpath,
+      item["path"],
+      owner_id,
+      owner_type,
+      expires=expires,
+    )
+
+    exposed.append({
+      "uid": uid,
+      "path": item["path_string"],
+      "kikxpath": kikxpath,
+      "expires": expires
+    })
+
+    logger.info("Path exposed: %s", item["path_string"])
+
+  return {
+    "items": exposed,
+  }
+
+# Delete Expose
 
 @srv.router.delete("/expose")
 def del_expose_path(request: Request, uid: str):
@@ -2181,7 +2246,7 @@ def clear_expose(request: Request):
 def serve(uid: str, path: str | None = None):
   expose.check_uid(uid)
 
-  fpath = expose.get_path(uid, path)
+  _, fpath = expose.get_path(uid, path)
 
   if fpath is None or not fpath.is_file():
     srv.exception(404, "File not found")
@@ -2191,3 +2256,14 @@ def serve(uid: str, path: str | None = None):
     filename=fpath.name,
     content_disposition_type="attachment",
   )
+
+@srv.router.get("/serve-info/{uid}/{path:path}")
+def serve_info(uid: str, path: str | None = None):
+  expose.check_uid(uid)
+
+  kikxpath, fpath = expose.get_path(uid, path)
+
+  if fpath is None or not fpath.is_file():
+    srv.exception(404, "File not found")
+
+  return get_path_info(fpath, kikxpath)

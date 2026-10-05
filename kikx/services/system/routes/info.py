@@ -52,6 +52,7 @@ def get_sessions(
 
   return {
     "sessions": sessions,
+    "sid": client.id
   }
 
 

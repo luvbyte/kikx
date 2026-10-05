@@ -33,15 +33,21 @@ HEADERS = {
 def parse_github_repo(repo_url: str) -> tuple[str, str]:
   parsed = urlparse(repo_url)
 
-  if parsed.netloc not in ("github.com", "www.github.com"):
-    raise Exception("Invalid GitHub URL")
+  if parsed.netloc.lower() not in ("github.com", "www.github.com"):
+    raise ValueError("Invalid GitHub URL")
 
   parts = parsed.path.strip("/").split("/")
 
   if len(parts) < 2:
-    raise Exception("Invalid GitHub repository URL")
+    raise ValueError("Invalid GitHub repository URL")
 
-  return parts[0], parts[1]
+  owner = parts[0]
+  repo = parts[1].removesuffix(".git")
+
+  if not owner or not repo:
+    raise ValueError("Invalid GitHub repository URL")
+
+  return owner, repo
 
 
 # ---------------------- Extracting

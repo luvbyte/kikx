@@ -178,3 +178,13 @@
 - Added new fields for FS Service list files
 - Added Kikx-App route to system/info
 - Added more info for App Micro Service and manager for client UI
+
+## [0.4.4]
+### Added
+- FS service batch expose, serve-info routes
+
+### Changes
+- Removed sessions app as admin
+
+### Fixes
+- Kpm github link supports .git
