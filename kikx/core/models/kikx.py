@@ -9,7 +9,7 @@ from .base import StrictBaseModel
 # ---------------------- Server
 class ServerModel(StrictBaseModel):
   host: str = Field(
-    "127.0.0.1",
+    "0.0.0.0",
     description="Host to bind the server",
   )
 

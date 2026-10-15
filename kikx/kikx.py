@@ -262,7 +262,7 @@ async def app_data_file(app_id: str, path: str, starting: bool = False):
 
 
 @kikx_app.router.get("/ui/{ui_name}/{path:path}")
-def ui_file(request: Request, ui_name: str, path: str, access_token=Cookie(...)):
+def ui_file(request: Request, ui_name: str, path: str, access_token=Cookie(None)):
   """Get ui file"""
   path = "index.html" if not path.strip() else path
 

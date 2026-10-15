@@ -14,7 +14,7 @@ STORAGE_NAME = os.environ.get("KIKXFS", "kikxfs")
 # ----------------------------------
 KIKX_CONFIG = {
   "server": {
-    "host": "127.0.0.1",
+    "host": "0.0.0.0",
     "port": 1303,
     "log_level": "error",
     "access_log": False,
@@ -43,11 +43,11 @@ PRE_INSTALL_APPS = {
   ),
   "com.kikx.explorer": (
     "https://github.com/luvbyte/kikx-explorer-app",
-    "v0.1.8", True
+    "v0.1.9", True
   ),
   "com.kikx.florix": (
     "https://github.com/luvbyte/kikx-florix-app",
-    "v0.1.7", False
+    "v0.1.8", False
   )
 }
 

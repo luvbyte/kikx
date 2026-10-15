@@ -188,3 +188,12 @@
 
 ### Fixes
 - Kpm github link supports .git
+
+# [0.4.5]
+### Changes
+- Apps list api sorting alphabetical order
+- Setup server port -> 0.0.0.0
+
+### Fixes
+- UI route redirect fix when unauthorized
+- Micro, Tasker get_user bug fix which returns user even on root

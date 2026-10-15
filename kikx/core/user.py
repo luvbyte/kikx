@@ -73,7 +73,7 @@ class User:
     return parse_config(joinpath(self.uis_path, ui_name, "ui.json"), UIConfigModel)
 
   # Return installed apps list
-  def get_installed_apps(self, raw: bool = False, both: bool = False) -> list[str]:
+  def get_installed_apps(self) -> list[str]:
     return [p.name for p in self.apps_path.iterdir() if p.is_dir()]
 
   # if not found raise error

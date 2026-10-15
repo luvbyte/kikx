@@ -26,8 +26,10 @@ def get_apps_list(
   if client is None:
     raise HTTPException(401, "Client not found")
 
-  return core.get_installed_apps()
-
+  return sorted(
+    core.get_installed_apps(),
+    key=lambda app: app["title"].lower()
+  )
 
 # ---------------------- UI
 @router.get("/ui-list")

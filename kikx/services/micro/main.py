@@ -135,14 +135,19 @@ class Micro:
   @property
   def is_persistent(self) -> bool:
     return self.config.persistent
-
+  
   def get_user(self) -> str:
-    # Use the original user when running through sudo.
+    if self.sudo:
+      if os.geteuid() == 0:
+        return "root"
+  
+      return get_username()
+  
     username = os.environ.get("SUDO_USER", get_username())
-
+  
     if username == "root":
-      return "root" if self.sudo else "nobody"
-
+      return "nobody"
+  
     return username
 
   # ---------------------- output
