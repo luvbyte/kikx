@@ -8,7 +8,7 @@ def main() -> None:
 
   gconfig.kikx.dev_mode = False
 
-  from kikx import kikx_app
+  from kikx import kikx_app # type: ignore
   import uvicorn
 
   server_config = kikx_app.core.config.server

@@ -5,7 +5,6 @@ from pathlib import Path
 
 from pydantic import Field
 
-from config.setup import PRE_INSTALL_APPS
 from core.models.app import AppManifestModel, AppModel, GithubSourceModel
 from core.utils import load_app_manifest
 from lib.parser import parse_config
@@ -307,7 +306,7 @@ class AppUninstaller:
 
     return resolved_path
 
-  def uninstall(self, keep_data: bool = False) -> None:
+  def uninstall(self, keep_data: bool = False) -> bool | None:
     if not self.is_app_installed:
       raise Exception("App is not installed")
 

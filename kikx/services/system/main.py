@@ -24,7 +24,7 @@ class UpdateSettingsModel(BaseModel):
 
 # ---------------------- Close App
 @srv.router.get("/close-app")
-async def close_app(request: Request) -> None:
+async def close_app(request: Request):
   client, app = srv.get_client_app(request)
 
   await client.send_event("app:close", {
@@ -37,7 +37,7 @@ async def close_app(request: Request) -> None:
 
 # ---------------------- Client Logout
 @srv.router.post("/client-logout")
-async def client_logout(request: Request) -> None:
+async def client_logout(request: Request):
   client = srv.get_client(request)
 
   await srv.get_core().close_client(client.id)
@@ -69,7 +69,7 @@ async def client_app_event(
 async def alert(
   request: Request,
   payload: AlertModel,
-) -> None:
+) -> dict:
   client, app = srv.get_client_app(request)
 
   if not app.config.system.check("alerts"):

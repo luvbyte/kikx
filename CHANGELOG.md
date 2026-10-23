@@ -1,15 +1,19 @@
 # Changelog
 
 ## [0.2.0]
+
 ### Added
+
 - Kpm to manage apps
 - Event lister for core
 - Better logging
 
 ### Fixed
+
 - Traversal bugs
 
 ### Changed
+
 - Changed app, data config models
 - Moved storage directory to kikxfs
 - Changed services logics
@@ -17,37 +21,49 @@
 - Removed shortlinks
 
 ## [0.2.3]
+
 ### Added
+
 - App version checks
 
 ### Fixed
+
 - App tasks module task buffer size limit to 10mb
 
 ### Changed
+
 - Updated app version manifest model kikx_version or min, max
 - Fs service list directory with meta
 
 ### MUI Updates
+
 - Close app on update or uninstalling app
 
 ## [0.2.4]
+
 ### Added
+
 - Default icon for apps
 
 ### Fixed
+
 - App close in service route
 - Some minor updates & fixes
 
 ### Changed
+
 - Removed serve route in fs service
 
 ### MUI Updates
+
 - Fixed app icons grid and control center icons
 - Minor UI updates
 - Bug fixes
 
 ## [0.3.0]
+
 ### Added
+
 - OS Service
 - KV Service
 - Micro Service
@@ -57,9 +73,11 @@
 - Explorer system app
 
 ### Fixed
+
 - Some Bugs :)
 
 ### Changed
+
 - Changed app.manifest.json to app.json
 - Tasks app module quick & long task
 - Sessions & Kpm require sudo
@@ -71,6 +89,7 @@
 - updated logging
 
 ## MUI updates
+
 - App invoking
 - App Invoke Actions (wallpaper & share)
 - Added video wallpaper support
@@ -79,52 +98,71 @@
 - UI updates
 
 ## [0.3.1]
+
 ### Fixed
+
 - Bug Fixes
 
 ### MUI
+
 - Option to keep app data on uninstall
 - Better error information
 
 ## [0.3.2]
+
 ### Fixed
+
 - Bug Fixes
 - Added types hints, comments, code cleaning
 
 ### MUI
+
 - Added Errors store
 
 ## [0.3.3]
+
 ### Fixed
+
 - Bug Fixes
 
 ### Updates
+
 - System service info updates
 
 ## [0.3.4]
+
 ### Added
+
 - Added back navigation app option
 
 ### Fixed
+
 - Fixed fs service client resolve path
 
 ### Updates
+
 - Changed app tasks module kikx env variables works without shell option
 
 ## [0.3.5]
+
 ### Added
+
 - Alert label, sticky
 
 ### Updates
+
 - FS list files update limit can be set to < 0 for all files and thumbnail generate option
 
 ## [0.4.0]
+
 ### Added
+
 - Tasker service
 - OS service functions
 - FS serve expose routes
 
 ### Updates
+
 - App manifest model changes
 - Moved every config to kikx.json file
 - Removed funcx, app modules
@@ -133,28 +171,37 @@
 - FS, KV, Micro, Proxy, System services Updates
 
 ### Fixed
+
 - Bugs
 
 ## [0.4.1]
+
 ### Fixed
+
 - Fixed tasker cmd parsing
 
 ## [0.4.2]
+
 ### Changed
+
 - Increaed app manifest name, title length
 - Skip a self-referential setuid/setgid privilege drop that Android's per-app
   SELinux policy denies outright even as a no-op, breaking every micro service
   and quick task under Termux
 
 ## [0.4.3]
+
 ### Changes
+
 - Fs list files optimized speed
 
 ### Fixes
+
 - Proxy Service response headers
 - Fixed micro service stdout bug
 
 ## Added
+
 - Added more 'FS Service' routes (
   search,
   exists,
@@ -174,26 +221,44 @@
   extract,
   watch,
   convert-path
-)
+  )
 - Added new fields for FS Service list files
 - Added Kikx-App route to system/info
 - Added more info for App Micro Service and manager for client UI
 
 ## [0.4.4]
+
 ### Added
+
 - FS service batch expose, serve-info routes
 
 ### Changes
+
 - Removed sessions app as admin
 
 ### Fixes
+
 - Kpm github link supports .git
 
 # [0.4.5]
+
 ### Changes
+
 - Apps list api sorting alphabetical order
 - Setup server port -> 0.0.0.0
 
 ### Fixes
+
 - UI route redirect fix when unauthorized
 - Micro, Tasker get_user bug fix which returns user even on root
+
+# [0.4.6]
+
+### Fixes
+
+- Type fixes
+- Bug fixes
+
+### Added
+
+- Docker support

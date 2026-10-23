@@ -7,10 +7,11 @@ import logging
 
 from fastapi import Depends, Query, Request
 from pydantic import BaseModel
+from typing import Any
 
 from lib.os import get_username
 from lib.service import create_service
-from lib.utils import generate_uuid, joinpath, get_timestamp
+from lib.utils import joinpath, get_timestamp
 
 from core.models.services import MicroConfigModel
 
@@ -27,7 +28,7 @@ class ServiceInputModel(BaseModel):
 
 
 # ---------------------- Utils
-def get_app(request: Request):
+def get_app(request: Request) -> Any:
   _, app = srv.get_client_app(request)
 
   if not app.config.has_service("micro"):
@@ -42,7 +43,7 @@ class Micro:
     self,
     name: str,
     config: MicroConfigModel,
-    app,
+    app: Any,
   ) -> None:
     self.name = name
     self.config = config
@@ -95,7 +96,7 @@ class Micro:
     self.sid: int | None = None
     self.pgid: int | None = None
 
-  def info(self) -> dict:
+  def info(self) -> dict[str, Any]:
     return {
       "name": self.name,
       "app": {
@@ -151,11 +152,11 @@ class Micro:
     return username
 
   # ---------------------- output
-  def on_output(self, data):
+  def on_output(self, data: str) -> None:
     self.output.append(data)
 
   # ---------------------- Process
-  def demote(self, user_name: str):
+  def demote(self, user_name: str) -> Any:
     def result():
       pw = pwd.getpwnam(user_name)
 
@@ -172,8 +173,8 @@ class Micro:
 
     return result
 
-  def _create_process(self) -> asyncio.subprocess.Process:
-    return asyncio.create_subprocess_exec(
+  async def _create_process(self) -> asyncio.subprocess.Process:
+    return await asyncio.create_subprocess_exec(
       *self.cmd,
       env=self.env,
       stdout=asyncio.subprocess.PIPE if self.config.stdout else asyncio.subprocess.DEVNULL,
@@ -186,6 +187,9 @@ class Micro:
     )
 
   async def wait_for_complete(self) -> None:
+    if self.process is None:
+      return
+
     if self.config.stdout and self.process.stdout:
       while True:
         try:
@@ -238,7 +242,7 @@ class Micro:
 
   # ---------------------- Input
   async def send(self, data: str) -> None:
-    if not self.is_running or self.process.stdin is None:
+    if not self.is_running or self.process is None or self.process.stdin is None:
       raise RuntimeError("Micro Service not running")
 
     self.process.stdin.write(data.encode() + b"\n")
@@ -246,7 +250,7 @@ class Micro:
 
   # ---------------------- Kill
   async def _force_kill(self) -> None:
-    if not self.is_running:
+    if not self.is_running or self.pgid is None:
       logger.info(
         "Micro service '%s' already finished or not fully started",
         self.name,
@@ -260,7 +264,7 @@ class Micro:
       pass
 
   async def _kill(self, wait: int = 3) -> None:
-    if not self.is_running:
+    if not self.is_running or self.pgid is None or self.process is None:
       logger.info(
         "Micro service '%s' already finished or not fully started",
         self.name,
@@ -291,7 +295,7 @@ class MicroServices:
   def __init__(self) -> None:
     self._active: dict[str, dict[str, Micro]] = {}
 
-  def get_active_services(self) -> dict[str, dict]:
+  def get_active_services(self) -> dict[str, list[dict[str, Any]]]:
     return {
       app_name: [
         service.info() for service in services.values()
@@ -299,7 +303,7 @@ class MicroServices:
       for app_name, services in self._active.items()
     }
 
-  def get_app_active_services(self, app_name: str) -> dict[str, dict]:
+  def get_app_active_services(self, app_name: str) -> dict[str, dict[str, Any]]:
     app_services = self._active.get(app_name, {})
 
     return {
@@ -315,7 +319,7 @@ class MicroServices:
     return self._active.get(app_name, {}).get(name)
 
   # ---------------------- Start
-  async def start_service(self, app, name: str) -> dict:
+  async def start_service(self, app: Any, name: str) -> dict[str, Any]:
     app_services = self._active.setdefault(app.name, {})
 
     # Return the existing service if already active.
@@ -325,7 +329,7 @@ class MicroServices:
       return service.info()
 
     micro_config = app.config.get_service_config("micro")
-    config = micro_config.get(name) if micro_config else MicroConfigModel()
+    config = (micro_config.get(name) if micro_config else None) or MicroConfigModel()
 
     service = Micro(name, config, app)
     app_services[name] = service
@@ -367,9 +371,10 @@ class MicroServices:
 
   # ---------------------- App Close
   async def remove_app_services(
-    self, app_name: str,
-    force: bool = False
-  ):
+    self,
+    app_name: str,
+    force: bool = False,
+  ) -> None:
     core = srv.get_core()
 
     # Other instances of this app are still active.
@@ -429,7 +434,7 @@ async def shutdown(_) -> None:
 @srv.router.get("/list")
 def list_app_active_services(
   request: Request,
-  app=Depends(get_app),
+  app: Any = Depends(get_app),
 ):
   try:
     return micro.get_app_active_services(app.name)
@@ -440,7 +445,7 @@ def list_app_active_services(
 @srv.router.get("/start")
 async def start_service(
   name: str = Query(...),
-  app=Depends(get_app),
+  app: Any = Depends(get_app),
 ):
   try:
     return await micro.start_service(app, name)
@@ -452,7 +457,7 @@ async def start_service(
 async def stop_service(
   request: Request,
   name: str,
-  app=Depends(get_app),
+  app: Any = Depends(get_app),
 ):
   try:
     await micro.stop_service(app.name, name)
@@ -464,7 +469,7 @@ async def stop_service(
 @srv.router.get("/stop-all")
 async def stop_all_service(
   request: Request,
-  app=Depends(get_app),
+  app: Any = Depends(get_app),
 ):
   try:
     await micro.stop_all(app.name)
@@ -477,7 +482,7 @@ async def stop_all_service(
 def get_service_output(
   request: Request,
   name: str,
-  app=Depends(get_app),
+  app: Any = Depends(get_app),
 ):
   service = micro.get_service(app.name, name)
 
@@ -491,8 +496,8 @@ def get_service_output(
 async def send_service_input(
   request: Request,
   payload: ServiceInputModel,
-  app=Depends(get_app),
-):
+  app: Any = Depends(get_app),
+) -> Any:
   service = micro.get_service(app.name, payload.name)
 
   if service is None:

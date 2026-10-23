@@ -11,15 +11,15 @@ T = TypeVar("T", bound=BaseModel)
 
 def load_or_create_config(path: Path, model: Type[T]) -> T:
   try:
-    data = path.read_json()
+    data = json.loads(path.read_text(encoding="utf-8"))
     return model.model_validate(data)
-
-  except Exception:
+  except (FileNotFoundError, json.JSONDecodeError, ValueError, TypeError):
     config = model()
-
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
-
+    path.write_text(
+      config.model_dump_json(indent=2),
+      encoding="utf-8",
+    )
     return config
 
 

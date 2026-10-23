@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Request
 
 
@@ -6,7 +8,7 @@ class ServiceRouter(APIRouter):
     super().__init__()
     self._srv = None
 
-  def get_srv(self):
+  def get_srv(self) -> Any:
     return self._srv
 
 

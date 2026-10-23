@@ -25,7 +25,7 @@ class KikxService:
     self._includes: dict[str, Any] = {}
 
     # Sub routes
-    self._include_routes: dict[APIRouter, str] = {}
+    self._include_routes: dict[str, APIRouter] = {}
 
     # Service events
     self._events: Events = Events()
@@ -42,10 +42,10 @@ class KikxService:
     await self._events.emit("shutdown", core, ignore_errors=False)
 
   # Include sub routes
-  def include(self, router: APIRouter, prefix: str, tags: list[str] | None = None) -> None:
-    router._srv = self
+  def include(self, router: APIRouter, prefix: str, tags: list | None = None) -> None:
+    router._srv = self # type: ignore
 
-    self.router.include_router(router, prefix=prefix, tags=tags or [])
+    self.router.include_router(router, prefix=prefix, tags=tags)
     self._include_routes[prefix] = router
 
     func = getattr(router, "on_router_init", None)
@@ -57,7 +57,7 @@ class KikxService:
     return self._includes.get(name, None)
 
   # Raise HTTPException with status_code, detail
-  def exception(self, status_code: int = 500, exception: str = "Unknown Error") -> None:
+  def exception(self, status_code: int = 500, exception: str | Any = "Unknown Error"):
     if isinstance(exception, HTTPException):
       raise exception
 
@@ -107,7 +107,7 @@ class KikxService:
 
   # Get client / app from request
   # Client: (client, None) | App: (client, app)
-  def get_client_or_app(self, request: Request) -> tuple[Any, Any | None]:
+  def get_client_or_app(self, request: Request) -> tuple[Any, Any]:
     if "kikx-client-id" in request.headers:
       return self.get_client(request), None
 

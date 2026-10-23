@@ -11,15 +11,14 @@ from core.models.kikx import (
 )
 from core.storage import Storage
 from lib.parser import ParseConfig
-from lib.utils import ensure_dir, joinpath
-from utils import get_root_path
+from lib.utils import ensure_dir, joinpath, get_root_path
 
 
 # ---------------------- Config
 class Config:
   """Main configuration manager for storage, paths, and app access."""
 
-  def __init__(self, storage: str) -> None:
+  def __init__(self, storage: str | Path) -> None:
     self._storage: Storage = Storage(storage)
 
     self.kikx_config_path = self.resolve_path("storage://config/kikx.json")

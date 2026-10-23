@@ -26,11 +26,11 @@ class UIConfigModel(BaseModel):
   )
 
   author: str | None = Field(
-    None,
+    default=None,
     description="UI author",
   )
 
   description: str | None = Field(
-    None,
+    default=None,
     description="UI description",
   )

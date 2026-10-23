@@ -1,12 +1,15 @@
 import os
 from sys import argv
+from pathlib import Path
 
-from utils import get_root_path
+from lib.utils import get_root_path
 
 # ----------------------------------
 # KIKX STORAGE / FILESYSTEM
 # ----------------------------------
-VOLUMES_PATH = os.environ.get("KIKX_VOLUMES", get_root_path().parent / "volumes")
+VOLUMES_PATH = Path(
+  os.environ.get("KIKX_VOLUMES", get_root_path().parent / "volumes")
+).expanduser()
 STORAGE_NAME = os.environ.get("KIKXFS", "kikxfs")
 
 # ----------------------------------
@@ -59,7 +62,7 @@ PRE_INSTALL_UI = {
   # Default UI
   "mui": (
     "https://github.com/luvbyte/kikx-mui",
-    "v0.4.4",
+    "v0.4.5",
     True
   ),
 }

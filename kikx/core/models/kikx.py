@@ -9,12 +9,12 @@ from .base import StrictBaseModel
 # ---------------------- Server
 class ServerModel(StrictBaseModel):
   host: str = Field(
-    "0.0.0.0",
+    default="0.0.0.0",
     description="Host to bind the server",
   )
 
   port: int = Field(
-    1303,
+    default=1303,
     ge=1000,
     le=65535,
     description="Port to bind the server",
@@ -27,17 +27,17 @@ class ServerModel(StrictBaseModel):
     "info",
     "debug",
   ] = Field(
-    "error",
+    default="error",
     description="Logging level",
   )
 
   access_log: bool = Field(
-    False,
+    default=False,
     description="Server access logs",
   )
 
   timeout: int = Field(
-    3,
+    default=3,
     ge=3,
     le=20,
     description="Graceful shutdown time",
@@ -57,7 +57,7 @@ class ServicesConfigModel(StrictBaseModel):
 # ---------------------- User
 class UserDataModel(StrictBaseModel):
   name: str = Field(
-    "kikx",
+    default="kikx",
     min_length=1,
     max_length=256,
     description="Name",
@@ -67,14 +67,14 @@ class UserDataModel(StrictBaseModel):
 # ---------------------- Auth
 class AuthModel(StrictBaseModel):
   access: str = Field(
-    "kikx",
+    default="kikx",
     min_length=1,
     max_length=256,
     description="Access key",
   )
 
   ui: str = Field(
-    "mui",
+    default="mui",
     description="Default UI",
   )
 

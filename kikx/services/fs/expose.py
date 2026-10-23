@@ -1,8 +1,9 @@
 import time
 
 from pathlib import Path
+from typing import Any
 
-from lib.utils import joinpath, generate_uuid
+from lib.utils import generate_uuid
 
 
 class ExposedPaths:
@@ -19,7 +20,7 @@ class ExposedPaths:
     if not self.exists(uid):
       self.srv.exception(404, "uid not found")
 
-  def get_expose(self, uid: str) -> dict:
+  def get_expose(self, uid: str) -> dict[str, Any]:
     self.check_uid(uid)
 
     ex = self._exposed[uid]
@@ -92,7 +93,7 @@ class ExposedPaths:
     return self.clear(client_id, "client")
 
   # ---------------------- Serve
-  def get_path(self, uid: str, path: str | None = None) -> Path:
+  def get_path(self, uid: str, path: str | None = None) -> tuple[str, Path]:
     ex = self.get_expose(uid)
     root = ex["root"]
   

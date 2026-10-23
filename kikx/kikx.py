@@ -3,7 +3,6 @@ import asyncio
 import logging
 
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -339,7 +338,7 @@ async def apps_websocket_endpoint(websocket: WebSocket, app_id: str):
       logger.exception(f"WebSocket(App) Exception (ID: {app.id}): {e}")
       break
 
-  await app.connection.close(websocket)
+  await app.connection.close()
 
 
 @kikx_app.router.websocket("/client")
@@ -414,4 +413,4 @@ async def websocket_client_endpoint(
       logger.exception(f"WebSocket(Client) Exception (ID: {client.id}): {e}")
       break
 
-  await client.connection.close(websocket)
+  await client.connection.close()

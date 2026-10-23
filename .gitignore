@@ -44,7 +44,7 @@ coverage.xml
 
 # PyCharm / VS Code
 .idea/
-.vscode/
+#.vscode/
 *.code-workspace
 
 # mypy
@@ -72,6 +72,7 @@ env/
 *.ini
 *.local
 .env.*
+!.env.example
 
 # Sphinx
 docs/_build/

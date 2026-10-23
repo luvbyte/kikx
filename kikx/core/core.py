@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # ---------------------- Core
 class Core:
-  def __init__(self, storage_path: str, dev_mode: bool) -> None:
+  def __init__(self, storage_path: str | Path, dev_mode: bool) -> None:
     self._dev_mode: bool = dev_mode
     self.precheck = not dev_mode
 
@@ -60,7 +61,10 @@ class Core:
   def get_admin_apps_list(self) -> list[str]:
     return list(self.config.admin_apps)
 
-  def get_client(self, client_id: str) -> Client | None:
+  def get_client(self, client_id: str | None) -> Client | None:
+    if not client_id:
+      return None
+
     return self.clients.get(client_id)
 
   def get_client_app_by_id(

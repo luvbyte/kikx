@@ -94,11 +94,11 @@ class QTask:
 
     return result
 
-  def _create_process(self) -> asyncio.subprocess.Process:
+  async def _create_process(self) -> asyncio.subprocess.Process:
     preexec = self.demote(self.get_user())
 
     if self.shell:
-      return asyncio.create_subprocess_shell(
+      return await asyncio.create_subprocess_shell(
         self.cmd,
         env=self.env,
         stdout=self.stdout,
@@ -110,7 +110,7 @@ class QTask:
         limit=10 * 1024 * 1024,  # 10 MB
       )
 
-    return asyncio.create_subprocess_exec(
+    return await asyncio.create_subprocess_exec(
       *shlex.split(self.cmd),
       env=self.env,
       stdout=self.stdout,
@@ -124,24 +124,26 @@ class QTask:
 
   # ---------------------- Run
   async def run(self, input_text: str | None) -> dict:
-    self.process = await self._create_process()
+    process = await self._create_process()
+    self.process = process
 
-    self.sid = os.getsid(self.process.pid)
-    self.pgid = os.getpgid(self.process.pid)
+    self.sid = os.getsid(process.pid)
+    self.pgid = os.getpgid(process.pid)
 
-    stdout, stderr = await self.process.communicate(
+    stdout, stderr = await process.communicate(
       input_text.encode() if input_text is not None else None,
     )
 
     return {
-      "returncode": self.process.returncode,
+      "returncode": process.returncode,
       "stdout": stdout,
       "stderr": stderr,
     }
 
   # ---------------------- Kill
   async def _force_kill(self) -> None:
-    if not self.is_running:
+    pgid = self.pgid
+    if not self.is_running or pgid is None:
       logger.info(
         "Task '%s' already finished or not fully started",
         self.id,
@@ -149,13 +151,15 @@ class QTask:
       return
 
     try:
-      os.killpg(self.pgid, signal.SIGKILL)
+      os.killpg(pgid, signal.SIGKILL)
       logger.info("Task force killed: %s", self.id)
     except ProcessLookupError:
       pass
 
   async def _kill(self, wait: int = 3) -> None:
-    if not self.is_running:
+    process = self.process
+    pgid = self.pgid
+    if not self.is_running or process is None or pgid is None:
       logger.info(
         "Task '%s' already finished or not fully started",
         self.id,
@@ -163,13 +167,13 @@ class QTask:
       return
 
     try:
-      os.killpg(self.pgid, signal.SIGTERM)
+      os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
       return
 
     try:
       await asyncio.wait_for(
-        self.process.wait(),
+        process.wait(),
         timeout=wait,
       )
 
@@ -260,14 +264,15 @@ class Task(QTask):
 
   # ---------------------- Input
   async def send(self, data: str) -> None:
-    if not self.is_running or self.process.stdin is None:
+    process = self.process
+    if not self.is_running or process is None or process.stdin is None:
       raise RuntimeError("Task not running")
 
-    self.process.stdin.write(
+    process.stdin.write(
       str(data).encode() + b"\n",
     )
 
-    await self.process.stdin.drain()
+    await process.stdin.drain()
 
   # ---------------------- Output Handler
   async def on_output(
@@ -301,11 +306,12 @@ class Task(QTask):
       )
 
     self.completed = False
-    self.process = await self._create_process()
+    process = await self._create_process()
+    self.process = process
 
     self.started = True
-    self.sid = os.getsid(self.process.pid)
-    self.pgid = os.getpgid(self.process.pid)
+    self.sid = os.getsid(process.pid)
+    self.pgid = os.getpgid(process.pid)
 
     logger.info(
       "Task started: %s | cmd=%s",
@@ -313,10 +319,15 @@ class Task(QTask):
       self.cmd,
     )
 
+    stdout = process.stdout
+    stderr = process.stderr
+    if stdout is None or stderr is None:
+      raise RuntimeError("Task output pipes are unavailable")
+
     while True:
       try:
         stdout_line = await asyncio.wait_for(
-          self.process.stdout.readline(),
+          stdout.readline(),
           timeout=self.stdout_timeout,
         )
 
@@ -335,15 +346,15 @@ class Task(QTask):
             f"{self.stdout_timeout} seconds, checking process...\n"
           )
 
-        if self.process.returncode is not None:
+        if process.returncode is not None:
           break
 
-    await self.process.wait()
+    await process.wait()
 
-    stderr = await self.process.stderr.read()
+    stderr_output = await stderr.read()
 
-    if stderr:
-      self.error_text = stderr.decode()
+    if stderr_output:
+      self.error_text = stderr_output.decode()
 
       if handler is not None:
         await handler.error(self.error_text)
@@ -363,7 +374,9 @@ class Tasks:
     # Use the tasker config or the default config.
     self.config: TaskerConfigModel = (
       app.config.get_service_config("tasker")
-      or TaskerConfigModel()
+      or TaskerConfigModel(
+        main="{python} -u {app}/tasks/{name}.py {args}",
+      )
     )
 
     self.task_cwd = str(app.get_app_data_path())
@@ -414,11 +427,11 @@ class Tasks:
     self.sudo = app.is_sudo
     self.send_event = app.send_event
 
-    self.active_tasks: dict[str, Task] = {}
+    self.active_tasks: dict[str, QTask] = {}
 
   def __on_coro_task_complete(
     self,
-    task: asyncio.Task,
+    task: asyncio.Task[None],
   ) -> None:
     logger.info(
       "Task completed: %s",
@@ -429,7 +442,7 @@ class Tasks:
   def get_task(self, task_id: str) -> Task:
     task = self.active_tasks.get(task_id)
 
-    if task is None:
+    if not isinstance(task, Task):
       raise RuntimeError(f"Task not found: {task_id}")
 
     return task

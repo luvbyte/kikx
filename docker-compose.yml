@@ -1,0 +1,14 @@
+services:
+  kikx:
+    build: .
+    ports:
+      - "1303:1303"
+    environment:
+      KIKX_ACCESS_KEY: ${KIKX_ACCESS_KEY:-}
+      KIKX_USERNAME: ${KIKX_USERNAME:-kikx}
+    volumes:
+      - kikx-data:/data
+    restart: unless-stopped
+
+volumes:
+  kikx-data:

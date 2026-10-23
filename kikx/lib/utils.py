@@ -95,7 +95,7 @@ def import_relative_module(path: str, name: str) -> Any:
   return import_module(path, name)
 
 
-def dynamic_import(module_name: str, file_path: str, cache: bool = False) -> Any:
+def dynamic_import(module_name: str, file_path: str | Path, cache: bool = False) -> Any:
   """
   Dynamically import a Python module from a file path.
 
@@ -131,7 +131,7 @@ def dynamic_import(module_name: str, file_path: str, cache: bool = False) -> Any
 
 # ---------------------- Websocket
 
-def is_websocket_connected(ws: WebSocket) -> bool:
+def is_websocket_connected(ws: WebSocket | None) -> bool:
   if not isinstance(ws, WebSocket):
     return False
 
@@ -141,7 +141,7 @@ def is_websocket_connected(ws: WebSocket) -> bool:
   )
 
 
-async def send_event(websocket: WebSocket, event: str, payload: Any) -> None:
+async def send_event(websocket: WebSocket | None, event: str, payload: Any) -> None:
   """
   Send a JSON event to a WebSocket client.
 
@@ -150,7 +150,7 @@ async def send_event(websocket: WebSocket, event: str, payload: Any) -> None:
     event: Event name string.
     payload: Dict or callable returning a dict.
   """
-  if is_websocket_connected(websocket):
+  if websocket and is_websocket_connected(websocket):
     try:
       await websocket.send_json({
         "event": event,
@@ -177,7 +177,12 @@ def convert_to_base64(data: bytes) -> str:
 
 # ---------------------- Path
 
-def ensure_dir(path: str | Path) -> str | Path:
+# Get project path
+def get_root_path() -> Path:
+  return Path(__file__).resolve().parent.parent
+
+
+def ensure_dir(path: str | Path) -> Path:
   """
   Ensure a directory exists; create it if missing.
 
@@ -187,6 +192,7 @@ def ensure_dir(path: str | Path) -> str | Path:
   Returns:
     Same path.
   """
+  path = Path(path)
   Path(path).mkdir(parents=True, exist_ok=True)
   return path
 

@@ -35,6 +35,9 @@ class KikxServer:
     )
 
     while True:
+      if not self.process.stdout:
+        break
+
       line = await self.process.stdout.readline()
 
       if not line:

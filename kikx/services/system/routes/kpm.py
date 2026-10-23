@@ -5,12 +5,14 @@ import shutil
 import tempfile
 
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel
 
 from lib.hash import hash_file
 from lib.utils import file_response, generate_uuid, joinpath
+from lib.service import KikxService
 
 from core.kpm import AppInstaller, AppUninstaller
 from core.setup.pkg import (
@@ -52,7 +54,7 @@ def clean_temp_id(temp_id: str) -> None:
 class ServiceRouter(APIRouter):
   def __init__(self) -> None:
     super().__init__()
-    self._srv = None
+    self._srv: KikxService | None = None
     self._temp_maps: dict = {}
 
   def _prepare_map(
@@ -60,7 +62,7 @@ class ServiceRouter(APIRouter):
     temp_id: str,
     _id: str,
     _type: str,
-    source: str | dict,
+    source: str | dict[str, Any],
   ):
     self._temp_maps[temp_id] = {
       "id": _id,
@@ -98,7 +100,9 @@ class ServiceRouter(APIRouter):
   def on_router_init(self, srv):
     srv.add_event("startup", self._on_router_init)
 
-  def get_srv(self):
+  def get_srv(self) -> KikxService:
+    if self._srv is None:
+      raise Exception("KikxService not intialized")
     return self._srv
 
 
@@ -312,7 +316,7 @@ async def prepare_install_github_app(
       uid,
       app.id if app else client.id,
       "app" if app else "client",
-      source=source,
+      source=source # type: ignore
     )
 
     return {

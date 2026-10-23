@@ -1,5 +1,6 @@
 import os
 import json
+from typing import Any
 import uuid
 import time
 import shutil
@@ -32,8 +33,7 @@ from .models import (
   DeleteListModel,
   FileCreateRequest,
   ExposeRouteModel,
-  BatchExposeRouteModel,
-  BatchOperation
+  BatchExposeRouteModel
 )
 from .utils import (
   to_list,
@@ -501,7 +501,7 @@ def list_files(
   dir_path = Path(resolve_path(request, directory, True))
 
   offset = max(0, offset)
-  limit = max(1, min(limit, 500)) if limit > 0 else None
+  list_limit = max(1, min(limit, 500)) if limit > 0 else None
 
   filter = filter.lower()
   search = search.lower().strip()
@@ -557,7 +557,7 @@ def list_files(
       srv.exception(400, "Invalid sort field")
 
     total = len(entries)
-    selected = entries[offset:] if limit is None else entries[offset:offset + limit]
+    selected = entries[offset:] if list_limit is None else entries[offset:offset + list_limit]
 
     files = []
 
@@ -584,10 +584,10 @@ def list_files(
     return {
       "directory": directory,
       "offset": offset,
-      "limit": limit,
+      "limit": list_limit,
       "count": count,
       "total": total,
-      "has_more": offset + count < total if limit else False,
+      "has_more": offset + count < total if list_limit else False,
       "sort": sort,
       "asc": asc,
       "filter": filter,
@@ -1405,7 +1405,7 @@ def tree(
   if depth < 0:
     srv.exception(400, "Invalid depth")
 
-  def build_tree(path, current_depth):
+  def build_tree(path, current_depth) -> list[Any]:
     result = []
 
     if current_depth > depth:
@@ -1425,7 +1425,7 @@ def tree(
       try:
         is_dir = entry.is_dir(follow_symlinks=False)
 
-        info = {
+        info: dict[str, Any] = {
           "name": entry.name,
           "path": str(
             Path(directory)

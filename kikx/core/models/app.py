@@ -101,7 +101,7 @@ class AppSystemPermissionsModel(StrictBaseModel):
 # ---------------------- Iframe
 class AppFrameModel(StrictBaseModel):
   allowfullscreen: bool = Field(
-    False,
+    default=False,
     description="Allow fullscreen mode",
   )
 
@@ -109,7 +109,7 @@ class AppFrameModel(StrictBaseModel):
   allow: list[AppFrameAllowFeature] = Field(default_factory=list)
 
   loading: Literal["lazy", "eager"] = Field(
-    "eager",
+    default="eager",
     description="Lazy or eager loading",
   )
 
@@ -118,11 +118,14 @@ class AppFrameModel(StrictBaseModel):
     "origin",
     "unsafe-url",
   ] = Field(
-    "no-referrer",
+    default="no-referrer",
     description="Controls referrer information",
   )
 
-  canGoBack: bool = False
+  canGoBack: bool = Field(
+    default=False,
+    description="Allow app back navigation"
+  )
 
   @field_validator("sandbox", "allow")
   @classmethod
@@ -249,37 +252,37 @@ class AppManifestModel(AppModel):
   web: str = "www"
 
   icon: str = Field(
-    "icon.png",
+    default="icon.png",
     description="App icon",
   )
 
   splash: str | None = Field(
-    None,
+    default=None,
     description="Splash screen image",
   )
 
   category: str | None = Field(
-    None,
+    default=None,
     description="App category",
   )
 
   author: str | None = Field(
-    None,
+    default=None,
     description="App author",
   )
 
   description: str | None = Field(
-    None,
+    default=None,
     description="App description",
   )
 
   source: Literal["local"] | GithubSourceModel = Field(
-    "local",
+    default="local",
     description="App installed source",
   )
 
   theme: str = Field(
-    "dark",
+    default="dark",
     description="App UI theme",
   )
 

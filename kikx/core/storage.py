@@ -4,7 +4,7 @@ from lib.utils import ensure_dir, joinpath
 
 
 class Storage:
-  def __init__(self, storage_path: str) -> None:
+  def __init__(self, storage_path: str | Path) -> None:
     self.storage_path: Path = Path(storage_path)
 
     if not self.storage_path.exists():

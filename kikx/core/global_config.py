@@ -6,6 +6,7 @@ class KikxGConfig:
 # ---------------------- Global Config
 class GlobalConfig:
   _instance = None
+  kikx = KikxGConfig()
 
   def __new__(cls):
     if cls._instance is None:

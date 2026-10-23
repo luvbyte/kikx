@@ -28,18 +28,25 @@ def ask_option():
 
 
 def ask_storage_path():
+  volumes_path = Path(VOLUMES_PATH).expanduser().resolve()
+
   while True:
     fs_name = scr.ask("Enter storage name", "kikxfs").strip()
 
-    try:
-      path = Path(VOLUMES_PATH / fs_name).expanduser()
-    except (TypeError, ValueError):
-      scr.error("Invalid storage path.")
+    storage_name = Path(fs_name)
+    if (
+      not fs_name
+      or storage_name.is_absolute()
+      or ".." in storage_name.parts
+    ):
+      scr.error("Enter a storage name inside the volumes directory.")
       continue
 
-    # Avoid accidentally using the filesystem root.
-    if path == path.anchor:
-      scr.error("Using the filesystem root as storage is not allowed.")
+    path = (volumes_path / storage_name).resolve()
+
+    # Resolve first so symlinks and traversal cannot redirect setup outside volumes.
+    if path == volumes_path or not path.is_relative_to(volumes_path):
+      scr.error("Storage path must be inside the volumes directory.")
       continue
 
     return path
